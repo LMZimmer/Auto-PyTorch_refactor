@@ -4,12 +4,13 @@ from sklearn.impute import SimpleImputer
 import numpy as np
 from typing import Optional
 
-FILL_VALUE = 2
 
 class CategoricalImputer(AutoPytorchComponent):
     '''
     Impute missing values for categorical columns with {FILL_VALUE}
     '''
+    FILL_VALUE = 2
+
     def __init__(self, random_state: int = None):
         self.random_state = random_state
     
