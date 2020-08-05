@@ -14,7 +14,7 @@ class CategoricalImputer(BaseImputer):
     FILL_VALUE = 2
 
     def __init__(self, random_state: int = None):
-        self.preprocessor = SimpleImputer(strategy='constant', fill_value=FILL_VALUE, copy=False)
+        self.preprocessor = SimpleImputer(strategy='constant', fill_value=CategoricalImputer.FILL_VALUE, copy=False)
         self.random_state = random_state
 
 
