@@ -4,18 +4,12 @@ from sklearn.impute import SimpleImputer
 import numpy as np
 from typing import Optional
 
+TBaseImputer = TypeVar("TBaseImputer", bound="BaseImputer")
 
-class CategoricalImputer(AutoPytorchComponent):
-    '''
-    Impute missing values for categorical columns with {FILL_VALUE}
-    '''
-    FILL_VALUE = 2
 
-    def __init__(self, random_state: int = None):
-        self.random_state = random_state
+class BaseImputer(AutoPytorchComponent):
     
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> CategoricalImputer:
-        self.preprocessor = SimpleImputer(strategy='constant', fill_value=FILL_VALUE, copy=False)
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseImputer":
         self.preprocessor.fit(X)
         return self
     

@@ -2,12 +2,11 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from autoPyTorch.pipeline.components.preprocessing.imputation.numerical_imputer import NumericalImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation.imputers import NumericalImputer
 
 class TestNumericalImputer(unittest.TestCase):
     
         
-    
     def test_mean_imputation(self):
         X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
                [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
