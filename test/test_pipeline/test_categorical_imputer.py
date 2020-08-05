@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from autoPyTorch.pipeline.components.preprocessing.imputation.categorical_imputer import CategoricalImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation.imputers import CategoricalImputer
 
 class TestCategoricalImputer(unittest.TestCase):
     
