@@ -20,11 +20,11 @@ class TestNumericalImputer(unittest.TestCase):
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
 
-        imputer = NumericalImputer(strategy='mean')
+        preprocessor = NumericalImputer(strategy='mean')
         
-        imputer = imputer.fit(X[train_indices])
-        X_train = imputer.transform(X[train_indices])
-        X_test = imputer.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
         assert_array_equal(X_train, np.array([[1, 3.5, 3], [4, 5, 3], [2.5, 2, 3]]))
         assert_array_equal(X_test, np.array([[2.5, 8 , 9 ], [7 , 3.5, 9 ], [4 , 3.5, 3 ]]))
@@ -35,11 +35,11 @@ class TestNumericalImputer(unittest.TestCase):
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
 
-        imputer = NumericalImputer(strategy='median')
+        preprocessor = NumericalImputer(strategy='median')
         
-        imputer = imputer.fit(X[train_indices])
-        X_train = imputer.transform(X[train_indices])
-        X_test = imputer.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
         assert_array_equal(X_train, np.array([[1, 3.5, 3], [4, 5, 3], [2.5, 2, 3]]))
         assert_array_equal(X_test, np.array([[2.5, 8 , 9 ], [7 , 3.5, 9 ], [4 , 3.5, 3 ]]))
@@ -50,11 +50,11 @@ class TestNumericalImputer(unittest.TestCase):
         
         train_indices = np.array([0, 2, 3, 1])
         test_indices = np.array([4, 5])
-        imputer = NumericalImputer(strategy='most_frequent')
+        preprocessor = NumericalImputer(strategy='most_frequent')
         
-        imputer = imputer.fit(X[train_indices])
-        X_train = imputer.transform(X[train_indices])
-        X_test = imputer.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
         assert_array_equal(X_train, np.array([[1, 2, 3], [4, 5, 3], [1, 2, 3], [1, 8, 9]]))
         assert_array_equal(X_test, np.array([[7, 2, 9], [4, 2, 3]]))
@@ -65,11 +65,11 @@ class TestNumericalImputer(unittest.TestCase):
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
 
-        imputer = NumericalImputer(strategy='constant_zero')
+        preprocessor = NumericalImputer(strategy='constant_zero')
         
-        imputer = imputer.fit(X[train_indices])
-        X_train = imputer.transform(X[train_indices])
-        X_test = imputer.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
         assert_array_equal(X_train, np.array([[1, 0, 3], [4, 5, 0], [0, 2, 3]]))
         assert_array_equal(X_test, np.array([[0, 8, 9], [7, 0, 9], [4, 0, 0]]))
@@ -83,11 +83,11 @@ class TestCategoricalImputer(unittest.TestCase):
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
 
-        imputer = CategoricalImputer()
+        preprocessor = CategoricalImputer()
 
-        imputer = imputer.fit(X[train_indices])
-        X_train = imputer.transform(X[train_indices])
-        X_test = imputer.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
         assert_array_equal(X_train, np.array([[1, 2, 3], [4, 5, 2], [2, 2, 3]]))
         assert_array_equal(X_test, np.array([[2, 8, 9], [7, 2, 9], [4, 2, 2]]))
