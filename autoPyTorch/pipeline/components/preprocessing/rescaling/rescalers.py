@@ -30,16 +30,6 @@ class MinMaxScaler(BaseScaler):
     def __init__(self, random_state: int = None, feature_range: Tuple[Union[int, float], Union[int, float]] = (0,1)):
         self.random_state = random_state
         self.preprocessor = SklearnMinMaxScaler(feature_range=feature_range, copy=False)
-    
-    @staticmethod
-    def get_hyperparameter_search_space(dataset_properties: Optional[dict] = None) -> CS.ConfigurationSpace:
-        cs = CS.ConfigurationSpace()
-        minimum = CSH.UniformFloatHyperparameter("minimum", lower=0, upper=1, default_value=0)
-        maximum = CSH.UniformFloatHyperparameter("maximum", lower=0, upper=1, default_value=1)
-        cond = CS.GreaterThanCondition(minimum, maximum, minimum)
-        # cs.add_hyperparameters([minimum, maximum])
-        # cs.add_condition(cond)
-        return cs
 
 
 class StandardScaler(BaseScaler):

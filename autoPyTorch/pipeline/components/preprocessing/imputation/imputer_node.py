@@ -1,15 +1,16 @@
 from ConfigSpace.configuration_space import ConfigurationSpace
-from autoPyTorch.pipeline.base_component import AutoPytorchComponent
 from sklearn.impute import SimpleImputer
 import numpy as np
-from typing import Optional, TypeVar
+from typing import Optional
 
-TBaseImputer = TypeVar("TBaseImputer", bound="BaseImputer")
+from autoPyTorch.pipeline.components.preprocessing.base_preprocessor import autoPyTorchPreprocessingAlgorithm
 
 
-class BaseImputer(AutoPytorchComponent):
-    
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> TBaseImputer:
+class BaseImputer(autoPyTorchPreprocessingAlgorithm):
+    '''
+    Base 
+    '''
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseImputer":
         self.preprocessor.fit(X)
         return self
     

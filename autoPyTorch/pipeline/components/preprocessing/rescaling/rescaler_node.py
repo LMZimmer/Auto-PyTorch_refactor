@@ -1,14 +1,13 @@
 import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 import numpy as np
-from typing import Optional, TypeVar
+from typing import Optional
 
-TBaseScaler = TypeVar("TBaseScaler", bound="BaseScaler")
+from autoPyTorch.pipeline.components.preprocessing.base_preprocessor import autoPyTorchPreprocessingAlgorithm
 
-from autoPyTorch.pipeline.base_component import AutoPytorchComponent
 
-class BaseScaler(AutoPytorchComponent):
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> TBaseScaler:
+class BaseScaler(autoPyTorchPreprocessingAlgorithm):
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseScaler":
         self.preprocessor.fit(X)
         return self
     
