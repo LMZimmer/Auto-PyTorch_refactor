@@ -11,7 +11,7 @@ class Normalizer(BaseScaler):
     '''
     Normalise columns/features using {l1, l2, max}
     '''
-    def __init__(self, random_state: int = None, norm: str = 'l2'):
+    def __init__(self, random_state: Optional[int] = None, norm: str = 'l2'):
         self.random_state = random_state
         self.preprocessor = SklearnNormalizer(norm=norm, copy=False)
     
@@ -27,7 +27,7 @@ class MinMaxScaler(BaseScaler):
     '''
     Scale numerical columns/features into feature_range
     '''
-    def __init__(self, random_state: int = None, feature_range: Tuple[Union[int, float], Union[int, float]] = (0,1)):
+    def __init__(self, random_state: Optional[int] = None, feature_range: Tuple[Union[int, float], Union[int, float]] = (0,1)):
         self.random_state = random_state
         self.preprocessor = SklearnMinMaxScaler(feature_range=feature_range, copy=False)
 
@@ -36,7 +36,7 @@ class StandardScaler(BaseScaler):
     '''
     Standardise numerical columns/features by removing mean and scaling to unit/variance
     '''
-    def __init__(self, random_state: int = None):
+    def __init__(self, random_state: Optional[int] = None):
         self.random_state = random_state
         self.preprocessor = SklearnStandardScaler(with_mean=True, with_std=True, copy=False)
     
@@ -45,7 +45,7 @@ class NoneScaler(BaseScaler):
     '''
     No scaling performed
     '''
-    def __init__(self, random_state: int = None):
+    def __init__(self, random_state: Optional[int] = None):
         self.random_state = random_state
 
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "NoneScaler":
