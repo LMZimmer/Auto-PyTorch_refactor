@@ -22,4 +22,4 @@ class BaseScaler(autoPyTorchPreprocessingAlgorithm):
     
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[dict] = None) -> CS.ConfigurationSpace:
-        return ConfigurationSpace()
+        return CS.ConfigurationSpace()
