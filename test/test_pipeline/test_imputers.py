@@ -2,14 +2,8 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from autoPyTorch.pipeline.components.preprocessing.imputation.imputers import CategoricalImputer
-
-
-import unittest
-import numpy as np
-from numpy.testing import assert_array_equal
-
-from autoPyTorch.pipeline.components.preprocessing.imputation.imputers import NumericalImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation import CategoricalImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation import NumericalImputer
 
 
 class TestNumericalImputer(unittest.TestCase):
