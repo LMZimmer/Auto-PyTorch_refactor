@@ -7,7 +7,7 @@ import ConfigSpace.hyperparameters as CSH
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
 from autoPyTorch.pipeline.components.base_component import find_components, autoPyTorchComponent
 
-from .rescaler_node import BaseScaler
+from .base import BaseScaler
 from .rescalers import Normalizer, MinMaxScaler, StandardScaler, NoneScaler
 
 rescaling_directory = os.path.split(__file__)[0]
@@ -15,6 +15,7 @@ _rescalers = find_components(__package__,
                              rescaling_directory,
                              BaseScaler)
 
+#TODO Add possibility for third party components
 
 class RescalerChoice(autoPyTorchChoice):
     

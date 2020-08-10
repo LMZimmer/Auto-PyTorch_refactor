@@ -1,15 +1,13 @@
-from ConfigSpace.configuration_space import ConfigurationSpace
+import ConfigSpace as CS
+import ConfigSpace.hyperparameters as CSH
 import numpy as np
 from typing import Optional
 
 from autoPyTorch.pipeline.components.preprocessing.base_preprocessor import autoPyTorchPreprocessingAlgorithm
 
 
-class BaseImputer(autoPyTorchPreprocessingAlgorithm):
-    '''
-    Base 
-    '''
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseImputer":
+class BaseScaler(autoPyTorchPreprocessingAlgorithm):
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseScaler":
         self.preprocessor.fit(X)
         return self
     
@@ -23,5 +21,5 @@ class BaseImputer(autoPyTorchPreprocessingAlgorithm):
         return self.fit(X, y).transform(X)
     
     @staticmethod
-    def get_hyperparameter_search_space(dataset_properties: Optional[dict] = None) -> ConfigurationSpace:
+    def get_hyperparameter_search_space(dataset_properties: Optional[dict] = None) -> CS.ConfigurationSpace:
         return ConfigurationSpace()

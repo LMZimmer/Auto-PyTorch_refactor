@@ -13,7 +13,7 @@ class CategoricalImputer(BaseImputer):
     '''
     FILL_VALUE = 2
 
-    def __init__(self, random_state: int = None):
+    def __init__(self, random_state: Optional[int] = None):
         self.preprocessor = SimpleImputer(strategy='constant', fill_value=CategoricalImputer.FILL_VALUE, copy=False)
         self.random_state = random_state
 
@@ -22,7 +22,7 @@ class NumericalImputer(BaseImputer):
     '''
     Impute missing values for numerical columns using one of {'mean', 'median', 'most_frequent', 'constant_zero'} strategy.
     '''
-    def __init__(self, random_state: int = None, strategy: str = 'mean'):
+    def __init__(self, random_state: Optional[int] = None, strategy: str = 'mean'):
         self.random_state = random_state
         if strategy == 'constant_zero':
             self.preprocessor = SimpleImputer(strategy='constant', fill_value=0, copy=False)
