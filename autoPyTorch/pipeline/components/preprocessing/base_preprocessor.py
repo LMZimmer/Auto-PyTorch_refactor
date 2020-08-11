@@ -1,9 +1,13 @@
-from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent
 from sklearn.base import BaseEstimator
+
+from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent
 
 
 class autoPyTorchPreprocessingAlgorithm(autoPyTorchComponent):
-    def __init__(self):
+    '''
+    Base class for preprocessing algorithms.  
+    '''
+    def __init__(self) -> None:
         self.preprocessor: BaseEstimator = None
 
     def fit(self, X, y):
