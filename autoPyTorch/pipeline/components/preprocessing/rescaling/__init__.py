@@ -1,15 +1,17 @@
 import os
 from collections import OrderedDict
-from typing import Optional, List
-import ConfigSpace.hyperparameters as CSH
+from typing import Any, Dict, List, Optional
+
 from ConfigSpace.configuration_space import ConfigurationSpace
+from ConfigSpace.hyperparameters import (
+    CategoricalHyperparameter
+)
+
 import numpy as np
 
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
-from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent, find_components
-
-from .base import BaseScaler
-from .rescalers import MinMaxScaler, Normalizer, NoneScaler, StandardScaler
+from autoPyTorch.pipeline.components.base_component import find_components
+from autoPyTorch.pipeline.components.preprocessing.rescaling.base import BaseScaler
 
 rescaling_directory = os.path.split(__file__)[0]
 _rescalers = find_components(__package__,
@@ -26,7 +28,8 @@ class RescalerChoice(autoPyTorchChoice):
         components.update(_rescalers)
         return components
 
-    def get_hyperparameter_search_space(self, dataset_properties: Optional[dict] = None,
+    def get_hyperparameter_search_space(self,
+                                        dataset_properties: Optional[Dict[str, Any]] = None,
                                         default: Optional[str] = None,
                                         include: Optional[List[str]] = None,
                                         exclude: Optional[List[str]] = None) -> ConfigurationSpace:
@@ -36,8 +39,8 @@ class RescalerChoice(autoPyTorchChoice):
             dataset_properties = dict()
 
         available_preprocessors = self.get_available_components(dataset_properties=dataset_properties,
-                                                             include=include, 
-                                                             exclude=exclude)
+                                                                include=include,
+                                                                exclude=exclude)
 
         if len(available_preprocessors) == 0:
             raise ValueError("no rescalers found, please add a rescaler")
@@ -49,14 +52,14 @@ class RescalerChoice(autoPyTorchChoice):
                     default = default_
                     break
 
-        preprocessor = CSH.CategoricalHyperparameter('__choice__', 
-                                                    list(
-                                                        available_preprocessors.keys()),
-                                                    default_value = default)
+        preprocessor = CategoricalHyperparameter('__choice__',
+                                                 list(available_preprocessors.keys()),
+                                                 default_value=default)
         cs.add_hyperparameter(preprocessor)
 
         for name in available_preprocessors:
-            preprocessor_configuration_space = available_preprocessors[name].get_hyperparameter_search_space(dataset_properties)
+            preprocessor_configuration_space = available_preprocessors[name].\
+                get_hyperparameter_search_space(dataset_properties)
             parent_hyperparameter = {'parent': preprocessor, 'value': name}
             cs.add_configuration_space(name, preprocessor_configuration_space,
                                        parent_hyperparameter=parent_hyperparameter)
