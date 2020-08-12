@@ -9,7 +9,8 @@ from sklearn.base import ClassifierMixin
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
 from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
-
+from autoPyTorch.pipeline.components.preprocessing.encoding import EncoderChoice
+from autoPyTorch.pipeline.components.preprocessing.rescaling import RescalerChoice
 
 class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
     """This class is a proof of concept to integrate AutoSklearn Components
@@ -175,6 +176,8 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
         default_dataset_properties = {'target_type': 'tabular_classification'}
 
         steps.extend([
+            ("Encoder", EncoderChoice(default_dataset_properties)),
+            ("Rescaler", RescalerChoice(default_dataset_properties)),
             ("scheduler", SchedulerChoice(default_dataset_properties)),
         ])
 
