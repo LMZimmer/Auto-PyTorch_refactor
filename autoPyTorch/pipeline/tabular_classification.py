@@ -8,10 +8,16 @@ from sklearn.base import ClassifierMixin
 
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
+<<<<<<< HEAD
 from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler_choice import SchedulerChoice
 from autoPyTorch.pipeline.components.setup.network.base_network_choice import NetworkChoice
 from autoPyTorch.pipeline.components.setup.optimizer.base_optimizer_choice import OptimizerChoice
 
+=======
+from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
+from autoPyTorch.pipeline.components.preprocessing.encoding import EncoderChoice
+from autoPyTorch.pipeline.components.preprocessing.rescaling import RescalerChoice
+>>>>>>> Added Encoder, Rescaler choice to tabular classification pipeline
 
 class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
     """This class is a proof of concept to integrate AutoSklearn Components
@@ -183,8 +189,7 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
             ("network", NetworkChoice(default_dataset_properties)),
             ("optimizer", OptimizerChoice(default_dataset_properties)),
             ("lr_scheduler", SchedulerChoice(default_dataset_properties)),
-        ])
-
+            ])
         return steps
 
     def _get_estimator_hyperparameter_name(self) -> str:
