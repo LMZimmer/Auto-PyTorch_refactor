@@ -9,13 +9,13 @@ import numpy as np
 
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
 from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent, find_components
-from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
+from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler import BaseLRComponent
 
 
 directory = os.path.split(__file__)[0]
 _schedulers = find_components(__package__,
                               directory,
-                              autoPyTorchSetupComponent)
+                              BaseLRComponent)
 
 
 class SchedulerChoice(autoPyTorchChoice):

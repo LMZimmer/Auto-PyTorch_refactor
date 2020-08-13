@@ -1,7 +1,10 @@
 from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import ConfigurationSpace
-from ConfigSpace.hyperparameters import UniformFloatHyperparameter, UniformIntegerHyperparameter
+from ConfigSpace.hyperparameters import (
+    UniformFloatHyperparameter,
+    UniformIntegerHyperparameter,
+)
 
 import numpy as np
 
@@ -11,29 +14,27 @@ from torch.optim.lr_scheduler import _LRScheduler
 from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler import BaseLRComponent
 
 
-class CosineAnnealingWarmRestarts(BaseLRComponent):
+class StepLR(BaseLRComponent):
     """
-    Set the learning rate of each parameter group using a cosine annealing schedule,
-    where \eta_{max}ηmax is set to the initial lr, T_{cur} is the number of epochs
-    since the last restart and T_{i} is the number of epochs between two warm
-    restarts in SGDR
+    Decays the learning rate of each parameter group by gamma every step_size epochs.
+    Notice that such decay can happen simultaneously with other changes to the learning
+    rate from outside this scheduler. When last_epoch=-1, sets initial lr as lr.
 
     Args:
-        T_0 (int): Number of iterations for the first restart
-        T_mult (int):  A factor increases T_{i} after a restart
-        random_state (Optional[np.random.RandomState]): random state
-    """
+        step_size (int) – Period of learning rate decay.
+        gamma (float) – Multiplicative factor of learning rate decay. Default: 0.1.
 
+    """
     def __init__(
         self,
-        T_0: int,
-        T_mult: int,
+        step_size: int,
+        gamma: float,
         random_state: Optional[np.random.RandomState] = None
     ):
 
         super().__init__()
-        self.T_0 = T_0
-        self.T_mult = T_mult
+        self.gamma = gamma
+        self.step_size = step_size
         self.random_state = random_state
         self.scheduler = None  # type: Optional[_LRScheduler]
 
@@ -54,10 +55,10 @@ class CosineAnnealingWarmRestarts(BaseLRComponent):
         if 'optimizer' not in fit_params:
             raise ValueError('Cannot use scheduler without an optimizer to wrap')
 
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer=fit_params['optimizer'],
-            T_0=int(self.T_0),
-            T_mult=int(self.T_mult),
+            step_size=int(self.step_size),
+            gamma=float(self.gamma),
         )
         return self
 
@@ -74,10 +75,10 @@ class CosineAnnealingWarmRestarts(BaseLRComponent):
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict] = None
                                         ) -> ConfigurationSpace:
-        T_0 = UniformIntegerHyperparameter(
-            "T_0", 1, 20, default_value=1)
-        T_mult = UniformFloatHyperparameter(
-            "T_mult", 1.0, 2.0, default_value=1.0)
+        gamma = UniformFloatHyperparameter(
+            "gamma", 0.001, 0.9, default_value=0.1)
+        step_size = UniformIntegerHyperparameter(
+            "step_size", 1, 10, default_value=5)
         cs = ConfigurationSpace()
-        cs.add_hyperparameters([T_0, T_mult])
+        cs.add_hyperparameters([gamma, step_size])
         return cs

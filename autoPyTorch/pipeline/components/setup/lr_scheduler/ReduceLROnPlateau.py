@@ -1,7 +1,11 @@
 from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import ConfigurationSpace
-from ConfigSpace.hyperparameters import UniformFloatHyperparameter, UniformIntegerHyperparameter
+from ConfigSpace.hyperparameters import (
+    CategoricalHyperparameter,
+    UniformFloatHyperparameter,
+    UniformIntegerHyperparameter
+)
 
 import numpy as np
 
@@ -11,29 +15,34 @@ from torch.optim.lr_scheduler import _LRScheduler
 from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler import BaseLRComponent
 
 
-class CosineAnnealingWarmRestarts(BaseLRComponent):
+class ReduceLROnPlateau(BaseLRComponent):
     """
-    Set the learning rate of each parameter group using a cosine annealing schedule,
-    where \eta_{max}ηmax is set to the initial lr, T_{cur} is the number of epochs
-    since the last restart and T_{i} is the number of epochs between two warm
-    restarts in SGDR
+    Reduce learning rate when a metric has stopped improving. Models often benefit from
+    reducing the learning rate by a factor of 2-10 once learning stagnates. This scheduler
+    reads a metrics quantity and if no improvement is seen for a ‘patience’ number of epochs,
+    the learning rate is reduced.
 
     Args:
-        T_0 (int): Number of iterations for the first restart
-        T_mult (int):  A factor increases T_{i} after a restart
+        mode (str): One of min, max. In min mode, lr will be reduced when the quantity
+            monitored has stopped decreasing; in max mode it will be reduced when
+            the quantity monitored has stopped increasing
+        factor (float): Factor by which the learning rate will be reduced. new_lr = lr * factor.
+        patience (int): Number of epochs with no improvement after which learning
+            rate will be reduced.
         random_state (Optional[np.random.RandomState]): random state
     """
-
     def __init__(
         self,
-        T_0: int,
-        T_mult: int,
+        mode: str,
+        factor: float,
+        patience: int,
         random_state: Optional[np.random.RandomState] = None
     ):
 
         super().__init__()
-        self.T_0 = T_0
-        self.T_mult = T_mult
+        self.mode = mode
+        self.factor = factor
+        self.patience = patience
         self.random_state = random_state
         self.scheduler = None  # type: Optional[_LRScheduler]
 
@@ -54,10 +63,11 @@ class CosineAnnealingWarmRestarts(BaseLRComponent):
         if 'optimizer' not in fit_params:
             raise ValueError('Cannot use scheduler without an optimizer to wrap')
 
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer=fit_params['optimizer'],
-            T_0=int(self.T_0),
-            T_mult=int(self.T_mult),
+            mode=self.mode,
+            factor=float(self.factor),
+            patience=int(self.patience),
         )
         return self
 
@@ -74,10 +84,11 @@ class CosineAnnealingWarmRestarts(BaseLRComponent):
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict] = None
                                         ) -> ConfigurationSpace:
-        T_0 = UniformIntegerHyperparameter(
-            "T_0", 1, 20, default_value=1)
-        T_mult = UniformFloatHyperparameter(
-            "T_mult", 1.0, 2.0, default_value=1.0)
+        mode = CategoricalHyperparameter('mode', ['min', 'max'])
+        patience = UniformIntegerHyperparameter(
+            "patience", 5, 20, default_value=10)
+        factor = UniformFloatHyperparameter(
+            "factor", 0.01, 0.9, default_value=0.1)
         cs = ConfigurationSpace()
-        cs.add_hyperparameters([T_0, T_mult])
+        cs.add_hyperparameters([mode, patience, factor])
         return cs
