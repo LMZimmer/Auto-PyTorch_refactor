@@ -9,7 +9,7 @@ from sklearn.base import ClassifierMixin
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
 from autoPyTorch.pipeline.components.preprocessing.encoding import EncoderChoice
-from autoPyTorch.pipeline.components.preprocessing.rescaling import RescalerChoice
+from autoPyTorch.pipeline.components.preprocessing.scaling import ScalerChoice
 from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
 
 
@@ -178,7 +178,7 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
 
         steps.extend([
             ("Encoder", EncoderChoice(default_dataset_properties)),
-            ("Rescaler", RescalerChoice(default_dataset_properties)),
+            ("Rescaler", ScalerChoice(default_dataset_properties)),
             ("scheduler", SchedulerChoice(default_dataset_properties)),
         ])
 
