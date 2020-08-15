@@ -8,9 +8,10 @@ from sklearn.base import ClassifierMixin
 
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
-from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
 from autoPyTorch.pipeline.components.preprocessing.encoding import EncoderChoice
 from autoPyTorch.pipeline.components.preprocessing.rescaling import RescalerChoice
+from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
+
 
 class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
     """This class is a proof of concept to integrate AutoSklearn Components

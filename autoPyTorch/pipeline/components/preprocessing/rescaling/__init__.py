@@ -69,4 +69,4 @@ class RescalerChoice(autoPyTorchChoice):
         return cs
 
     def transform(self, X: np.ndarray) -> np.ndarray:
-        return self.choice.transform(X)
+        return self.choice.transform(X)  # type: ignore
