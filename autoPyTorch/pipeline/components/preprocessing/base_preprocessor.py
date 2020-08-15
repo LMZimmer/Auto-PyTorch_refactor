@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -14,7 +14,7 @@ class autoPyTorchPreprocessingAlgorithm(autoPyTorchComponent):
     def __init__(self) -> None:
         self.preprocessor: BaseEstimator = None
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray]) -> 'autoPyTorchPreprocessingAlgorithm':
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> autoPyTorchComponent:
         raise NotImplementedError
 
     def transform(self, X: np.ndarray) -> np.ndarray:

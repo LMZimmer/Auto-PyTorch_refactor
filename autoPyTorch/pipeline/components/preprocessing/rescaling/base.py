@@ -8,7 +8,10 @@ from autoPyTorch.pipeline.components.preprocessing.base_preprocessor import auto
 
 
 class BaseScaler(autoPyTorchPreprocessingAlgorithm):
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseScaler":
+    def fit(self,
+            X: np.ndarray,
+            y: Optional[np.ndarray] = None,
+            **fit_params: Any) -> autoPyTorchPreprocessingAlgorithm:
         self.preprocessor.fit(X)
         return self
 

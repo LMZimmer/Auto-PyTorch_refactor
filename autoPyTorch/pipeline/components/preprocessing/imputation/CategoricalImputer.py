@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -16,7 +16,7 @@ class CategoricalImputer(BaseImputer):
         self.preprocessor = SimpleImputer(strategy='constant', fill_value='!missing!', missing_values='nan', copy=False)
         self.random_state = random_state
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseImputer":
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseImputer:
         self.preprocessor.fit(X.astype(object))
         return self
 

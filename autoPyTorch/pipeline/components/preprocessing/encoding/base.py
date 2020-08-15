@@ -11,7 +11,11 @@ class BaseEncoder(autoPyTorchPreprocessingAlgorithm):
     '''
     Base class for encoder
     '''
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseEncoder":
+    def fit(self,
+            X: np.ndarray,
+            y: Optional[np.ndarray] = None,
+            **fit_params: Any) -> autoPyTorchPreprocessingAlgorithm:
+
         self.preprocessor.fit(X)
         return self
 

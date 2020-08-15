@@ -11,7 +11,11 @@ class BaseImputer(autoPyTorchPreprocessingAlgorithm):
     '''
     Base
     '''
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "BaseImputer":
+    def fit(self,
+            X: np.ndarray,
+            y: Optional[np.ndarray] = None,
+            **fit_params: Any) -> autoPyTorchPreprocessingAlgorithm:
+
         self.preprocessor.fit(X)
         return self
 

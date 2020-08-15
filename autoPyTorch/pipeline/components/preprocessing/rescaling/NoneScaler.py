@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class NoneScaler(BaseScaler):
         super(NoneScaler, self).__init__()
         self.random_state = random_state
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> "NoneScaler":
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseScaler:
         return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:
