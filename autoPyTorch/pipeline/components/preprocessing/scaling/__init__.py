@@ -10,24 +10,25 @@ from ConfigSpace.hyperparameters import (
 import numpy as np
 
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
-from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent, find_components
-from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder import BaseEncoder
+from autoPyTorch.pipeline.components.base_component import find_components
+from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler import BaseScaler
 
-encoding_directory = os.path.split(__file__)[0]
-_encoders = find_components(__package__,
-                            encoding_directory,
-                            BaseEncoder)
+rescaling_directory = os.path.split(__file__)[0]
+_rescalers = find_components(__package__,
+                             rescaling_directory,
+                             BaseScaler)
+
 # TODO Add possibility for third party components
 
 
-class EncoderChoice(autoPyTorchChoice):
+class ScalerChoice(autoPyTorchChoice):
     """
-    Allows for dynamically choosing encoding component at runtime
+    Allows for dynamically choosing scaling component at runtime
     """
 
-    def get_components(cls) -> Dict[str, autoPyTorchComponent]:
+    def get_components(self) -> OrderedDict:
         components = OrderedDict()
-        components.update(_encoders)
+        components.update(_rescalers)
         return components
 
     def get_hyperparameter_search_space(self,
@@ -45,16 +46,12 @@ class EncoderChoice(autoPyTorchChoice):
                                                                 exclude=exclude)
 
         if len(available_preprocessors) == 0:
-            raise ValueError("no encoders found, please add a encoder")
+            raise ValueError("no rescalers found, please add a rescaler")
 
         if default is None:
-            defaults = ['OneHotEncoder', 'OrdinalEncoder', 'NoneEncoder']
+            defaults = ['Normalizer', 'StandardScaler', 'MinMaxScaler', 'NoneScaler']
             for default_ in defaults:
                 if default_ in available_preprocessors:
-                    if include is not None and default_ not in include:
-                        continue
-                    if exclude is not None and default_ in exclude:
-                        continue
                     default = default_
                     break
 
