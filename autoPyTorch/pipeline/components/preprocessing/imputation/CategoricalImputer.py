@@ -4,7 +4,7 @@ import numpy as np
 
 from sklearn.impute import SimpleImputer
 
-from autoPyTorch.pipeline.components.preprocessing.imputation.base import BaseImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation.base_imputer import BaseImputer
 
 
 class CategoricalImputer(BaseImputer):
@@ -17,9 +17,29 @@ class CategoricalImputer(BaseImputer):
         self.random_state = random_state
 
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseImputer:
+        """
+        The fit function calls the fit function of the underlying model
+        and returns the transformed array.
+        Args:
+            X (np.ndarray): input features
+            y (Optional[np.ndarray]): input labels
+
+        Returns:
+            instance of self
+        """
         self.preprocessor.fit(X.astype(object))
         return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:
+        """
+        The transform function calls the transform function of the
+        underlying model and returns the transformed array.
+
+        Args:
+            X (np.ndarray): input features
+
+        Returns:
+            np.ndarray: Transformed features
+        """
         X = self.preprocessor.transform(X.astype(object))
         return X

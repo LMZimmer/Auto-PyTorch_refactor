@@ -9,7 +9,7 @@ import numpy as np
 
 from sklearn.impute import SimpleImputer
 
-from autoPyTorch.pipeline.components.preprocessing.imputation.base import BaseImputer
+from autoPyTorch.pipeline.components.preprocessing.imputation.base_imputer import BaseImputer
 
 
 class NumericalImputer(BaseImputer):
@@ -19,10 +19,11 @@ class NumericalImputer(BaseImputer):
     '''
     def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None, strategy: str = 'mean'):
         self.random_state = random_state
+        self.strategy = strategy
         if strategy == 'constant_zero':
             self.preprocessor = SimpleImputer(strategy='constant', fill_value=0, copy=False)
         else:
-            self.preprocessor = SimpleImputer(strategy=strategy, copy=False)
+            self.preprocessor = SimpleImputer(strategy=self.strategy, copy=False)
 
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
