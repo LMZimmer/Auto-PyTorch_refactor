@@ -1,7 +1,10 @@
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
+
+from ConfigSpace.configuration_space import ConfigurationSpace
 
 import numpy as np
 
+from sklearn.base import BaseEstimator
 from sklearn.impute import SimpleImputer
 
 from autoPyTorch.pipeline.components.preprocessing.imputation.base_imputer import BaseImputer
@@ -13,8 +16,8 @@ class CategoricalImputer(BaseImputer):
     '''
     def __init__(self,
                  random_state: Optional[Union[np.random.RandomState, int]] = None):
-        self.preprocessor = SimpleImputer(strategy='constant', fill_value='!missing!', missing_values='nan', copy=False)
         self.random_state = random_state
+        self.preprocessor: Optional[BaseEstimator] = None
 
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseImputer:
         """
@@ -27,6 +30,7 @@ class CategoricalImputer(BaseImputer):
         Returns:
             instance of self
         """
+        self.preprocessor = SimpleImputer(strategy='constant', fill_value='!missing!', missing_values='nan', copy=False)
         self.preprocessor.fit(X.astype(object))
         return self
 
@@ -43,3 +47,11 @@ class CategoricalImputer(BaseImputer):
         """
         X = self.preprocessor.transform(X.astype(object))
         return X
+
+
+    @staticmethod
+    def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+        return {
+            'shortname': 'CategoricalImputer',
+            'name': 'Categorical Imputer',
+        }

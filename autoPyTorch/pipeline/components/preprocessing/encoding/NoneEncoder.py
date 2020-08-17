@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
@@ -42,5 +42,9 @@ class NoneEncoder(BaseEncoder):
         """
         return X
 
-    def fit_transform(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
-        return self.fit(X, y).transform(X)
+    @staticmethod
+    def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+        return {
+            'shortname': 'NoneEncoder',
+            'name': 'None Encoder',
+        }

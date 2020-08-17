@@ -1,7 +1,8 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 
+from sklearn.base import BaseEstimator
 from sklearn.preprocessing import MinMaxScaler as SklearnMinMaxScaler
 
 from autoPyTorch.pipeline.components.preprocessing.scaling import BaseScaler
@@ -15,4 +16,17 @@ class MinMaxScaler(BaseScaler):
                  random_state: Optional[Union[np.random.RandomState, int]] = None,
                  feature_range: Tuple[Union[int, float], Union[int, float]] = (0, 1)):
         self.random_state = random_state
-        self.preprocessor = SklearnMinMaxScaler(feature_range=feature_range, copy=False)
+        self.feature_range = feature_range
+        self.preprocessor: Optional[BaseEstimator] = None
+
+    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseScaler:
+        self.preprocessor = SklearnMinMaxScaler(feature_range=self.feature_range, copy=False)
+        self.preprocessor.fit(X, y)
+        return self
+
+    @staticmethod
+    def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+        return {
+            'shortname': 'MinMaxScaler',
+            'name': 'MinMaxScaler',
+        }
