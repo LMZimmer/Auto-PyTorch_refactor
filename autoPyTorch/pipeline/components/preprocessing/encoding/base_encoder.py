@@ -24,7 +24,7 @@ class BaseEncoder(autoPyTorchPreprocessingAlgorithm):
             np.ndarray: Transformed features
         """
         if self.preprocessor is None:
-            raise NotImplementedError()
+            raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
         try:
             X = self.preprocessor.transform(X)
         except ValueError as msg:
@@ -34,4 +34,3 @@ class BaseEncoder(autoPyTorchPreprocessingAlgorithm):
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
         return ConfigurationSpace()
-

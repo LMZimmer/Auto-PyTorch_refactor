@@ -14,10 +14,10 @@ from autoPyTorch.pipeline.components.preprocessing.imputation.base_imputer impor
 
 
 class NumericalImputer(BaseImputer):
-    '''
+    """
     Impute missing values for numerical columns using
     one of {'mean', 'median', 'most_frequent', 'constant_zero'} strategy.
-    '''
+    """
     def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None, strategy: str = 'mean'):
         self.random_state = random_state
         self.strategy = strategy
@@ -41,7 +41,6 @@ class NumericalImputer(BaseImputer):
                                              default_value="mean")
         cs.add_hyperparameter(strategy)
         return cs
-
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:

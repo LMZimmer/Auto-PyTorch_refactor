@@ -1,7 +1,5 @@
 from typing import Any, Dict, Optional, Union
 
-from ConfigSpace.configuration_space import ConfigurationSpace
-
 import numpy as np
 
 from sklearn.base import BaseEstimator
@@ -45,9 +43,10 @@ class CategoricalImputer(BaseImputer):
         Returns:
             np.ndarray: Transformed features
         """
+        if self.preprocessor is None:
+            raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
         X = self.preprocessor.transform(X.astype(object))
         return X
-
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:

@@ -39,7 +39,6 @@ class NoneScaler(BaseScaler):
         """
         return X
 
-
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
         return {

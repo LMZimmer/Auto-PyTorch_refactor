@@ -24,6 +24,10 @@ class BaseScaler(autoPyTorchPreprocessingAlgorithm):
             np.ndarray: Transformed features
         """
         if self.preprocessor is None:
-            raise NotImplementedError()
+            raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
         X = self.preprocessor.transform(X)
         return X
+
+    @staticmethod
+    def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
+        return ConfigurationSpace()
