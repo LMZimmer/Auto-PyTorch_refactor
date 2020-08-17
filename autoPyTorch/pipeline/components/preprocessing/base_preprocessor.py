@@ -13,7 +13,7 @@ class autoPyTorchPreprocessingAlgorithm(TransformerMixin, autoPyTorchComponent):
      Provides abstract interface for preprocessing algorithms in AutoPyTorch.
     """
     def __init__(self) -> None:
-        self.preprocessor: BaseEstimator = None
+        self.preprocessor: Optional[BaseEstimator] = None
 
     def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> autoPyTorchComponent:
         """
