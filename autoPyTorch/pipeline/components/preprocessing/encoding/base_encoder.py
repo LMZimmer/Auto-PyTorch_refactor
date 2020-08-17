@@ -11,20 +11,6 @@ class BaseEncoder(autoPyTorchPreprocessingAlgorithm):
     """
     Base class for encoder
     """
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any
-            ) -> autoPyTorchPreprocessingAlgorithm:
-        """
-        The fit function calls the fit function of the underlying model
-        and returns the transformed array.
-        Args:
-            X (np.ndarray): input features
-            y (Optional[np.ndarray]): input labels
-
-        Returns:
-            instance of self
-        """
-        self.preprocessor.fit(X)
-        return self
 
     def transform(self, X: np.ndarray) -> np.ndarray:
         """
@@ -45,9 +31,7 @@ class BaseEncoder(autoPyTorchPreprocessingAlgorithm):
             raise ValueError('{} in {}'.format(msg, self.__class__))
         return X
 
-    def fit_transform(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
-        return self.fit(X, y).transform(X)
-
     @staticmethod
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
         return ConfigurationSpace()
+
