@@ -121,7 +121,7 @@ class TestMinMaxScaler(unittest.TestCase):
 
 class TestStandardScaler(unittest.TestCase):
 
-    def test_minmax_scaler(self):
+    def test_standard_scaler(self):
         X = np.array([[1, 2, 3], [7, 8, 9], [4, 5, 6],
                      [11, 12, 13], [17, 18, 19],
                      [14, 15, 16]])
@@ -141,7 +141,6 @@ class TestStandardScaler(unittest.TestCase):
         assert_allclose(X_test, np.array([[0.11995203, 0.11995203, 0.11995203],
                                          [1.91923246, 1.91923246, 1.91923246],
                                          [0.8396642, 0.8396642, 0.8396642]]))
-
 
 class TestNoneScaler(unittest.TestCase):
 
@@ -188,8 +187,8 @@ class TestRescalerChoice(unittest.TestCase):
             config_dict = copy.deepcopy(config.get_dictionary())
             rescaler_choice.set_hyperparameters(config)
 
-            # self.assertEqual(rescaler_choice.choice.__class__,
-            #                  rescaler_choice.get_components()[config_dict['__choice__']])
+            self.assertEqual(rescaler_choice.choice.__class__,
+                             rescaler_choice.get_components()[config_dict['__choice__']])
 
             # Then check the choice configuration
             selected_choice = config_dict.pop('__choice__', None)

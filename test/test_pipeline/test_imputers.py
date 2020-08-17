@@ -24,50 +24,50 @@ class TestNumericalImputer(unittest.TestCase):
         assert_array_equal(X_train, np.array([[1, 3.5, 3], [4, 5, 3], [2.5, 2, 3]]))
         assert_array_equal(X_test, np.array([[2.5, 8, 9], [7, 3.5, 9], [4, 3.5, 3]]))
 
-    # def test_median_imputation(self):
-    #     X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
-    #                  [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
-    #     train_indices = np.array([0, 2, 3])
-    #     test_indices = np.array([1, 4, 5])
+    def test_median_imputation(self):
+        X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
+                     [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
+        train_indices = np.array([0, 2, 3])
+        test_indices = np.array([1, 4, 5])
 
-    #     preprocessor = NumericalImputer(strategy='median')
+        preprocessor = NumericalImputer(strategy='median')
 
-    #     preprocessor = preprocessor.fit(X[train_indices])
-    #     X_train = preprocessor.transform(X[train_indices])
-    #     X_test = preprocessor.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
-    #     assert_array_equal(X_train, np.array([[1, 3.5, 3], [4, 5, 3], [2.5, 2, 3]]))
-    #     assert_array_equal(X_test, np.array([[2.5, 8, 9], [7, 3.5, 9], [4, 3.5, 3]]))
+        assert_array_equal(X_train, np.array([[1, 3.5, 3], [4, 5, 3], [2.5, 2, 3]]))
+        assert_array_equal(X_test, np.array([[2.5, 8, 9], [7, 3.5, 9], [4, 3.5, 3]]))
 
-    # def test_frequent_imputation(self):
-    #     X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
-    #                  [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
+    def test_frequent_imputation(self):
+        X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
+                     [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
 
-    #     train_indices = np.array([0, 2, 3, 1])
-    #     test_indices = np.array([4, 5])
-    #     preprocessor = NumericalImputer(strategy='most_frequent')
+        train_indices = np.array([0, 2, 3, 1])
+        test_indices = np.array([4, 5])
+        preprocessor = NumericalImputer(strategy='most_frequent')
 
-    #     preprocessor = preprocessor.fit(X[train_indices])
-    #     X_train = preprocessor.transform(X[train_indices])
-    #     X_test = preprocessor.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
-    #     assert_array_equal(X_train, np.array([[1, 2, 3], [4, 5, 3], [1, 2, 3], [1, 8, 9]]))
-    #     assert_array_equal(X_test, np.array([[7, 2, 9], [4, 2, 3]]))
+        assert_array_equal(X_train, np.array([[1, 2, 3], [4, 5, 3], [1, 2, 3], [1, 8, 9]]))
+        assert_array_equal(X_test, np.array([[7, 2, 9], [4, 2, 3]]))
 
-    # def test_zero_imputation(self):
-    #     X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
-    #                  [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
-    #     train_indices = np.array([0, 2, 3])
-    #     test_indices = np.array([1, 4, 5])
+    def test_zero_imputation(self):
+        X = np.array([[1, np.nan, 3], [np.nan, 8, 9], [4, 5, np.nan],
+                     [np.nan, 2, 3], [7, np.nan, 9], [4, np.nan, np.nan]])
+        train_indices = np.array([0, 2, 3])
+        test_indices = np.array([1, 4, 5])
 
-    #     preprocessor = NumericalImputer(strategy='constant_zero')
+        preprocessor = NumericalImputer(strategy='constant_zero')
 
-    #     preprocessor = preprocessor.fit(X[train_indices])
-    #     X_train = preprocessor.transform(X[train_indices])
-    #     X_test = preprocessor.transform(X[test_indices])
+        preprocessor = preprocessor.fit(X[train_indices])
+        X_train = preprocessor.transform(X[train_indices])
+        X_test = preprocessor.transform(X[test_indices])
 
-    #     assert_array_equal(X_train, np.array([[1, 0, 3], [4, 5, 0], [0, 2, 3]]))
-    #     assert_array_equal(X_test, np.array([[0, 8, 9], [7, 0, 9], [4, 0, 0]]))
+        assert_array_equal(X_train, np.array([[1, 0, 3], [4, 5, 0], [0, 2, 3]]))
+        assert_array_equal(X_test, np.array([[0, 8, 9], [7, 0, 9], [4, 0, 0]]))
 
 
 class TestCategoricalImputer(unittest.TestCase):
