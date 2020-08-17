@@ -72,4 +72,5 @@ class ScalerChoice(autoPyTorchChoice):
         return cs
 
     def transform(self, X: np.ndarray) -> np.ndarray:
-        return self.choice.transform(X)  # type: ignore
+        assert self.choice is not None, "Can not call transform without initialising choice"
+        return self.choice.transform(X)
