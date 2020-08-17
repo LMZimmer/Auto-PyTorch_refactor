@@ -142,6 +142,7 @@ class TestStandardScaler(unittest.TestCase):
                                          [1.91923246, 1.91923246, 1.91923246],
                                          [0.8396642, 0.8396642, 0.8396642]]))
 
+
 class TestNoneScaler(unittest.TestCase):
 
     def test_none_scaler(self):

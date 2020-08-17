@@ -1,4 +1,6 @@
-from typing import Any, Optional
+from typing import Any, Dict, Optional
+
+from ConfigSpace.configuration_space import ConfigurationSpace
 
 import numpy as np
 
@@ -25,3 +27,7 @@ class BaseImputer(autoPyTorchPreprocessingAlgorithm):
             raise NotImplementedError()
         X = self.preprocessor.transform(X)
         return X
+
+    @staticmethod
+    def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
+        return ConfigurationSpace()

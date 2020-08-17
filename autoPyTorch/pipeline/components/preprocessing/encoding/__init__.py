@@ -76,4 +76,4 @@ class EncoderChoice(autoPyTorchChoice):
 
     def transform(self, X: np.ndarray) -> np.ndarray:
         assert self.choice is not None, "Can not call transform without initialising the component"
-        return self.choice.transform(X)
+        return self.choice.transform(X)  # type: ignore

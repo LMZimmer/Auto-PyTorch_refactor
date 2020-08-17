@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Union
 
 from ConfigSpace.configuration_space import ConfigurationSpace
 from ConfigSpace.hyperparameters import CategoricalHyperparameter
+
 import numpy as np
 
 from sklearn.base import BaseEstimator
@@ -34,7 +35,6 @@ class StandardScaler(BaseScaler):
         with_std = CategoricalHyperparameter("with_std", [True, False], default_value=True)
         cs.add_hyperparameters([with_mean, with_std])
         return cs
-
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
