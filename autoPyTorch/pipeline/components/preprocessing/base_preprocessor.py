@@ -3,11 +3,12 @@ from typing import Any, Optional
 import numpy as np
 
 from sklearn.base import BaseEstimator
+from sklearn.base import TransformerMixin
 
 from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent
 
 
-class autoPyTorchPreprocessingAlgorithm(autoPyTorchComponent):
+class autoPyTorchPreprocessingAlgorithm(TransformerMixin, autoPyTorchComponent):
     """
      Provides abstract interface for preprocessing algorithms in AutoPyTorch.
     """
