@@ -23,14 +23,14 @@ class NumericalImputer(BaseImputer):
         self.strategy = strategy
         self.preprocessor: Optional[BaseEstimator] = None
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseImputer:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseImputer:
         if self.strategy == 'constant_zero':
             self.preprocessor = SimpleImputer(strategy='constant', fill_value=0, copy=False)
             # TODO remove copy=False in all preprocessors
         else:
             self.preprocessor = SimpleImputer(strategy=self.strategy, copy=False)
 
-        self.preprocessor.fit(X, y)
+        self.preprocessor.fit(X['train'])  # TODO read data from local file.
         return self
 
     @staticmethod

@@ -16,9 +16,9 @@ class OrdinalEncoder(BaseEncoder):
         self.random_state = random_state
         self.preprocessor: Optional[BaseEstimator] = None
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseEncoder:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEncoder:
         self.preprocessor = OE(categories='auto')
-        self.preprocessor.fit(X, y)
+        self.preprocessor.fit(X['train'])  # TODO read data from local file.
         return self
 
     @staticmethod
