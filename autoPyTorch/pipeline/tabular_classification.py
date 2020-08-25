@@ -8,15 +8,12 @@ from sklearn.base import ClassifierMixin
 
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
-<<<<<<< HEAD
 from autoPyTorch.pipeline.components.preprocessing.encoding import EncoderChoice
 from autoPyTorch.pipeline.components.preprocessing.scaling import ScalerChoice
 from autoPyTorch.pipeline.components.setup.lr_scheduler import SchedulerChoice
-=======
 from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler_choice import SchedulerChoice
 from autoPyTorch.pipeline.components.setup.network.base_network_choice import NetworkChoice
 from autoPyTorch.pipeline.components.setup.optimizer.base_optimizer_choice import OptimizerChoice
->>>>>>> 5191ebff9c27302dab31c3516923b21eb7216bcc
 
 
 class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
