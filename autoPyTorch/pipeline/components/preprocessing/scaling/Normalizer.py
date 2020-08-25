@@ -23,9 +23,9 @@ class Normalizer(BaseScaler):
         self.norm = norm
         self.preprocessor: Optional[BaseEstimator] = None
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseScaler:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
         self.preprocessor = SklearnNormalizer(norm=self.norm, copy=False)
-        self.preprocessor.fit(X, y)
+        self.preprocessor.fit(X['train'])  # TODO read data from local file.
         return self
 
     @staticmethod

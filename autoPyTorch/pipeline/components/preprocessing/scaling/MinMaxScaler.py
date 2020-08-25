@@ -19,9 +19,9 @@ class MinMaxScaler(BaseScaler):
         self.feature_range = feature_range
         self.preprocessor: Optional[BaseEstimator] = None
 
-    def fit(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_params: Any) -> BaseScaler:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
         self.preprocessor = SklearnMinMaxScaler(feature_range=self.feature_range, copy=False)
-        self.preprocessor.fit(X, y)
+        self.preprocessor.fit(X['train'])  # TODO read data from local file.
         return self
 
     @staticmethod
