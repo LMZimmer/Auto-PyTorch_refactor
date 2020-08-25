@@ -64,7 +64,7 @@ class BasePipeline(Pipeline):
         self.exclude = exclude if exclude is not None else {}
 
         if steps is None:
-            self.steps = self._get_pipeline_steps()
+            self.steps = self._get_pipeline_steps(dataset_properties)
         else:
             self.steps = steps
 
@@ -97,60 +97,6 @@ class BasePipeline(Pipeline):
         super().__init__(steps=self.steps)
 
         self._additional_run_info = {}  # type: Dict[str, str]
-
-    def fit(self,
-            X: np.ndarray,
-            y: np.ndarray,
-            **fit_params: Any
-            ) -> Pipeline:
-        """Fit the selected algorithm to the training data.
-
-        Args:
-            X (np.ndarray): Training data. The preferred type of the matrix (dense or sparse)
-                depends on the estimator selected.
-            y (np.ndarray): array-like Targets
-            fit_params (dict): See the documentation of sklearn.pipeline.Pipeline for formatting
-                instructions.
-
-        Returns:
-            self : returns an instance of self.
-        """
-        X, fit_params = self.fit_transformer(X, y, **fit_params)
-        self.fit_estimator(X, y, **fit_params)
-        return self
-
-    def fit_estimator(self, X: np.ndarray, y: np.ndarray, **fit_params: Any) -> Pipeline:
-        fit_params = {key.replace(":", "__"): value for key, value in
-                      fit_params.items()}
-        self._final_estimator.fit(X, y, **fit_params)
-        return self
-
-    def fit_transformer(self, X: np.ndarray, y: np.ndarray, fit_params: Any = None
-                        ) -> Tuple[np.ndarray, Any]:
-        """
-        For every component in the pipeline, calls the estimator fit method
-        in order to sequentially fit the pipeline
-
-        Args:
-            X (np.ndarray): Training data. The preferred type of the matrix (dense or sparse)
-                depends on the estimator selected.
-            y (np.ndarray): array-like Targets
-            fit_params (dict): See the documentation of sklearn.pipeline.Pipeline for formatting
-                instructions.
-
-        Returns:
-            np.ndarray : Transformed features
-            fit_params : Dictionary used by estimators to fit and pass information
-        """
-        self.num_targets = 1 if len(y.shape) == 1 else y.shape[1]
-        if fit_params is None:
-            fit_params = {}
-        fit_params = {key.replace(":", "__"): value for key, value in
-                      fit_params.items()}
-        Xt, fit_params = self._fit(X, y, **fit_params)
-        if fit_params is None:
-            fit_params = {}
-        return Xt, fit_params
 
     def get_max_iter(self) -> int:
         if self.estimator_supports_iterative_fit():
@@ -295,7 +241,19 @@ class BasePipeline(Pipeline):
             str: A formatted representation of the pipeline stages
                  and components
         """
-        raise NotImplementedError()
+        string = ''
+        string += '_' * 40
+        string += "\n\t" + self.__class__.__name__ + "\n"
+        string += '_' * 40
+        string += "\n"
+        for i, (stage_name, component) in enumerate(self.named_steps.items()):
+            string += str(i) + "-) " + stage_name + ": "
+            string += "\n\t"
+            string += str(component.choice) if hasattr(component, 'choice') else str(component)
+            string += "\n"
+            string += "\n"
+        string += '_' * 40
+        return string
 
     def _get_base_search_space(
         self,
@@ -377,7 +335,8 @@ class BasePipeline(Pipeline):
 
         return cs
 
-    def _get_pipeline_steps(self) -> List[Tuple[str, autoPyTorchChoice]]:
+    def _get_pipeline_steps(self, dataset_properties: Optional[Dict[str, Any]]
+                            ) -> List[Tuple[str, autoPyTorchChoice]]:
         """
         Defines what steps a pipeline should follow.
         The step itself has choices given via autoPyTorchChoices.

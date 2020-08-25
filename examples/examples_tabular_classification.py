@@ -10,7 +10,8 @@ from autoPyTorch.pipeline.tabular_classification import TabularClassificationPip
 
 
 # Get the training data for tabular classification
-X, y = sklearn.datasets.load_iris(return_X_y=True)
+# Move to Australian to showcase numerical vs categorical
+X, y = sklearn.datasets.fetch_openml(data_id=40981, return_X_y=True, as_frame=True)
 X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
     X,
     y,
@@ -20,16 +21,21 @@ X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
 # Create a proof of concept pipeline!
 pipeline = TabularClassificationPipeline()
 
-# Showcase some components of the pipeline
-print("Pipeline contains:\n", '_' * 40)
-for i, (stage_name, component) in enumerate(pipeline.named_steps.items()):
-    print(f"\tStep {i}: {stage_name}")
-
+# Configuration space
 pipeline_cs = pipeline.get_hyperparameter_search_space()
 print("Pipeline CS:\n", '_' * 40, f"\n{pipeline_cs}")
-print("Pipeline Random Config:\n", '_' * 40, f"\n{pipeline_cs.sample_configuration()}")
+config = pipeline_cs.sample_configuration()
+print("Pipeline Random Config:\n", '_' * 40, f"\n{config}")
+pipeline.set_hyperparameters(config)
 
-# TODO: This can only be enable when we sync up on how
-# to communicate the steps
+# Fit the pipeline
 print("Fitting the pipeline...")
-# pipeline.fit(X_train, y_train)
+pipeline.fit(X={
+    'categorical_columns': ['A1', 'A4', 'A5', 'A6', 'A8', 'A9', 'A11', 'A12'],
+    'numerical_columns': ['A2', 'A3', 'A7', 'A10', 'A13', 'A14'],
+    'num_features': 14,
+    'num_classes': 2
+})
+
+# Showcase some components of the pipeline
+print(pipeline)

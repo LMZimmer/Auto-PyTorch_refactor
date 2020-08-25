@@ -2,12 +2,11 @@ import importlib
 import inspect
 import pkgutil
 import sys
+import warnings
 from collections import OrderedDict
 from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import Configuration, ConfigurationSpace
-
-import numpy as np
 
 from sklearn.base import BaseEstimator
 
@@ -44,6 +43,47 @@ def find_components(
     return components
 
 
+class ThirdPartyComponents(object):
+    """
+    This class allow the user to create a new component for any stage of the pipeline.
+    Inheriting from the base class of each component does not provide any checks,
+    to make sure that the hyperparameter space is properly specified.
+
+    This class ensures the minimum component checking for the configuration
+    space to work.
+
+    Args:
+        base_class (BaseEstimator) component type desired to be created
+    """
+    def __init__(self, base_class: BaseEstimator) -> None:
+        self.base_class = base_class
+        self.components = OrderedDict()  # type: Dict[str, BaseEstimator]
+
+    def add_component(self, obj: BaseEstimator) -> None:
+        if inspect.isclass(obj) and self.base_class in obj.__bases__:
+            name = obj.__name__
+            classifier = obj
+        else:
+            raise TypeError('add_component works only with a subclass of %s' %
+                            str(self.base_class))
+
+        properties = set(classifier.get_properties())
+        # TODO: Add desired properties when we define them
+        should_be_there = {'shortname', 'name'}
+        for property in properties:
+            if property not in should_be_there:
+                raise ValueError('Property %s must not be specified for '
+                                 'algorithm %s. Only the following properties '
+                                 'can be specified: %s' %
+                                 (property, name, str(should_be_there)))
+        for property in should_be_there:
+            if property not in properties:
+                raise ValueError('Property %s not specified for algorithm %s' %
+                                 (property, name))
+
+        self.components[name] = classifier
+
+
 class autoPyTorchComponent(BaseEstimator):
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, str]] = None
@@ -73,13 +113,15 @@ class autoPyTorchComponent(BaseEstimator):
         """
         raise NotImplementedError()
 
-    def fit(self, X: np.ndarray, y: np.ndarray, **fit_params: Any) -> BaseEstimator:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEstimator:
         """The fit function calls the fit function of the underlying
         model and returns `self`.
 
         Args:
-            X (np.ndarray): Training data
-            y (np.ndarray): target data
+            X (Dict[str, Any]): Dictionary with fitted parameters. It is a message passing
+                mechanism, in which during a transform, a components adds relevant information
+                so that further stages can be properly fitted
+            y (Any): Not Used -- to comply with API
 
         Returns:
             self : returns an instance of self.
@@ -126,6 +168,22 @@ class autoPyTorchComponent(BaseEstimator):
                 setattr(self, param, value)
 
         return self
+
+    def check_requirements(self, X: Dict[str, Any], y: Any = None) -> None:
+        """
+        A mechanism in code to ensure the correctness of the fit dictionary
+        It recursively makes sure that the children and parent level requirements
+        are honored before fit.
+
+        Args:
+            X (Dict[str, Any]): Dictionary with fitted parameters. It is a message passing
+                mechanism, in which during a transform, a components adds relevant information
+                so that further stages can be properly fitted
+        """
+        assert isinstance(X, dict), "The input X to the pipeline must be a dictionary"
+
+        if y is not None:
+            warnings.warn("Provided y argument, yet only X is required")
 
     def __str__(self) -> str:
         """Representation of the current Component"""

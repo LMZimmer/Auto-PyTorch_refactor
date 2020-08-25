@@ -32,31 +32,26 @@ class CosineAnnealingLR(BaseLRComponent):
         self.random_state = random_state
         self.scheduler = None  # type: Optional[_LRScheduler]
 
-    def fit(self, X: np.ndarray, y: np.ndarray, **fit_params: Any
-            ) -> BaseLRComponent:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseLRComponent:
         """
-        Sets the scheduler component choice as CosineAnnealingWarmRestarts
+        Fits a component by using an input dictionary with pre-requisites
 
         Args:
-            X (np.ndarray): input features
-            y (npndarray): target features
+            X (X: Dict[str, Any]): Dependencies needed by current component to perform fit
+            y (Any): not used. To comply with sklearn API
 
         Returns:
             A instance of self
         """
 
         # Make sure there is an optimizer
-        if 'optimizer' not in fit_params:
-            raise ValueError('Cannot use scheduler without an optimizer to wrap')
+        self.check_requirements(X, y)
 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer=fit_params['optimizer'],
+            optimizer=X['optimizer'],
             T_max=int(self.T_max)
         )
         return self
-
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        return X
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
