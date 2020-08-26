@@ -60,8 +60,8 @@ class TestSimpleImputer(unittest.TestCase):
         transformed = imputer_component(data[test_indices])
 
         assert_array_equal(transformed.astype(str), np.array([['!missing!', 8.0, 9.0],
-                                                  [7.0, 3.5, 9.0],
-                                                  [4.0, 3.5, 3.0]]))
+                                                             [7.0, 3.5, 9.0],
+                                                             [4.0, 3.5, 3.0]]))
 
     def test_median_imputation(self):
         data = np.array([[1, np.nan, 3],
@@ -90,8 +90,8 @@ class TestSimpleImputer(unittest.TestCase):
         transformed = imputer_component(data[test_indices])
 
         assert_array_equal(transformed.astype(str), np.array([['!missing!', 8.0, 9.0],
-                                                  [7.0, 3.5, 9.0],
-                                                  [4.0, 3.5, 3.0]]))
+                                                             [7.0, 3.5, 9.0],
+                                                             [4.0, 3.5, 3.0]]))
 
     def test_frequent_imputation(self):
         data = np.array([[1, np.nan, 3],
@@ -120,8 +120,8 @@ class TestSimpleImputer(unittest.TestCase):
         transformed = imputer_component(data[test_indices])
 
         assert_array_equal(transformed.astype(str), np.array([['!missing!', 8.0, 9.0],
-                                                  [7.0, 2.0, 9.0],
-                                                  [4.0, 2.0, 3.0]]))
+                                                             [7.0, 2.0, 9.0],
+                                                             [4.0, 2.0, 3.0]]))
 
     def test_zero_imputation(self):
         data = np.array([[1, np.nan, 3],
@@ -150,8 +150,8 @@ class TestSimpleImputer(unittest.TestCase):
         transformed = imputer_component(data[test_indices])
 
         assert_array_equal(transformed.astype(str), np.array([['!missing!', 8.0, 9.0],
-                                                  [7.0, '0', 9.0],
-                                                  [4.0, '0', '0']]))
+                                                             [7.0, '0', 9.0],
+                                                             [4.0, '0', '0']]))
 
 
 if __name__ == '__main__':
