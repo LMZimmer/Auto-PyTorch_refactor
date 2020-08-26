@@ -48,7 +48,7 @@ class SimpleImputer(BaseImputer):
                                                                   fill_value=0,
                                                                   copy=False)
         else:
-            self.preprocessor['numerical'] = SklearnSimpleImputer(strategy=self.numerical_strategy, copy=False)  # TODO remove copy=False in all preprocessors
+            self.preprocessor['numerical'] = SklearnSimpleImputer(strategy=self.numerical_strategy, copy=False)
 
         self.column_transformer = make_column_transformer((self.preprocessor['categorical'], X['categorical_columns']),
                                                           (self.preprocessor['numerical'], X['numerical_columns']),
@@ -69,7 +69,8 @@ class SimpleImputer(BaseImputer):
             Union[np.ndarray, torch.tensor]: Transformed data tensor
         """
         if self.column_transformer is None:
-            raise ValueError("cant call {} without fitting the column transformer first.".format(self.__class__.__name__))
+            raise ValueError("cant call {} without fitting the column transformer first."
+                             .format(self.__class__.__name__))
         X = self.column_transformer.transform(X.astype(object))
         return X
 
@@ -77,8 +78,8 @@ class SimpleImputer(BaseImputer):
     def get_hyperparameter_search_space(dataset_properties: Optional[Dict[str, Any]] = None) -> ConfigurationSpace:
         cs = ConfigurationSpace()
         numerical_strategy = CategoricalHyperparameter("numerical_strategy",
-                                             ["mean", "median", "most_frequent", "constant_zero"],
-                                             default_value="mean")
+                                                       ["mean", "median", "most_frequent", "constant_zero"],
+                                                       default_value="mean")
         cs.add_hyperparameter(numerical_strategy)
         return cs
 

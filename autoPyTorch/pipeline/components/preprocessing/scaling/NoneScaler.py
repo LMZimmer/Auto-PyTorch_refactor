@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 
 import torch
+
 from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler import BaseScaler
 
 
