@@ -180,18 +180,11 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
             default_dataset_properties.update(dataset_properties)
 
         steps.extend([
-<<<<<<< HEAD
+            ("scheduler", SchedulerChoice(default_dataset_properties)),
             ("network", NetworkChoice(default_dataset_properties)),
             ("optimizer", OptimizerChoice(default_dataset_properties)),
             ("lr_scheduler", SchedulerChoice(default_dataset_properties)),
-            ])
-=======
-            ("Encoder", EncoderChoice(default_dataset_properties)),
-            ("Rescaler", ScalerChoice(default_dataset_properties)),
-            ("scheduler", SchedulerChoice(default_dataset_properties)),
         ])
-
->>>>>>> Added encoder and scaler choice to tabular pipeline
         return steps
 
     def _get_estimator_hyperparameter_name(self) -> str:

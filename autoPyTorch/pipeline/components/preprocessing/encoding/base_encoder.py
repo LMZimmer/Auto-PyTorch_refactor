@@ -26,7 +26,8 @@ class BaseEncoder(autoPyTorchPreprocessingComponent):
             (Dict[str, Any]): the updated 'X' dictionary
         """
         if self.column_transformer is None:
-            raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
+            raise ValueError("cant call transform on {} without fitting first."
+                             .format(self.__class__.__name__))
         X.update({'encoder': self})
         return X
 
@@ -42,7 +43,8 @@ class BaseEncoder(autoPyTorchPreprocessingComponent):
             Union[np.ndarray, torch.tensor]: Transformed data tensor
         """
         if self.column_transformer is None:
-            raise ValueError("cant call {} without fitting the column transformer first.".format(self.__class__.__name__))
+            raise ValueError("cant call {} without fitting the column transformer first."
+                             .format(self.__class__.__name__))
         try:
             X = self.column_transformer.transform(X)
         except ValueError as msg:
