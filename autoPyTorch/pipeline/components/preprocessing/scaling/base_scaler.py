@@ -22,9 +22,9 @@ class BaseScaler(autoPyTorchPreprocessingComponent):
         Returns:
             (Dict[str, Any]): the updated 'X' dictionary
         """
-        if self.preprocessor is None:
+        if self.column_transformer is None:
             raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
-        X.update({'scaler': self.preprocessor})
+        X.update({'scaler': self})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
@@ -38,9 +38,9 @@ class BaseScaler(autoPyTorchPreprocessingComponent):
         Returns:
             Union[np.ndarray, torch.tensor]: Transformed data tensor
         """
-        if self.preprocessor is None:
-            raise ValueError("cant call {} without fitting the preprocessor first.".format(self.__class__.__name__))
-        X = self.preprocessor.transform(X)
+        if self.column_transformer is None:
+            raise ValueError("cant call {} without fitting the column transformer first.".format(self.__class__.__name__))
+        X = self.column_transformer.transform(X)
         return X
 
     @staticmethod
