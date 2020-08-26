@@ -4,7 +4,7 @@ import numpy as np
 
 import torch
 
-from autoPyTorch.pipeline.components.preprocessing.encoding import BaseEncoder
+from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder import BaseEncoder
 
 
 class NoneEncoder(BaseEncoder):
@@ -42,10 +42,11 @@ class NoneEncoder(BaseEncoder):
         Returns:
             np.ndarray: Transformed features
         """
+        X.update({'encoder': self})
         return X
 
-    def __call__(self, X: Union[np.ndarray, torch.tensor]) -> None:
-        raise NotImplementedError
+    def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
+        return X
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:

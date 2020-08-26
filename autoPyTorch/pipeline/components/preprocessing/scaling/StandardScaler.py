@@ -5,27 +5,29 @@ from ConfigSpace.hyperparameters import CategoricalHyperparameter
 
 import numpy as np
 
-from sklearn.base import BaseEstimator
+from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
-from autoPyTorch.pipeline.components.preprocessing.scaling import BaseScaler
+from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler import BaseScaler
 
 
 class StandardScaler(BaseScaler):
     """
     Standardise numerical columns/features by removing mean and scaling to unit/variance
     """
-    def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None, with_mean: bool = True,
+    def __init__(self,
+                 random_state: Optional[Union[np.random.RandomState, int]] = None,
+                 with_mean: bool = True,
                  with_std: bool = True):
-        super().__init__()
-        self.random_state = random_state
+        super().__init__(random_state)
         self.with_mean = with_mean
         self.with_std = with_std
-        self.preprocessor: Optional[BaseEstimator] = None
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
         self.preprocessor = SklearnStandardScaler(with_mean=self.with_mean, with_std=self.with_std, copy=False)
-        self.preprocessor.fit(X['train'])  # TODO read data from local file.
+        self.column_transformer = make_column_transformer((self.preprocessor, X['numerical_columns']),
+                                                          remainder='passthrough')
+        self.column_transformer.fit(X['train'])  # TODO read data from local file.
         return self
 
     @staticmethod

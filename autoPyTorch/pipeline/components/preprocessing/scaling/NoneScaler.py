@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 
 import torch
-from autoPyTorch.pipeline.components.preprocessing.scaling import BaseScaler
+from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler import BaseScaler
 
 
 class NoneScaler(BaseScaler):
@@ -38,10 +38,11 @@ class NoneScaler(BaseScaler):
         Returns:
             np.ndarray: Transformed features
         """
+        X.update({'scaler': self})
         return X
 
-    def __call__(self, X: Union[np.ndarray, torch.tensor]) -> None:
-        raise NotImplementedError
+    def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
+        return X
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
