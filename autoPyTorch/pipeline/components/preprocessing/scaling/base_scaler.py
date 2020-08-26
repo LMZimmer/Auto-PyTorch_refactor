@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Union
 from ConfigSpace.configuration_space import ConfigurationSpace
 
 import numpy as np
+
 import torch
 
 from autoPyTorch.pipeline.components.preprocessing.base_preprocessor import autoPyTorchPreprocessingComponent
@@ -23,7 +24,8 @@ class BaseScaler(autoPyTorchPreprocessingComponent):
             (Dict[str, Any]): the updated 'X' dictionary
         """
         if self.column_transformer is None:
-            raise ValueError("cant call transform on {} without fitting first.".format(self.__class__.__name__))
+            raise ValueError("cant call transform on {} without fitting first."
+                             .format(self.__class__.__name__))
         X.update({'scaler': self})
         return X
 
@@ -39,7 +41,8 @@ class BaseScaler(autoPyTorchPreprocessingComponent):
             Union[np.ndarray, torch.tensor]: Transformed data tensor
         """
         if self.column_transformer is None:
-            raise ValueError("cant call {} without fitting the column transformer first.".format(self.__class__.__name__))
+            raise ValueError("cant call {} without fitting the column transformer first."
+                             .format(self.__class__.__name__))
         X = self.column_transformer.transform(X)
         return X
 
