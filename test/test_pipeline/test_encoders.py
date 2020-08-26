@@ -4,10 +4,10 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder_choice import EncoderChoice
 from autoPyTorch.pipeline.components.preprocessing.encoding.NoneEncoder import NoneEncoder
 from autoPyTorch.pipeline.components.preprocessing.encoding.OneHotEncoder import OneHotEncoder
 from autoPyTorch.pipeline.components.preprocessing.encoding.OrdinalEncoder import OrdinalEncoder
+from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder_choice import EncoderChoice
 
 
 class TestEncoders(unittest.TestCase):
