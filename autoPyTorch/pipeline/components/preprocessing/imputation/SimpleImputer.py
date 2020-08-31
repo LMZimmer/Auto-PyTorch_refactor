@@ -41,7 +41,6 @@ class SimpleImputer(BaseImputer):
         """
         self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
                                                                 fill_value='!missing!',
-                                                                # missing_values='nan',
                                                                 copy=False)
         if self.numerical_strategy == 'constant_zero':
             self.preprocessor['numerical'] = SklearnSimpleImputer(strategy='constant',

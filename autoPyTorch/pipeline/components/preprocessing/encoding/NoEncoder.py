@@ -4,18 +4,15 @@ import numpy as np
 
 import torch
 
-from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler import BaseScaler
+from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder import BaseEncoder
 
 
-class NoneScaler(BaseScaler):
+class NoEncoder(BaseEncoder):
     """
-    No scaling performed
+    Don't perform encoding on categorical features
     """
-    def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None):
-        super(NoneScaler, self).__init__()
-        self.random_state = random_state
 
-    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
+    def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEncoder:
         """
         The fit function calls the fit function of the underlying model
         and returns the transformed array.
@@ -39,7 +36,7 @@ class NoneScaler(BaseScaler):
         Returns:
             np.ndarray: Transformed features
         """
-        X.update({'scaler': self})
+        X.update({'encoder': self})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
@@ -48,6 +45,6 @@ class NoneScaler(BaseScaler):
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
         return {
-            'shortname': 'NoneScaler',
-            'name': 'None Scaler',
+            'shortname': 'NoEncoder',
+            'name': 'No Encoder',
         }

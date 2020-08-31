@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional, Union
 
+from ConfigSpace.configuration_space import ConfigurationSpace
+
 import numpy as np
 
 from sklearn.base import BaseEstimator
@@ -15,7 +17,7 @@ class autoPyTorchPreprocessingComponent(autoPyTorchComponent):
      Provides abstract interface for preprocessing algorithms in AutoPyTorch.
     """
     def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None) -> None:
-        self.random_state = random_state
+        super(autoPyTorchPreprocessingComponent, self).__init__(random_state)
         self.preprocessor: Union[Dict[str, BaseEstimator], Optional[BaseEstimator]] = None
         self.column_transformer: Optional[ColumnTransformer] = None
 
@@ -65,3 +67,35 @@ class autoPyTorchPreprocessingComponent(autoPyTorchComponent):
             BaseEstimator: Fitted sklearn column transformer
         """
         return self.column_transformer
+
+    def check_requirements(self, X: Dict[str, Any], y: Any = None) -> None:
+        """
+        A mechanism in code to ensure the correctness of the fit dictionary
+        It recursively makes sure that the children and parent level requirements
+        are honored before fit.
+
+        Args:
+            X (Dict[str, Any]): Dictionary with fitted parameters. It is a message passing
+                mechanism, in which during a transform, a components adds relevant information
+                so that further stages can be properly fitted
+        """
+        super().check_requirements(X, y)
+        if 'train' not in X:
+            raise ValueError("To fit a preprocessor, the fit dictionary "
+                             "Must contain a reference to the training data"
+                             )
+
+    @staticmethod
+    def get_hyperparameter_search_space(
+        dataset_properties: Optional[Dict[str, str]] = None
+    ) -> ConfigurationSpace:
+        """Return the configuration space of this classification algorithm.
+
+        Args:
+            dataset_properties (Optional[Dict[str, Union[str, int]]): Describes the dataset
+               to work on
+
+        Returns:
+            ConfigurationSpace: The configuration space of this algorithm.
+        """
+        return ConfigurationSpace()
