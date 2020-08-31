@@ -180,7 +180,6 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
             default_dataset_properties.update(dataset_properties)
 
         steps.extend([
-            ("scheduler", SchedulerChoice(default_dataset_properties)),
             ("network", NetworkChoice(default_dataset_properties)),
             ("optimizer", OptimizerChoice(default_dataset_properties)),
             ("lr_scheduler", SchedulerChoice(default_dataset_properties)),
