@@ -23,6 +23,8 @@ class NoEncoder(BaseEncoder):
         Returns:
             instance of self
         """
+        self.check_requirements(X, y)
+
         return self
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:

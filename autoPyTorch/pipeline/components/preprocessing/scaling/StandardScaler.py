@@ -20,6 +20,9 @@ class StandardScaler(BaseScaler):
         super().__init__(random_state)
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
+
+        self.check_requirements(X, y)
+
         with_mean, with_std = (False, False) if issparse(X['train']) else (True, True)
         self.preprocessor = SklearnStandardScaler(with_mean=with_mean, with_std=with_std, copy=False)
         self.column_transformer = make_column_transformer((self.preprocessor, X['numerical_columns']),

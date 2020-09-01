@@ -39,6 +39,9 @@ class SimpleImputer(BaseImputer):
         Returns:
             instance of self
         """
+
+        self.check_requirements(X, y)
+
         self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
                                                                 fill_value='!missing!',
                                                                 copy=False)

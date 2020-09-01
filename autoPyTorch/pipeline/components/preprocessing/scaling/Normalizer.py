@@ -29,6 +29,9 @@ class Normalizer(BaseScaler):
         self.norm = norm
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
+
+        self.check_requirements(X, y)
+
         map_norm = dict({"mean_abs": "l1", "mean_squared": "l2", "max": "max"})
         self.preprocessor = SklearnNormalizer(norm=map_norm[self.norm], copy=False)
         self.column_transformer = make_column_transformer((self.preprocessor, X["numerical_columns"]),

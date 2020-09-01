@@ -19,6 +19,9 @@ class MinMaxScaler(BaseScaler):
         self.feature_range = feature_range
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
+
+        self.check_requirements(X, y)
+
         self.preprocessor = SklearnMinMaxScaler(feature_range=self.feature_range, copy=False)
         self.column_transformer = make_column_transformer((self.preprocessor, X['numerical_columns']),
                                                           remainder='passthrough')

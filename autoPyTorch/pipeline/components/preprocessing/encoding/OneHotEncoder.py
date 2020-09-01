@@ -16,6 +16,9 @@ class OneHotEncoder(BaseEncoder):
         super(OneHotEncoder, self).__init__(random_state)
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEncoder:
+
+        self.check_requirements(X, y)
+
         self.preprocessor = OHE(categories='auto', sparse=False, handle_unknown='error')
         self.column_transformer = make_column_transformer((self.preprocessor, X['categorical_columns']),
                                                           remainder='passthrough')

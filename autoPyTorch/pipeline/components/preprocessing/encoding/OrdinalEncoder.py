@@ -16,6 +16,9 @@ class OrdinalEncoder(BaseEncoder):
         super(OrdinalEncoder, self).__init__(random_state)
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEncoder:
+
+        self.check_requirements(X, y)
+
         self.preprocessor = OE(categories='auto')
         self.column_transformer = make_column_transformer((self.preprocessor, X['categorical_columns']),
                                                           remainder='passthrough')
