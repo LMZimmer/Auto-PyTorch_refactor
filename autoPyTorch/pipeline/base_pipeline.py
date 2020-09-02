@@ -173,7 +173,7 @@ class BasePipeline(Pipeline):
         for node_idx, n_ in enumerate(self.steps):
             node_name, node = n_
 
-            sub_configuration_space = node.get_hyperparameter_search_space()
+            sub_configuration_space = node.get_hyperparameter_search_space(self.dataset_properties)
             sub_config_dict = {}
             for param in configuration:
                 if param.startswith('%s:' % node_name):
@@ -210,11 +210,14 @@ class BasePipeline(Pipeline):
         """
         if not hasattr(self, 'config_space') or self.config_space is None:
             self.config_space = self._get_hyperparameter_search_space(
-                include=self.include, exclude=self.exclude,
+                dataset_properties=self.dataset_properties,
+                include=self.include,
+                exclude=self.exclude,
             )
         return self.config_space
 
     def _get_hyperparameter_search_space(self,
+                                         dataset_properties: Dict[str, Any],
                                          include: Optional[Dict[str, Any]] = None,
                                          exclude: Optional[Dict[str, Any]] = None,
                                          ) -> ConfigurationSpace:

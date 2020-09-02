@@ -57,6 +57,8 @@ class EncoderChoice(autoPyTorchChoice):
         if dataset_properties is None:
             dataset_properties = dict()
 
+        dataset_properties.update(self.dataset_properties)
+
         available_preprocessors = self.get_available_components(dataset_properties=dataset_properties,
                                                                 include=include,
                                                                 exclude=exclude)
@@ -65,7 +67,7 @@ class EncoderChoice(autoPyTorchChoice):
             raise ValueError("no encoders found, please add a encoder")
 
         if default is None:
-            defaults = ['OneHotEncoder', 'OrdinalEncoder', 'NoneEncoder']
+            defaults = ['OneHotEncoder', 'OrdinalEncoder', 'NoEncoder']
             for default_ in defaults:
                 if default_ in available_preprocessors:
                     if include is not None and default_ not in include:
@@ -75,12 +77,21 @@ class EncoderChoice(autoPyTorchChoice):
                     default = default_
                     break
 
-        preprocessor = CSH.CategoricalHyperparameter('__choice__',
-                                                     list(available_preprocessors.keys()),
-                                                     default_value=default)
+        # add only no encoder to choice hyperparameters in case the dataset is only categorical
+        if not dataset_properties['categorical_columns']:
+            default = 'NoEncoder'
+            preprocessor = CSH.CategoricalHyperparameter('__choice__',
+                                                         ['NoEncoder'],
+                                                         default_value=default)
+        else:
+            preprocessor = CSH.CategoricalHyperparameter('__choice__',
+                                                         list(available_preprocessors.keys()),
+                                                         default_value=default)
+
         cs.add_hyperparameter(preprocessor)
 
-        for name in available_preprocessors:
+        # add only child hyperparameters of preprocessor choices
+        for name in preprocessor.choices:
             preprocessor_configuration_space = available_preprocessors[name].\
                 get_hyperparameter_search_space(dataset_properties)
             parent_hyperparameter = {'parent': preprocessor, 'value': name}
@@ -94,3 +105,16 @@ class EncoderChoice(autoPyTorchChoice):
     def transform(self, X: np.ndarray) -> np.ndarray:
         assert self.choice is not None, "Can not call transform without initialising the component"
         return self.choice.transform(X)  # type: ignore
+
+    def _check_dataset_properties(self, dataset_properties: Dict[str, Any]) -> None:
+        """
+        A mechanism in code to ensure the correctness of the fit dictionary
+        It recursively makes sure that the children and parent level requirements
+        are honored before fit.
+        Args:
+            dataset_properties:
+
+        """
+        super()._check_dataset_properties(dataset_properties)
+        assert 'numerical_columns' in dataset_properties.keys() and 'categorical_columns' in dataset_properties.keys(),\
+            "Dataset properties must contain information about the type of columns"

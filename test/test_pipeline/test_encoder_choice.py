@@ -8,7 +8,8 @@ class TestEncoderChoice(unittest.TestCase):
     def test_get_set_config_space(self):
         """Make sure that we can setup a valid choice in the encoder
         choice"""
-        encoder_choice = EncoderChoice()
+        dataset_properties = {'numerical_columns': list(range(4)), 'categorical_columns': [5]}
+        encoder_choice = EncoderChoice(dataset_properties)
         cs = encoder_choice.get_hyperparameter_search_space()
 
         # Make sure that all hyperparameters are part of the search space
@@ -37,6 +38,13 @@ class TestEncoderChoice(unittest.TestCase):
                 key = key.replace(selected_choice + ':', '')
                 self.assertIn(key, vars(encoder_choice.choice))
                 self.assertEqual(value, encoder_choice.choice.__dict__[key])
+
+    def test_only_numerical(self):
+        dataset_properties = {'numerical_columns': list(range(4)), 'categorical_columns': []}
+
+        chooser = EncoderChoice(dataset_properties)
+        configspace = chooser.get_hyperparameter_search_space().sample_configuration().get_dictionary()
+        self.assertEqual(configspace['__choice__'], 'NoEncoder')
 
 
 if __name__ == '__main__':

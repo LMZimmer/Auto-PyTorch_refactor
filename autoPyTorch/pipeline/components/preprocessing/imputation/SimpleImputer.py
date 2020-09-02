@@ -39,7 +39,6 @@ class SimpleImputer(BaseImputer):
         Returns:
             instance of self
         """
-
         self.check_requirements(X, y)
 
         self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
@@ -52,9 +51,19 @@ class SimpleImputer(BaseImputer):
         else:
             self.preprocessor['numerical'] = SklearnSimpleImputer(strategy=self.numerical_strategy, copy=False)
 
-        self.column_transformer = make_column_transformer((self.preprocessor['categorical'], X['categorical_columns']),
-                                                          (self.preprocessor['numerical'], X['numerical_columns']),
-                                                          remainder='passthrough')
+        if len(X['categorical_columns']) == 0:
+            self.column_transformer = make_column_transformer(
+                (self.preprocessor['numerical'], X['numerical_columns']),
+                remainder='passthrough')
+        elif len(X['numerical_columns']) == 0:
+            self.column_transformer = make_column_transformer(
+                (self.preprocessor['categorical'], X['categorical_columns']),
+                remainder='passthrough')
+        else:
+            self.column_transformer = make_column_transformer(
+                (self.preprocessor['categorical'], X['categorical_columns']),
+                (self.preprocessor['numerical'], X['numerical_columns']),
+                remainder='passthrough')
 
         self.column_transformer.fit(X['train'].astype(object))  # TODO read data from local file.
         return self

@@ -50,14 +50,21 @@ class BasePipelineMock(BasePipeline):
     def __init__(self):
         pass
 
+    def _get_pipeline_steps(self, dataset_properties):
+        return [
+            ('DummyComponent1', DummyComponent(a=10, b='red')),
+            ('DummyChoice', DummyChoice(self.dataset_properties))
+        ]
+
 
 class PipelineTest(unittest.TestCase):
     def setUp(self):
         """Create a pipeline and test the different properties of it"""
         self.pipeline = BasePipelineMock()
+        self.pipeline.dataset_properties = {}
         self.pipeline.steps = [
             ('DummyComponent1', DummyComponent(a=10, b='red')),
-            ('DummyChoice', DummyChoice())
+            ('DummyChoice', DummyChoice(self.pipeline.dataset_properties))
         ]
 
     def test_pipeline_base_config_space(self):

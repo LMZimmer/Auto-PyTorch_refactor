@@ -9,7 +9,8 @@ class TestRescalerChoice(unittest.TestCase):
     def test_get_set_config_space(self):
         """Make sure that we can setup a valid choice in the encoder
         choice"""
-        rescaler_choice = ScalerChoice()
+        dataset_properties = {'categorical_columns': list(range(4)), 'numerical_columns': [5]}
+        rescaler_choice = ScalerChoice(dataset_properties)
         cs = rescaler_choice.get_hyperparameter_search_space()
 
         # Make sure that all hyperparameters are part of the search space
@@ -38,6 +39,13 @@ class TestRescalerChoice(unittest.TestCase):
                 key = key.replace(selected_choice + ':', '')
                 self.assertIn(key, vars(rescaler_choice.choice))
                 self.assertEqual(value, rescaler_choice.choice.__dict__[key])
+
+    def test_only_categorical(self):
+        dataset_properties = {'categorical_columns': list(range(4)), 'numerical_columns': []}
+        chooser = ScalerChoice(dataset_properties)
+        configspace = chooser.get_hyperparameter_search_space(dataset_properties).sample_configuration().\
+            get_dictionary()
+        self.assertEqual(configspace['__choice__'], 'NoScaler')
 
 
 if __name__ == '__main__':

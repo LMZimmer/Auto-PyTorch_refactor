@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 from ConfigSpace.configuration_space import Configuration, ConfigurationSpace
 
@@ -8,6 +8,9 @@ from sklearn.base import ClassifierMixin
 
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
+from autoPyTorch.pipeline.components.preprocessing.encoding.base_encoder_choice import EncoderChoice
+from autoPyTorch.pipeline.components.preprocessing.imputation.SimpleImputer import SimpleImputer
+from autoPyTorch.pipeline.components.preprocessing.scaling.base_scaler_choice import ScalerChoice
 from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler_choice import SchedulerChoice
 from autoPyTorch.pipeline.components.setup.network.base_network_choice import NetworkChoice
 from autoPyTorch.pipeline.components.setup.optimizer.base_optimizer_choice import OptimizerChoice
@@ -116,12 +119,11 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
 
                 return y
 
-    def _get_hyperparameter_search_space(
-        self,
-        include: Optional[Dict[str, Any]] = None,
-        exclude: Optional[Dict[str, Any]] = None,
-        dataset_properties: Optional[Dict[str, Union[str, int]]] = None
-    ) -> ConfigurationSpace:
+    def _get_hyperparameter_search_space(self,
+                                         dataset_properties: Dict[str, Any],
+                                         include: Optional[Dict[str, Any]] = None,
+                                         exclude: Optional[Dict[str, Any]] = None,
+                                         ) -> ConfigurationSpace:
         """Create the hyperparameter configuration space.
 
         For the given steps, and the Choices within that steps,
@@ -148,7 +150,6 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
             dataset_properties['target_type'] = 'tabular_classification'
         if dataset_properties['target_type'] != 'tabular_classification':
             dataset_properties['target_type'] = 'tabular_classification'
-
         # get the base search space given this
         # dataset properties. Then overwrite with custom
         # classification requirements
@@ -180,6 +181,9 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
             default_dataset_properties.update(dataset_properties)
 
         steps.extend([
+            ("imputer", SimpleImputer()),
+            ("encoder", EncoderChoice(default_dataset_properties)),
+            ("scaler", ScalerChoice(default_dataset_properties)),
             ("network", NetworkChoice(default_dataset_properties)),
             ("optimizer", OptimizerChoice(default_dataset_properties)),
             ("lr_scheduler", SchedulerChoice(default_dataset_properties)),

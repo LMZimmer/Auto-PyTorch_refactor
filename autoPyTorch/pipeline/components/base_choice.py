@@ -14,7 +14,7 @@ class autoPyTorchChoice(object):
     """Allows for the dynamically generation of components as pipeline steps.
 
     Args:
-        dataset_properties (Optional[Dict[str, Union[str, int]]]): Describes the dataset
+        dataset_properties (Dict[str, Union[str, int]]): Describes the dataset
             to work on
         random_state (Optional[np.random.RandomState]): allows to produce reproducible
             results by setting a seed for randomized settings
@@ -25,7 +25,7 @@ class autoPyTorchChoice(object):
         choice (autoPyTorchComponent): the choice of components for this stage
     """
     def __init__(self,
-                 dataset_properties: Optional[Dict[str, str]] = None,
+                 dataset_properties: Dict[str, Any],
                  random_state: Optional[np.random.RandomState] = None
                  ):
 
@@ -40,6 +40,8 @@ class autoPyTorchChoice(object):
         else:
             self.random_state = check_random_state(random_state)
 
+        self.dataset_properties = dataset_properties
+        self._check_dataset_properties(dataset_properties)
         # Since the pipeline will initialize the hyperparameters, it is not
         # necessary to do this upon the construction of this object
         # self.set_hyperparameters(self.configuration)
@@ -194,3 +196,12 @@ class autoPyTorchChoice(object):
         """
         assert self.choice is not None, "Cannot call predict without initializing the component"
         return self.choice.predict(X)
+
+    def _check_dataset_properties(self, dataset_properties: Dict[str, Any]) -> None:
+        """
+        A mechanism in code to ensure the correctness of the initialised dataset properties.
+        Args:
+            dataset_properties:
+
+        """
+        assert isinstance(dataset_properties, dict), "dataset_properties must be a dictionary"

@@ -13,29 +13,47 @@ class PipelineTest(unittest.TestCase):
         given random combinations of hyperparameters across the pipeline"""
         number_features = np.random.randint(low=5, high=15, size=20)
         number_classes = np.random.randint(low=2, high=8, size=20)
-        for num_features, num_classes in zip(number_features, number_classes):
-            pipeline = TabularClassificationPipeline()
+        number_datapoints = np.random.randint(low=4, high=10, size=20)
+        for num_features, num_classes, num_datapoints in zip(number_features, number_classes, number_datapoints):
+            train_data = np.random.random((num_datapoints, num_features))
+            dataset_properties = {'numerical_columns': list(range(num_features)), 'categorical_columns': []}
+            pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
             cs = pipeline.get_hyperparameter_search_space()
             config = cs.sample_configuration()
             pipeline.set_hyperparameters(config)
             print(config)
             pipeline.fit(
-                {'num_features': num_features, 'num_classes': num_classes}
+                {'num_features': num_features,
+                 'num_classes': num_classes,
+                 'numerical_columns': list(range(num_features)),
+                 'categorical_columns': [],
+                 'train': train_data}
             )
 
     def test_default_configuration(self):
         """Makes sure that when no config is set, we can trust the
         default configuration from the space"""
-        pipeline = TabularClassificationPipeline()
+        num_features = 4
+        num_classes = 2
+        num_datapoints = 4
+        train_data = np.random.random((num_datapoints, num_features))
+        dataset_properties = {'numerical_columns': list(range(num_features)), 'categorical_columns': []}
+        pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
+
         pipeline.fit(
-            {'num_features': 4, 'num_classes': 2}
+            {'num_features': num_features,
+             'num_classes': num_classes,
+             'train': train_data,
+             'numerical_columns': list(range(num_features)),
+             'categorical_columns': []}
         )
 
     def test_network_optimizer_lr_handshake(self):
         """Fitting a network should put the network in the X"""
 
         # Create the pipeline to check. A random config should be sufficient
-        pipeline = TabularClassificationPipeline()
+        dataset_properties = {'numerical_columns': [], 'categorical_columns': []}
+        pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
         cs = pipeline.get_hyperparameter_search_space()
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
