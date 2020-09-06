@@ -197,6 +197,19 @@ class autoPyTorchChoice(object):
         assert self.choice is not None, "Cannot call predict without initializing the component"
         return self.choice.predict(X)
 
+    def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Adds the current choice in the fit dictionary
+        Args:
+            X (Dict[str, Any]): fit dictionary
+
+        Returns:
+            (Dict[str, Any])
+        """
+        assert self.choice is not None, "Can not call transform without initialising the component"
+        return self.choice.transform(X)  # type: ignore
+
+
     def _check_dataset_properties(self, dataset_properties: Dict[str, Any]) -> None:
         """
         A mechanism in code to ensure the correctness of the initialised dataset properties.

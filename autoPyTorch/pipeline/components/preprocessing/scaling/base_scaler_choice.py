@@ -97,10 +97,6 @@ class ScalerChoice(autoPyTorchChoice):
         self.dataset_properties = dataset_properties
         return cs
 
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        assert self.choice is not None, "Can not call transform without initialising choice"
-        return self.choice.transform(X)  # type: ignore
-
     def _check_dataset_properties(self, dataset_properties: Dict[str, Any]) -> None:
         """
         A mechanism in code to ensure the correctness of the fit dictionary

@@ -102,10 +102,6 @@ class EncoderChoice(autoPyTorchChoice):
         self.dataset_properties = dataset_properties
         return cs
 
-    def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
-        assert self.choice is not None, "Can not call transform without initialising the component"
-        return self.choice.transform(X)  # type: ignore
-
     def _check_dataset_properties(self, dataset_properties: Dict[str, Any]) -> None:
         """
         A mechanism in code to ensure the correctness of the fit dictionary
