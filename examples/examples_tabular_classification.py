@@ -19,7 +19,11 @@ X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
 )
 
 # Create a proof of concept pipeline!
-pipeline = TabularClassificationPipeline()
+dataset_properties = {
+    'categorical_columns': ['A1', 'A4', 'A5', 'A6', 'A8', 'A9', 'A11', 'A12'],
+    'numerical_columns': ['A2', 'A3', 'A7', 'A10', 'A13', 'A14']
+}
+pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
 
 # Configuration space
 pipeline_cs = pipeline.get_hyperparameter_search_space()
@@ -34,7 +38,8 @@ pipeline.fit(X={
     'categorical_columns': ['A1', 'A4', 'A5', 'A6', 'A8', 'A9', 'A11', 'A12'],
     'numerical_columns': ['A2', 'A3', 'A7', 'A10', 'A13', 'A14'],
     'num_features': 14,
-    'num_classes': 2
+    'num_classes': 2,
+    'train': X_train
 })
 
 # Showcase some components of the pipeline

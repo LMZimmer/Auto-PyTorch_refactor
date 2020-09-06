@@ -21,19 +21,6 @@ class autoPyTorchPreprocessingComponent(autoPyTorchComponent):
         self.preprocessor: Union[Dict[str, BaseEstimator], Optional[BaseEstimator]] = None
         self.column_transformer: Optional[ColumnTransformer] = None
 
-    def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchComponent:
-        """
-        The fit function calls the fit function of the underlying model
-        and returns the self.
-        Args:
-            X (Dict[str, Any]): 'X' dictionary
-            y (Any): should be none
-
-        Returns:
-            instance of self
-        """
-        raise NotImplementedError()
-
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         """
         Adds the fitted preprocessor into the 'X' dictionary and returns it.

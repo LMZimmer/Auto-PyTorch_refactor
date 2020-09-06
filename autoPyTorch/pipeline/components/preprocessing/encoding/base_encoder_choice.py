@@ -57,7 +57,7 @@ class EncoderChoice(autoPyTorchChoice):
         if dataset_properties is None:
             dataset_properties = dict()
 
-        dataset_properties.update(self.dataset_properties)
+        dataset_properties = {**self.dataset_properties, **dataset_properties}
 
         available_preprocessors = self.get_available_components(dataset_properties=dataset_properties,
                                                                 include=include,
@@ -102,7 +102,7 @@ class EncoderChoice(autoPyTorchChoice):
         self.dataset_properties = dataset_properties
         return cs
 
-    def transform(self, X: np.ndarray) -> np.ndarray:
+    def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         assert self.choice is not None, "Can not call transform without initialising the component"
         return self.choice.transform(X)  # type: ignore
 
@@ -116,5 +116,8 @@ class EncoderChoice(autoPyTorchChoice):
 
         """
         super()._check_dataset_properties(dataset_properties)
-        assert 'numerical_columns' in dataset_properties.keys() and 'categorical_columns' in dataset_properties.keys(),\
-            "Dataset properties must contain information about the type of columns"
+        assert 'numerical_columns' in dataset_properties.keys(), \
+            "Dataset properties must contain information about numerical columns"
+        assert 'categorical_columns' in dataset_properties.keys(), \
+            "Dataset properties must contain information about categorical columns"
+
