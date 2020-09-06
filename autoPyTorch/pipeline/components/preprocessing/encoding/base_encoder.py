@@ -26,7 +26,7 @@ class BaseEncoder(autoPyTorchPreprocessingComponent):
         if self.column_transformer is None:
             raise ValueError("cant call transform on {} without fitting first."
                              .format(self.__class__.__name__))
-        X.update({'encoder': self})
+        X.update({'encoder': self.column_transformer})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
