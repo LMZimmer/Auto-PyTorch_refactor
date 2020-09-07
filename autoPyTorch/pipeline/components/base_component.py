@@ -4,11 +4,9 @@ import pkgutil
 import sys
 import warnings
 from collections import OrderedDict
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import Configuration, ConfigurationSpace
-
-import numpy as np
 
 from sklearn.base import BaseEstimator
 
@@ -87,9 +85,6 @@ class ThirdPartyComponents(object):
 
 
 class autoPyTorchComponent(BaseEstimator):
-
-    def __init__(self, random_state: Optional[Union[np.random.RandomState, int]]):
-        self.random_state = random_state
 
     @staticmethod
     def get_properties(dataset_properties: Optional[Dict[str, str]] = None

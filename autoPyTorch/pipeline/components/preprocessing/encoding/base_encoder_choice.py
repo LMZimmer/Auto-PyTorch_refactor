@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 import ConfigSpace.hyperparameters as CSH
 from ConfigSpace.configuration_space import ConfigurationSpace
 
-import numpy as np
-
 from autoPyTorch.pipeline.components.base_choice import autoPyTorchChoice
 from autoPyTorch.pipeline.components.base_component import (
     ThirdPartyComponents,
@@ -116,4 +114,3 @@ class EncoderChoice(autoPyTorchChoice):
             "Dataset properties must contain information about numerical columns"
         assert 'categorical_columns' in dataset_properties.keys(), \
             "Dataset properties must contain information about categorical columns"
-

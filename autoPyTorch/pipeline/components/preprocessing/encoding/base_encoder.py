@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 import numpy as np
 
@@ -11,12 +11,10 @@ class BaseEncoder(autoPyTorchPreprocessingComponent):
     """
     Base class for encoder
     """
-    def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None) -> None:
-        super(BaseEncoder, self).__init__(random_state)
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Adds the fitted preprocessor into the 'X' dictionary and returns it.
+        Adds the self into the 'X' dictionary and returns it.
         Args:
             X (Dict[str, Any]): 'X' dictionary
 
@@ -26,7 +24,7 @@ class BaseEncoder(autoPyTorchPreprocessingComponent):
         if self.column_transformer is None:
             raise ValueError("cant call transform on {} without fitting first."
                              .format(self.__class__.__name__))
-        X.update({'encoder': self.column_transformer})
+        X.update({'encoder': self})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:

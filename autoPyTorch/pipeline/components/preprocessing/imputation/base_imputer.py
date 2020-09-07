@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 import numpy as np
 
@@ -12,12 +12,9 @@ class BaseImputer(autoPyTorchPreprocessingComponent):
     Provides abstract class interface for Imputers in AutoPyTorch
     """
 
-    def __init__(self, random_state: Optional[Union[int, np.random.RandomState]] = None) -> None:
-        super(BaseImputer, self).__init__(random_state)
-
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Adds the fitted preprocessor into the 'X' dictionary and returns it.
+        Adds self into the 'X' dictionary and returns it.
         Args:
             X (Dict[str, Any]): 'X' dictionary
 
@@ -27,7 +24,7 @@ class BaseImputer(autoPyTorchPreprocessingComponent):
         if self.column_transformer is None:
             raise ValueError("cant call transform on {} without fitting first."
                              .format(self.__class__.__name__))
-        X.update({'imputer': self.column_transformer})
+        X.update({'imputer': self})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:

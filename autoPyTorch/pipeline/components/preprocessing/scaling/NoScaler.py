@@ -11,6 +11,10 @@ class NoScaler(BaseScaler):
     """
     No scaling performed
     """
+    def __init__(self,
+                 random_state: Optional[Union[np.random.RandomState, int]] = None
+                 ):
+        self.random_state = random_state
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
         """

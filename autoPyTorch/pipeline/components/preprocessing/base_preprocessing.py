@@ -16,8 +16,7 @@ class autoPyTorchPreprocessingComponent(autoPyTorchComponent):
     """
      Provides abstract interface for preprocessing algorithms in AutoPyTorch.
     """
-    def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None) -> None:
-        super(autoPyTorchPreprocessingComponent, self).__init__(random_state)
+    def __init__(self) -> None:
         self.preprocessor: Union[Dict[str, BaseEstimator], Optional[BaseEstimator]] = None
         self.column_transformer: Optional[ColumnTransformer] = None
 

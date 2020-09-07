@@ -17,7 +17,7 @@ class StandardScaler(BaseScaler):
     def __init__(self,
                  random_state: Optional[Union[np.random.RandomState, int]] = None
                  ):
-        super().__init__(random_state)
+        self.random_state = random_state
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
 

@@ -11,6 +11,10 @@ class NoEncoder(BaseEncoder):
     """
     Don't perform encoding on categorical features
     """
+    def __init__(self,
+                 random_state: Optional[Union[np.random.RandomState, int]] = None
+                 ):
+        self.random_state = random_state
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseEncoder:
         """
@@ -29,14 +33,12 @@ class NoEncoder(BaseEncoder):
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         """
-        The transform function calls the transform function of the
-        underlying model and returns the transformed array.
-
+        Adds the self into the 'X' dictionary and returns it.
         Args:
-            X (np.ndarray): input features
+            X (Dict[str, Any]): 'X' dictionary
 
         Returns:
-            np.ndarray: Transformed features
+            (Dict[str, Any]): the updated 'X' dictionary
         """
         X.update({'encoder': self})
         return X

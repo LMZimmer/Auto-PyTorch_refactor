@@ -23,9 +23,11 @@ class SimpleImputer(BaseImputer):
 
     def __init__(self,
                  random_state: Optional[Union[np.random.RandomState, int]] = None,
-                 numerical_strategy: str = 'mean'):
-        super(SimpleImputer, self).__init__(random_state)
+                 numerical_strategy: str = 'mean',
+                 categorical_strategy: str = 'constant_!missing!'):
+        self.random_state = random_state
         self.numerical_strategy = numerical_strategy
+        self.categorical_strategy = categorical_strategy
         self.preprocessor: Dict[str, BaseEstimator] = dict()
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseImputer:
@@ -40,10 +42,14 @@ class SimpleImputer(BaseImputer):
             instance of self
         """
         self.check_requirements(X, y)
+        if self.categorical_strategy == 'constant_!missing!':
+            self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
+                                                                    fill_value='!missing!',
+                                                                    copy=False)
+        else:
+            self.preprocessor['categorical'] = SklearnSimpleImputer(strategy=self.categorical_strategy,
+                                                                    copy=False)
 
-        self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
-                                                                fill_value='!missing!',
-                                                                copy=False)
         if self.numerical_strategy == 'constant_zero':
             self.preprocessor['numerical'] = SklearnSimpleImputer(strategy='constant',
                                                                   fill_value=0,
@@ -91,7 +97,11 @@ class SimpleImputer(BaseImputer):
         numerical_strategy = CategoricalHyperparameter("numerical_strategy",
                                                        ["mean", "median", "most_frequent", "constant_zero"],
                                                        default_value="mean")
+        categorical_strategy = CategoricalHyperparameter("categorical_strategy",
+                                                         ["most_frequent", "constant_!missing!"],
+                                                         default_value="constant_!missing!")
         cs.add_hyperparameter(numerical_strategy)
+        cs.add_hyperparameter(categorical_strategy)
         return cs
 
     @staticmethod
