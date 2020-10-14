@@ -1,5 +1,6 @@
 import typing
 
+
 class Task:
 
     @typing.no_type_check

@@ -12,8 +12,8 @@ from autoPyTorch.pipeline.tabular_classification import TabularClassificationPip
 
 
 # Get the training data for tabular classification
-# https://www.openml.org/d/12
-X, y = sklearn.datasets.fetch_openml(data_id=12, return_X_y=True, as_frame=True)
+# Move to Australian to showcase numerical vs categorical
+X, y = sklearn.datasets.fetch_openml(data_id=40981, return_X_y=True, as_frame=True)
 X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
     X,
     y,
@@ -38,15 +38,21 @@ config = pipeline_cs.sample_configuration()
 print("Pipeline Random Config:\n", '_' * 40, f"\n{config}")
 pipeline.set_hyperparameters(config)
 
+# Mock the categories
+categorical_columns = ['A1', 'A4', 'A5', 'A6', 'A8', 'A9', 'A11', 'A12']
+numerical_columns = ['A2', 'A3', 'A7', 'A10', 'A13', 'A14']
+categories = [np.unique(X[a]).tolist() for a in categorical_columns]
+
 # Fit the pipeline
 print("Fitting the pipeline...")
 pipeline.fit(X={
-    'categorical_columns': categorical,
-    'numerical_columns': numerical,
+    'categorical_columns': categorical_columns,
+    'numerical_columns': numerical_columns,
     'num_features': len(X),
     'num_classes': len(np.unique(y)),
     'is_small_preprocess': True,
     'X_train': X_train,
+    'categories': categories,
 })
 
 # Showcase some components of the pipeline
