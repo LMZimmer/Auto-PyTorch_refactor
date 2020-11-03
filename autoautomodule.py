@@ -1,7 +1,7 @@
 from collections import defaultdict
 import json
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import ConfigSpace
 import numpy as np
@@ -145,21 +145,23 @@ class OneVSOneSelector(object):
         predictions = np.array([np.array(prediction) for prediction in predictions])
         return predictions
 
+def get_y_test_default(method, task_ids, configs):
+    # TODO write for real
+    # So we want only one learning curve for each task_id, config combination
+    LEARN_CURVE_LEN = 100
+    return np.zeros([len(task_ids), len(configs), LEARN_CURVE_LEN])
 
 def build(
-    performance_matrix: pd.DataFrame,
-    matrices: Dict[str, Dict[str, np.ndarray]],
-    metafeatures: pd.DataFrame,
+    performance_matrix: pd.DataFrame, # Strategies x Tasks
+    strategies: List[str], # strategy ids (keys of configurations)
+    metafeatures: pd.DataFrame, # the structure [str, np.array] is a mapping from task id to meta features of particular ds, order of task ids like in `task_ids`
     random_state: np.random.RandomState,
-    task_ids: List[int],
-    configurations: Dict[str, List[str]],
-    seed: int,
+    task_ids: List[int], # all task ids to consider used
+    configurations: Dict[str, List[str]], # maps each strategy id to all configs run with it
+    default_strategies: List[str], # list of stragiy ids (like the ones in `strategies`) that will sequentially be searched for a feasible default strategy for the given set of `strategies`. See arouond line 227. Used for backup I think.
+    get_y_test=get_y_test_default # a method like described in the default
 ):
-    if performance_matrix.shape[1] != len(matrices):
-        raise ValueError('mismatch in the data structure. Performance_matrix vs matrics contain '
-                         'the following keys', performance_matrix.columns, matrices.keys())
 
-    strategies = list(matrices.keys())
 
     minima_for_methods = dict()
     minima_for_tasks = dict()
@@ -167,16 +169,15 @@ def build(
     maxima_for_tasks = dict()
 
     for method in strategies:
-        _, y_test, _, _, _ = portfolio.portfolio_util.reformat_data(
-            matrices[method], task_ids, configurations[method])
+        y_test = get_y_test(method, task_ids, configurations[method])
         matrix = y_test.copy()
         minima = np.nanmin(np.nanmin(matrix, axis=2), axis=1)
         minima_as_dicts = {
-            task_id: minima[i] for i, task_id in enumerate(metafeatures.index)
+            task_id: minima[i] for i, task_id in enumerate(task_ids)
         }
         maxima = np.nanmax(np.nanmax(matrix, axis=2), axis=1)
         maxima_as_dicts = {
-            task_id: maxima[i] for i, task_id in enumerate(metafeatures.index)
+            task_id: maxima[i] for i, task_id in enumerate(task_ids)
         }
         minima_for_methods[method] = minima_as_dicts
         maxima_for_methods[method] = maxima_as_dicts
@@ -184,7 +185,7 @@ def build(
         diff[diff == 0] = 1
         del matrix
 
-    for task_id in metafeatures.index:
+    for task_id in task_ids:
         min_for_task = 1.0
         for method in strategies:
             min_for_task = min(min_for_task, minima_for_methods[method][task_id])
@@ -194,10 +195,12 @@ def build(
             max_for_task = max(max_for_task, maxima_for_methods[method][task_id])
         maxima_for_tasks[task_id] = max_for_task
 
+    # now we have min/max per task/strategy this is later used to normalize and to evaluate tasks!?
+
     # Classification approach - generate data
     y_values = []
     task_id_to_idx = {}
-    for i, task_id in enumerate(metafeatures.index):
+    for i, task_id in enumerate(task_ids):
         values = []
         task_id_to_idx[task_id] = len(y_values)
         for method in strategies:
@@ -219,18 +222,8 @@ def build(
         ConfigSpace.UniformFloatHyperparameter('max_features', 0, 1, default_value=0.5)
     )
     cs.seed(random_state.randint(0, 1000))
-    configurations = [cs.get_default_configuration()] + cs.sample_configuration(size=50)
+    meta_configurations = [cs.get_default_configuration()] + cs.sample_configuration(size=50)
 
-    default_strategies = [
-        'RF_SH-eta4-i_holdout_iterative_es_if',
-        "RF_None_holdout_iterative_es_if",
-        "RF_SH-eta4-i_3CV_iterative_es_if",
-        "RF_None_3CV_iterative_es_if",
-        "RF_SH-eta4-i_5CV_iterative_es_if",
-        "RF_None_5CV_iterative_es_if",
-        "RF_SH-eta4-i_10CV_iterative_es_if",
-        "RF_None_10CV_iterative_es_if"
-    ]
     default_strategy = None
     for tmp in default_strategies:
         if tmp in strategies:
@@ -251,9 +244,10 @@ def build(
     training_data['minima_for_methods'] = minima_for_methods
     training_data['maxima_for_methods'] = maxima_for_methods
 
-    for configuration in configurations:
+    for meta_configuration in meta_configurations:
+        # Here for each meta_config we train a selector, so that given a task we can predict the performance of different strategies
         selector = OneVSOneSelector(
-            configuration=configuration,
+            configuration=meta_configuration,
             default_strategy_idx=strategies.index(default_strategy),
             rng=random_state,
         )
@@ -265,30 +259,6 @@ def build(
             maxima=maxima_for_methods,
         )
 
-        # # Training score
-        # predictions = [selector.predict(row.to_numpy()) for _, row in metafeatures.iterrows()]
-        # train_error = []
-        # for i in range(len(predictions)):
-        #     train_error_i = y_values[i][np.argmax(predictions[i])] != np.min(y_values[i])
-        #     train_error.append(train_error_i)
-        # train_error = np.array(train_error)
-        #
-        # sample_weight = []
-        # for sample_idx, task_id in enumerate(metafeatures.index):
-        #     prediction_idx = np.argmax(predictions[sample_idx])
-        #     y_true_idx = np.argmin(y_values[sample_idx])
-        #     diff = maxima_for_tasks[task_id] - minima_for_tasks[task_id]
-        #     diff = 1 if diff == 0 else diff
-        #     normalized_predicted_sample = (y_values[sample_idx, prediction_idx] - minima_for_tasks[
-        #         task_id]) / diff
-        #     normalized_y_true = (y_values[sample_idx, y_true_idx] - minima_for_tasks[
-        #         task_id]) / diff
-        #     weight = np.abs(normalized_predicted_sample - normalized_y_true)
-        #     sample_weight.append(weight)
-        # sample_weight = np.array(sample_weight)
-        # train_loss = np.sum(train_error.astype(int) * sample_weight)
-
-        # OOB score
         predictions = selector.predict_oob(metafeatures)
         error = []
         for i in range(len(predictions)):
@@ -365,23 +335,5 @@ def build(
     print('Regret rf', np.mean(regrets_rf))
     print('Regret random', np.mean(regret_random))
     print('Regret oracle', np.mean(regret_oracle))
-
-    # all_regrets = {
-    #     'selector': regrets_rf,
-    #     'random': regret_random,
-    #     'oracle': regret_oracle,
-    #     'task_id_to_idx': task_id_to_idx,
-    #     'base_methods': base_method_regets,
-    # }
-    # with open('/tmp/selector_training_data_regret_%d_only3feat.json' % seed, 'wt') as fh:
-    #     json.dump(all_regrets, fh, indent=4)
-
-    # for i, (_, mf) in enumerate(metafeatures.iterrows()):
-    #     mf = mf.to_numpy().reshape((1, -1))
-    #     prediction = best_model.predict(mf)
-    #     oob_prediction = best_oob_predictions[i]
-    #     print(oob_prediction, prediction, y_values[i], best_sample_weight[i],
-    #           np.argmax(oob_prediction) == np.argmin(y_values[i]),
-    #           np.argmax(prediction) == np.argmin(y_values[i]))
 
     return best_model
