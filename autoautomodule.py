@@ -7,9 +7,7 @@ import ConfigSpace
 import numpy as np
 import pandas as pd
 import sklearn.ensemble
-
-sys.path.append('..')
-import portfolio.portfolio_util
+import openml
 
 
 class OneVSOneSelector(object):
@@ -46,6 +44,7 @@ class OneVSOneSelector(object):
                 normalized_y_j = (y[:, j].copy() - minimum) / diff
 
                 weights_i_j = np.abs(normalized_y_i - normalized_y_j)
+                """
                 if np.all([target == y_i_j[0] for target in y_i_j]):
                     n_zeros = int(np.ceil(len(y_i_j) / 2))
                     n_ones = int(np.floor(len(y_i_j) / 2))
@@ -55,7 +54,8 @@ class OneVSOneSelector(object):
                         np.array(([[0]] * n_zeros) + ([[1]] * n_ones)).flatten(),
                         sample_weight=weights_i_j,
                     )
-                else:
+                """
+                if True:
                     base_model = sklearn.ensemble.RandomForestClassifier(
                         random_state=self.rng,
                         n_estimators=500,
@@ -145,23 +145,70 @@ class OneVSOneSelector(object):
         predictions = np.array([np.array(prediction) for prediction in predictions])
         return predictions
 
-def get_y_test_default(method, task_ids, configs):
+def get_metafeatures(task_id, feat_list=None):
+    task = openml.tasks.get_task(task_id)
+    dataset = openml.datasets.get_dataset(task.dataset_id)
+    metafeatures = dataset.qualities
+
+    if feat_list is not None:
+        reduced_metafeatures = {}
+
+        for feat_name in feat_list:
+            reduced_metafeatures[feat_name] = metafeatures[feat_name]
+
+        return reduced_metafeatures
+    return metafeatures
+
+
+def get_y_test_dummy(method, task_ids):
     # TODO write for real
     # So we want only one learning curve for each task_id, config combination
+    metafeatures = [get_metafeatures(task_id, ['NumberOfInstances'])['NumberOfInstances'] for task_id in task_ids]
     LEARN_CURVE_LEN = 100
-    return np.zeros([len(task_ids), len(configs), LEARN_CURVE_LEN])
+    num_configs = 1 # if multiple configs were used for one strategy
+    perfs = np.array([mf > 1000 for mf in metafeatures],dtype=np.float)[:,None,None]
+    print(perfs)
+    if method == 'wei':
+        return perfs
+    else:
+        return 1. - perfs
+
+
+    # return np.random.rand(len(task_ids), num_configs, LEARN_CURVE_LEN)
+
+def test():
+    openml_task_ids = [232, 236, 241, 245, 253, 254, 256, 258, 260, 262, 267, 271, 273, 275, 279, 288, 336, 340, 2119, 2120, 2121, 2122,]
+    """ 
+                       2123, 2125, 2356, 3044, 3047, 3048, 3049, 3053, 3054, 3055, 75089, 75092, 75093, 75098, 75100, 75108, 75109, 75112,
+                       75114, 75115, 75116, 75118, 75120, 75121, 75125, 75126, 75129, 75131, 75133, 75134, 75136, 75139, 75141, 75142,
+                       75143, 75146, 75147, 75148, 75149, 75153, 75154, 75156, 75157, 75159, 75161, 75163, 75166, 75169, 75171, 75173,
+                       75174, 75176, 75178, 75179, 75180, 75184, 75185, 75187, 75192, 75195, 75196, 75199, 75210, 75212, 75213, 75215,
+                       75217, 75219, 75221, 75223, 75225, 75232, 75233, 75234, 75235, 75236, 75237, 75239, 75250, 126021, 126024, 126028,
+                       126030, 126031, 146574, 146575, 146576, 146577, 146578, 146583, 146586, 146592, 146593, 146594, 146596, 146597,
+                       146600, 146601, 146602, 146603, 146679, 166859, 166866, 166872, 166875, 166882, 166897, 166905, 166906, 166913,
+                       166915, 166931, 166932, 166944, 166950, 166951, 166953, 166956, 166957, 166958, 166959, 166970, 166996, 167085,
+                       167086, 167087, 167088, 167089, 167090, 167094, 167096, 167097, 167099, 167100, 167101, 167103, 167105, 167106,
+                       167202, 167203, 167204, 167205, 168785, 168791, 189779, 189786, 189828, 189829, 189836, 189840, 189841, 189843,
+                       189844, 189845, 189846, 189857, 189858, 189859, 189863, 189864, 189869, 189870, 189875, 189878, 189880, 189881,
+                       189882, 189883, 189884, 189887, 189890, 189893, 189894, 189899, 189900, 189902, 190154, 190155, 190156, 190157,
+                       190158, 190159, 211720, 211721, 211722, 211723, 211724]
+                       """
+
+    desired_metafeatures = ['NumberOfClasses', 'NumberOfFeatures', 'NumberOfInstances']
+
+    metafeatures = {task_id : get_metafeatures(task_id, desired_metafeatures) for task_id in openml_task_ids}
+    dummy_strategies = ['wei','dei','lei']
+    build(dummy_strategies, pd.DataFrame(metafeatures).transpose(), np.random.RandomState(), openml_task_ids, ['wei'], get_y_test_dummy)
 
 def build(
-    performance_matrix: pd.DataFrame, # Strategies x Tasks
     strategies: List[str], # strategy ids (keys of configurations)
     metafeatures: pd.DataFrame, # the structure [str, np.array] is a mapping from task id to meta features of particular ds, order of task ids like in `task_ids`
     random_state: np.random.RandomState,
     task_ids: List[int], # all task ids to consider used
-    configurations: Dict[str, List[str]], # maps each strategy id to all configs run with it
     default_strategies: List[str], # list of stragiy ids (like the ones in `strategies`) that will sequentially be searched for a feasible default strategy for the given set of `strategies`. See arouond line 227. Used for backup I think.
-    get_y_test=get_y_test_default # a method like described in the default
+    get_y_test # a method like described in the default
 ):
-
+    performance_matrix = pd.DataFrame(columns=strategies,index=task_ids)
 
     minima_for_methods = dict()
     minima_for_tasks = dict()
@@ -169,7 +216,7 @@ def build(
     maxima_for_tasks = dict()
 
     for method in strategies:
-        y_test = get_y_test(method, task_ids, configurations[method])
+        y_test = get_y_test(method, task_ids)
         matrix = y_test.copy()
         minima = np.nanmin(np.nanmin(matrix, axis=2), axis=1)
         minima_as_dicts = {
@@ -181,6 +228,7 @@ def build(
         }
         minima_for_methods[method] = minima_as_dicts
         maxima_for_methods[method] = maxima_as_dicts
+        performance_matrix[method] = pd.Series(maxima_as_dicts) # define performance as max across configs of a task
         diff = maxima - minima
         diff[diff == 0] = 1
         del matrix
@@ -337,3 +385,6 @@ def build(
     print('Regret oracle', np.mean(regret_oracle))
 
     return best_model
+
+if __name__ == '__main__':
+    print(test())
