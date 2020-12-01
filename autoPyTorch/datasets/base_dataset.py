@@ -1,8 +1,7 @@
-from abc import ABCMeta
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 from torch.utils.data import Dataset, Subset
 
 from autoPyTorch.datasets.cross_validation import CROSS_VAL_FN, HOLDOUT_FN, is_stratified
@@ -24,7 +23,7 @@ def type_check(train_tensors: BASE_DATASET_INPUT, val_tensors: Optional[BASE_DAT
             check_valid_data(val_tensors[i])
 
 
-class BaseDataset(Dataset, metaclass=ABCMeta):
+class BaseDataset(Dataset, ABC):
     def __init__(self,
                  train_data: BASE_DATASET_INPUT,
                  val_data: Optional[BASE_DATASET_INPUT] = None,
@@ -55,6 +54,10 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         else:
             indices = np.arange(len(self))
         return indices
+
+    @abstractmethod
+    def get_dataset_properties(self) -> Dict[str, Any]:
+        pass
 
     def create_cross_val_splits(self,
                                 cross_val_type: str,
