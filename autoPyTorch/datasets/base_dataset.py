@@ -26,18 +26,18 @@ def type_check(train_tensors: BASE_DATASET_INPUT, val_tensors: Optional[BASE_DAT
 
 class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(self,
-                 train_tensors: BASE_DATASET_INPUT,
-                 val_tensors: Optional[BASE_DATASET_INPUT] = None,
+                 train_data: BASE_DATASET_INPUT,
+                 val_data: Optional[BASE_DATASET_INPUT] = None,
                  shuffle: Optional[bool] = True,
                  seed: Optional[int] = 42):
         """
-        :param train_tensors: A tuple of objects that have a __len__ and a __getitem__ attribute.
-        :param val_tensors: A optional tuple of objects that have a __len__ and a __getitem__ attribute.
+        :param train_data: A tuple of objects that have a __len__ and a __getitem__ attribute.
+        :param val_data: A optional tuple of objects that have a __len__ and a __getitem__ attribute.
         :param shuffle: Whether to shuffle the data before performing splits
         """
-        type_check(train_tensors, val_tensors)
-        self.train_tensors = train_tensors
-        self.val_tensors = val_tensors
+        type_check(train_data, val_data)
+        self.train_tensors = train_data
+        self.val_tensors = val_data
         self.cross_validators: Dict[str, CROSS_VAL_FN] = {}
         self.holdout_validators: Dict[str, HOLDOUT_FN] = {}
         self.rand = np.random.RandomState(seed=seed)

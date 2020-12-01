@@ -30,7 +30,7 @@ class ImageDataset(BaseDataset):
             val = _create_image_dataset(data=val)
         self.mean, self.std = _calc_mean_std(train=train)
 
-        super().__init__(train_tensors=train, val_tensors=val, shuffle=True)
+        super().__init__(train_data=train, val_data=val, shuffle=True)
         self.cross_validators = get_cross_validators(
             CrossValTypes.stratified_k_fold_cross_validation,
             CrossValTypes.k_fold_cross_validation,

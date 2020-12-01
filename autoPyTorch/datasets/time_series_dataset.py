@@ -45,7 +45,7 @@ class TimeSeriesForecastingDataset(BaseDataset):
                                                           target_variables=target_variables,
                                                           sequence_length=sequence_length,
                                                           n_steps=n_steps)
-        super().__init__(train_tensors=train, val_tensors=val, shuffle=False)
+        super().__init__(train_data=train, val_data=val, shuffle=False)
         self.cross_validators = get_cross_validators(CrossValTypes.time_series_cross_validation)
         self.holdout_validators = get_holdout_validators(HoldoutValTypes.holdout_validation)
 
@@ -102,7 +102,7 @@ class TimeSeriesClassificationDataset(BaseDataset):
         _check_time_series_inputs(train=train,
                                   val=val,
                                   task_type="time_series_classification")
-        super().__init__(train_tensors=train, val_tensors=val, shuffle=True)
+        super().__init__(train_data=train, val_data=val, shuffle=True)
         self.cross_validators = get_cross_validators(
             CrossValTypes.stratified_k_fold_cross_validation,
             CrossValTypes.k_fold_cross_validation,
@@ -120,7 +120,7 @@ class TimeSeriesRegressionDataset(BaseDataset):
         _check_time_series_inputs(train=train,
                                   val=val,
                                   task_type="time_series_regression")
-        super().__init__(train_tensors=train, val_tensors=val, shuffle=True)
+        super().__init__(train_data=train, val_data=val, shuffle=True)
         self.cross_validators = get_cross_validators(
             CrossValTypes.k_fold_cross_validation,
             CrossValTypes.shuffle_split_cross_validation

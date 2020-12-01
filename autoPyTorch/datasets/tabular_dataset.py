@@ -40,7 +40,7 @@ class TabularDataset(BaseDataset):
     def __init__(self, X: Any, Y: Any):
         X, self.data_types, self.nan_mask, self.itovs, self.vtois = self.interpret(X)
         Y, _, self.target_nan_mask, self.target_itov, self.target_vtoi = self.interpret(Y, assert_single_column=True)
-        super().__init__(train_tensors=(X, Y), shuffle=True)
+        super().__init__(train_data=(X, Y), shuffle=True)
         self.cross_validators = get_cross_validators(
             CrossValTypes.stratified_k_fold_cross_validation,
             CrossValTypes.k_fold_cross_validation,
