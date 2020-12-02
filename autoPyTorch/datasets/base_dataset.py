@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -23,7 +23,9 @@ def type_check(train_tensors: BASE_DATASET_INPUT, val_tensors: Optional[BASE_DAT
             check_valid_data(val_tensors[i])
 
 
-class BaseDataset(Dataset, ABC):
+class BaseDataset(Dataset):
+    __metaclass__ = ABCMeta
+
     def __init__(self,
                  train_data: BASE_DATASET_INPUT,
                  val_data: Optional[BASE_DATASET_INPUT] = None,
