@@ -73,28 +73,31 @@ def holdout_validation(val_share: float, indices: np.ndarray, **kwargs: Any) -> 
 
 def stratified_holdout_validation(val_share: float, indices: np.ndarray, **kwargs: Any) \
         -> Tuple[np.ndarray, np.ndarray]:
-    train, val = train_test_split(indices, test_size=val_share, shuffle=False, stratify=kwargs["stratify"])
+    train, val = train_test_split(indices, test_size=val_share, stratify=kwargs["stratify"])
     return train, val
 
 
 def shuffle_split_cross_validation(num_splits: int, indices: np.ndarray, **kwargs: Any) \
         -> List[Tuple[np.ndarray, np.ndarray]]:
     cv = ShuffleSplit(n_splits=num_splits)
-    splits = list(cv.split(indices))
+    splits = [(indices[train_idx], indices[val_idx])
+              for train_idx, val_idx in cv.split(indices)]
     return splits
 
 
 def stratified_shuffle_split_cross_validation(num_splits: int, indices: np.ndarray, **kwargs: Any) \
         -> List[Tuple[np.ndarray, np.ndarray]]:
     cv = StratifiedShuffleSplit(n_splits=num_splits)
-    splits = list(cv.split(indices, kwargs["stratify"]))
+    splits = [(indices[train_idx], indices[val_idx])
+              for train_idx, val_idx in cv.split(indices, kwargs["stratify"])]
     return splits
 
 
 def stratified_k_fold_cross_validation(num_splits: int, indices: np.ndarray, **kwargs: Any) \
         -> List[Tuple[np.ndarray, np.ndarray]]:
     cv = StratifiedKFold(n_splits=num_splits)
-    splits = list(cv.split(indices, kwargs["stratify"]))
+    splits = [(indices[train_idx], indices[val_idx])
+              for train_idx, val_idx in cv.split(indices, kwargs["stratify"])]
     return splits
 
 
@@ -107,7 +110,8 @@ def k_fold_cross_validation(num_splits: int, indices: np.ndarray, **kwargs: Any)
     :return: list of tuples of training and validation indices
     """
     cv = KFold(n_splits=num_splits)
-    splits = list(cv.split(indices))
+    splits = [(indices[train_idx], indices[val_idx])
+              for train_idx, val_idx in cv.split(indices)]
     return splits
 
 
@@ -125,5 +129,6 @@ def time_series_cross_validation(num_splits: int, indices: np.ndarray, **kwargs:
     :return: list of tuples of training and validation indices
     """
     cv = TimeSeriesSplit(n_splits=num_splits)
-    splits = list(cv.split(indices))
+    splits = [(indices[train_idx], indices[val_idx])
+              for train_idx, val_idx in cv.split(indices)]
     return splits

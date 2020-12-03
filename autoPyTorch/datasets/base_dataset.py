@@ -5,6 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset, Subset
 
 from autoPyTorch.datasets.cross_validation import CROSS_VAL_FN, HOLDOUT_FN, is_stratified
+from autoPyTorch import constants
 
 BASE_DATASET_INPUT = Union[Tuple[Any, ...], Dataset]
 
@@ -65,6 +66,14 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
             indices = np.arange(len(self))
         return indices
 
+    def _get_targets(self) -> np.ndarray:
+        if isinstance(self.train_data, Dataset):
+            targets = [self.train_data[idx][-1].numpy() for idx in range(len(self.train_data))]
+            targets = np.stack(targets)
+        else:
+            targets = self.train_data[-1]
+        return np.array(targets)
+
     @abstractmethod
     def get_dataset_properties(self) -> Dict[str, Any]:
         pass
@@ -73,13 +82,18 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                                 cross_val_type: str,
                                 num_splits: int) -> List[Tuple[Dataset, Dataset]]:
         if cross_val_type not in self.cross_validators:
-            raise NotImplementedError(f'The selected `cross_val_type` "{cross_val_type}" is not implemented.')
+            raise NotImplementedError(f'The selected `cross_val_type` "{cross_val_type}" is not supported.')
+        indices = self._get_indices()
         kwargs = {}
         if is_stratified(cross_val_type):
             # we need additional information about the data for stratification
-            kwargs["stratify"] = self.train_data[-1]
-        splits = self.cross_validators[cross_val_type](num_splits, self._get_indices(), **kwargs)
-        return [(Subset(self, split[0]), Subset(self, split[1])) for split in splits]
+            targets = self._get_targets()
+            kwargs["stratify"] = targets[indices]
+        splits = self.cross_validators[cross_val_type](num_splits,
+                                                       indices,
+                                                       **kwargs)
+        return [(Subset(self, train_indices), Subset(self, val_indices))
+                for train_indices, val_indices in splits]
 
     def create_val_split(self,
                          holdout_val_type: Optional[str] = None,
@@ -94,14 +108,19 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                     '`val_share` specified, but the Dataset was a given a pre-defined split at initialization already.')
             if val_share < 0 or val_share > 1:
                 raise ValueError(f"`val_share` must be between 0 and 1, got {val_share}.")
-            if holdout_val_type not in self.cross_validators:
+            if holdout_val_type not in self.holdout_validators:
                 raise NotImplementedError(f'The specified `holdout_val_type` "{holdout_val_type}" is not supported.')
+
+            indices = self._get_indices()
             kwargs = {}
             if is_stratified(holdout_val_type):
                 # we need additional information about the data for stratification
-                kwargs["stratify"] = self.train_data[-1]
-            train, val = self.holdout_validators[holdout_val_type](val_share, self._get_indices(), **kwargs)
-            return Subset(self, train), Subset(self, val)
+                targets = self._get_targets()
+                kwargs["stratify"] = targets[indices]
+            train_indices, val_indices = self.holdout_validators[holdout_val_type](val_share,
+                                                                                   indices,
+                                                                                   **kwargs)
+            return Subset(self, train_indices), Subset(self, val_indices)
         else:
             if self.val_data is None:
                 raise ValueError('Please specify `val_share` or initialize with a validation dataset.')
