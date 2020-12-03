@@ -15,17 +15,19 @@ def check_valid_data(data: Any) -> None:
             'The specified Data for Dataset does either not have a __getitem__ or a __len__ attribute.')
 
 
-def type_check(train_tensors: BASE_DATASET_INPUT, val_tensors: Optional[BASE_DATASET_INPUT] = None) -> None:
-    for i in range(len(train_tensors)):
-        check_valid_data(train_tensors[i])
-    if val_tensors is not None:
-        for i in range(len(val_tensors)):
-            check_valid_data(val_tensors[i])
+def type_check(train_data: BASE_DATASET_INPUT, val_data: Optional[BASE_DATASET_INPUT] = None) -> None:
+    if isinstance(train_data, Dataset):
+        return
+    for i in range(len(train_data)):
+        check_valid_data(train_data[i])
+    if val_data is not None:
+        if isinstance(val_data, Dataset):
+            return
+        for i in range(len(val_data)):
+            check_valid_data(val_data[i])
 
 
-class BaseDataset(Dataset):
-    __metaclass__ = ABCMeta
-
+class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(self,
                  train_data: BASE_DATASET_INPUT,
                  val_data: Optional[BASE_DATASET_INPUT] = None,
@@ -37,18 +39,24 @@ class BaseDataset(Dataset):
         :param shuffle: Whether to shuffle the data before performing splits
         """
         type_check(train_data, val_data)
-        self.train_tensors = train_data
-        self.val_tensors = val_data
+        self.train_data = train_data
+        self.val_data = val_data
         self.cross_validators: Dict[str, CROSS_VAL_FN] = {}
         self.holdout_validators: Dict[str, HOLDOUT_FN] = {}
         self.rand = np.random.RandomState(seed=seed)
         self.shuffle = shuffle
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
-        return self.train_tensors[index]
+        if isinstance(self.train_data, Dataset):
+            return self.train_data[index]
+        else:
+            return tuple(data[index] for data in self.train_data)
 
     def __len__(self) -> int:
-        return len(self.train_tensors[0])
+        if isinstance(self.train_data, Dataset):
+            return len(self.train_data)
+        else:
+            return len(self.train_data[0])
 
     def _get_indices(self) -> np.ndarray:
         if self.shuffle:
@@ -69,7 +77,7 @@ class BaseDataset(Dataset):
         kwargs = {}
         if is_stratified(cross_val_type):
             # we need additional information about the data for stratification
-            kwargs["stratify"] = self.train_tensors[-1]
+            kwargs["stratify"] = self.train_data[-1]
         splits = self.cross_validators[cross_val_type](num_splits, self._get_indices(), **kwargs)
         return [(Subset(self, split[0]), Subset(self, split[1])) for split in splits]
 
@@ -81,7 +89,7 @@ class BaseDataset(Dataset):
                 raise ValueError(
                     '`val_share` specified, but `holdout_val_type` not specified.'
                 )
-            if self.val_tensors is not None:
+            if self.val_data is not None:
                 raise ValueError(
                     '`val_share` specified, but the Dataset was a given a pre-defined split at initialization already.')
             if val_share < 0 or val_share > 1:
@@ -91,11 +99,11 @@ class BaseDataset(Dataset):
             kwargs = {}
             if is_stratified(holdout_val_type):
                 # we need additional information about the data for stratification
-                kwargs["stratify"] = self.train_tensors[-1]
+                kwargs["stratify"] = self.train_data[-1]
             train, val = self.holdout_validators[holdout_val_type](val_share, self._get_indices(), **kwargs)
             return Subset(self, train), Subset(self, val)
         else:
-            if self.val_tensors is None:
+            if self.val_data is None:
                 raise ValueError('Please specify `val_share` or initialize with a validation dataset.')
-            val = BaseDataset(self.val_tensors)
+            val = BaseDataset(self.val_data)
             return self, val
