@@ -36,20 +36,31 @@ class _BaseImageDataset(BaseDataset, metaclass=ABCMeta):
 
         self._mean, self._std = _calc_mean_std(train=train)
 
-        super().__init__(train_data=train, val_data=val, shuffle=True)
-
-    def get_dataset_properties(self) -> Dict[str, Any]:
-        return {
+        self._dataset_properties = {
             "task_type": self._task_type,
             "mean": self._mean,
             "std": self._std
         }
+        super().__init__(train_data=train, val_data=val, shuffle=True)
+
+    def get_dataset_properties(self) -> Dict[str, Any]:
+        return self._dataset_properties
 
 
 class ImageClassificationDataset(_BaseImageDataset):
-    def __init__(self, train: IMAGE_DATASET_INPUT, val: Optional[IMAGE_DATASET_INPUT] = None):
+    def __init__(self,
+                 train: IMAGE_DATASET_INPUT,
+                 val: Optional[IMAGE_DATASET_INPUT] = None,
+                 num_classes: int = None):
+        self._num_classes = num_classes
+
         super().__init__(task_type=constants.IMAGE_CLASSIFICATION, train=train, val=val)
 
+        input_shape, output_shape = self._get_input_output_shape()
+        self._dataset_properties.update({
+            "input_shape": input_shape,
+            "output_shape": output_shape
+        })
         self.cross_validators = get_cross_validators(
             CrossValTypes.stratified_k_fold_cross_validation,
             CrossValTypes.k_fold_cross_validation,
@@ -62,10 +73,27 @@ class ImageClassificationDataset(_BaseImageDataset):
             HoldoutValTypes.stratified_holdout_validation
         )
 
+    def _get_input_output_shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        # assume all images are of some shape for now
+        # can/must be updated later in the pipeline when image augmentations are performed
+        img, _ = self.train_data[0]
+        if self._num_classes is not None:
+            return tuple(img.shape), (self._num_classes,)
+        # determine number of classes by ourselves if it is not given by the user
+        targets = self._get_targets()
+        num_classes = np.max(targets) + 1
+        return tuple(img.shape), (num_classes,)
+
 
 class ImageRegressionDataset(_BaseImageDataset):
     def __init__(self, train: IMAGE_DATASET_INPUT, val: Optional[IMAGE_DATASET_INPUT] = None):
         super().__init__(task_type=constants.IMAGE_REGRESSION, train=train, val=val)
+
+        input_shape, output_shape = self._get_input_output_shape()
+        self._dataset_properties.update({
+            "input_shape": input_shape,
+            "output_shape": output_shape
+        })
 
         self.cross_validators = get_cross_validators(
             CrossValTypes.k_fold_cross_validation,
@@ -75,6 +103,12 @@ class ImageRegressionDataset(_BaseImageDataset):
         self.holdout_validators = get_holdout_validators(
             HoldoutValTypes.holdout_validation
         )
+
+    def _get_input_output_shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        # assume all images are of same shape for now
+        # can/must be updated later in the pipeline when image augmentations are performed
+        img, tgt = self.train_data[0]
+        return tuple(img.shape), tuple(tgt.shape)
 
 
 def _calc_mean_std(train: Dataset) -> Tuple[torch.Tensor, torch.Tensor]:

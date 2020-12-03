@@ -51,7 +51,11 @@ class TimeSeriesForecastingDataset(BaseDataset):
                                                           target_variables=target_variables,
                                                           sequence_length=sequence_length,
                                                           n_steps=n_steps)
+
         super().__init__(train_data=train, val_data=val, shuffle=False)
+
+        self._input_shape, self._output_shape = self._get_input_output_shape()
+
         self.cross_validators = get_cross_validators(CrossValTypes.time_series_cross_validation)
         self.holdout_validators = get_holdout_validators(HoldoutValTypes.holdout_validation)
 
@@ -61,8 +65,14 @@ class TimeSeriesForecastingDataset(BaseDataset):
             "mean": self._mean,
             "std": self._std,
             "min": self._min,
-            "max": self._max
+            "max": self._max,
+            "input_shape": self._input_shape,
+            "output_shape": self._output_shape
         }
+
+    def _get_input_output_shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        data, tgt = self.train_data[0]
+        return tuple(data.shape), tuple(tgt.shape)
 
 
 def _check_time_series_forecasting_inputs(target_variables: Tuple[int],
@@ -124,10 +134,7 @@ class _BaseTimeSeriesDataset(BaseDataset, metaclass=ABCMeta):
         self._mean, self._std = _calc_mean_std(train=train[0])
         self._min, self._max = _calc_min_max(train=train[0])
 
-        super().__init__(train_data=train, val_data=val, shuffle=True)
-
-    def get_dataset_properties(self) -> Dict[str, Any]:
-        return {
+        self._dataset_properties = {
             "task_type": self._task_type,
             "mean": self._mean,
             "std": self._std,
@@ -135,12 +142,26 @@ class _BaseTimeSeriesDataset(BaseDataset, metaclass=ABCMeta):
             "max": self._max
         }
 
+        super().__init__(train_data=train, val_data=val, shuffle=True)
+
+    def get_dataset_properties(self) -> Dict[str, Any]:
+        return self._dataset_properties
+
 
 class TimeSeriesClassificationDataset(_BaseTimeSeriesDataset):
     def __init__(self,
                  train: TIME_SERIES_CLASSIFICATION_INPUT,
-                 val: Optional[TIME_SERIES_CLASSIFICATION_INPUT] = None):
+                 val: Optional[TIME_SERIES_CLASSIFICATION_INPUT] = None,
+                 num_classes: int = None):
+        self._num_classes = num_classes
+
         super().__init__(task_type=constants.TIME_SERIES_CLASSIFICATION, train=train, val=val)
+
+        input_shape, output_shape = self._get_input_output_shape()
+        self._dataset_properties.update({
+            "input_shape": input_shape,
+            "output_shape": output_shape
+        })
 
         self.cross_validators = get_cross_validators(
             CrossValTypes.stratified_k_fold_cross_validation,
@@ -154,10 +175,25 @@ class TimeSeriesClassificationDataset(_BaseTimeSeriesDataset):
             HoldoutValTypes.stratified_holdout_validation
         )
 
+    def _get_input_output_shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        data, _ = self.train_data[0]
+        if self._num_classes is not None:
+            return tuple(data.shape), (self._num_classes,)
+        # determine number of classes by ourselves if it is not given by the user
+        targets = self._get_targets()
+        num_classes = np.max(targets) + 1
+        return tuple(data.shape), (num_classes,)
+
 
 class TimeSeriesRegressionDataset(_BaseTimeSeriesDataset):
     def __init__(self, train: Tuple[np.ndarray, np.ndarray], val: Optional[Tuple[np.ndarray, np.ndarray]] = None):
         super().__init__(task_type=constants.TIME_SERIES_REGRESSION, train=train, val=val)
+
+        input_shape, output_shape = self._get_input_output_shape()
+        self._dataset_properties.update({
+            "input_shape": input_shape,
+            "output_shape": output_shape
+        })
 
         self.cross_validators = get_cross_validators(
             CrossValTypes.k_fold_cross_validation,
@@ -167,6 +203,10 @@ class TimeSeriesRegressionDataset(_BaseTimeSeriesDataset):
         self.holdout_validators = get_holdout_validators(
             HoldoutValTypes.holdout_validation
         )
+
+    def _get_input_output_shape(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        data, tgt = self.train_data[0]
+        return tuple(data.shape), tuple(tgt.shape)
 
 
 def _check_time_series_inputs(task_type: str,
@@ -193,7 +233,7 @@ def _check_time_series_inputs(task_type: str,
             raise ValueError(
                 f"The validation data for {task_type} has to be a "
                 f"three-dimensional tensor of shape NxSxM.")
-        if val[0].ndim != 1:
+        if val[1].ndim != 1:
             raise ValueError(
                 f"The validation targets for {task_type} have to be of shape N."
             )
