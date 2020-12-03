@@ -129,7 +129,7 @@ class _BaseTimeSeriesDataset(BaseDataset, metaclass=ABCMeta):
 
         _check_time_series_inputs(train=train,
                                   val=val,
-                                  task_type=constants.TASK_TYPES_TO_STRING[self._task_type])
+                                  task_type=self._task_type)
 
         self._mean, self._std = _calc_mean_std(train=train[0])
         self._min, self._max = _calc_min_max(train=train[0])
@@ -209,33 +209,54 @@ class TimeSeriesRegressionDataset(_BaseTimeSeriesDataset):
         return tuple(data.shape), tuple(tgt.shape)
 
 
-def _check_time_series_inputs(task_type: str,
+def _check_time_series_inputs(task_type: int,
                               train: Union[TIME_SERIES_CLASSIFICATION_INPUT, TIME_SERIES_REGRESSION_INPUT],
                               val: Optional[
                                   Union[TIME_SERIES_CLASSIFICATION_INPUT, TIME_SERIES_REGRESSION_INPUT]] = None
                               ) -> None:
+    task_type_str = constants.TASK_TYPES_TO_STRING[task_type]
     if len(train) != 2:
-        raise ValueError(f"There must be exactly two training tensors for {task_type}. "
+        raise ValueError(f"There must be exactly two training tensors for {task_type_str}. "
                          f"The first one containing the data and the second one containing the targets.")
     if train[0].ndim != 3:
         raise ValueError(
-            f"The training data for {task_type} has to be a three-dimensional tensor of shape NxSxM.")
-    if train[1].ndim != 1:
+            f"The training data for {task_type_str} has to be a three-dimensional tensor of shape NxSxM.")
+    if task_type == constants.TIME_SERIES_CLASSIFICATION:
+        if train[1].ndim != 1:
+            raise ValueError(
+                f"The training targets for {task_type_str} have to be of shape N."
+            )
+    elif task_type == constants.TIME_SERIES_REGRESSION:
+        if train[1].ndim > 2:
+            raise ValueError(
+                f"The training targets for {task_type_str} have to be of shape N or NxO"
+            )
+    else:
         raise ValueError(
-            f"The training targets for {task_type} have to be of shape N."
+            f"Invalid task type {task_type_str}"
         )
     if val is not None:
         if len(val) != 2:
             raise ValueError(
-                f"There must be exactly two validation tensors for{task_type}. "
+                f"There must be exactly two validation tensors for{task_type_str}. "
                 f"The first one containing the data and the second one containing the targets.")
         if val[0].ndim != 3:
             raise ValueError(
-                f"The validation data for {task_type} has to be a "
+                f"The validation data for {task_type_str} has to be a "
                 f"three-dimensional tensor of shape NxSxM.")
-        if val[1].ndim != 1:
+        if task_type == constants.TIME_SERIES_CLASSIFICATION:
+            if val[1].ndim != 1:
+                raise ValueError(
+                    f"The validation targets for {task_type_str} have to be of shape N."
+                )
+        elif task_type == constants.TIME_SERIES_REGRESSION:
+            if val[1].ndim > 2:
+                raise ValueError(
+                    f"The validation targets for {task_type_str} have to be of shape N or NxO"
+                )
+        else:
             raise ValueError(
-                f"The validation targets for {task_type} have to be of shape N."
+                f"Invalid task type {task_type_str}"
             )
 
 
