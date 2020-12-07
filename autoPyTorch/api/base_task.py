@@ -1,7 +1,7 @@
 # mypy: ignore-errors
 import typing
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from ConfigurationSpace.configuration_space import \
     Configuration, \
@@ -10,11 +10,12 @@ from ConfigurationSpace.configuration_space import \
 import numpy as np
 
 from autoPyTorch.datasets.base_dataset import BaseDataset
+from autoPyTorch.pipeline.base_pipeline import BasePipeline
 
 
 class BaseTask():
     """
-    Base class for the tasks that serve as API to the pipelines.
+    Base class for the tasks that serve as API to the pipeline and optimizer.
     """
 
     def __init__(
@@ -22,19 +23,28 @@ class BaseTask():
     ):
         self.pipeline = self.build_pipeline()
 
-        self.pipeline_config = self.pipeline.get_default_config()
+        self.pipeline_config = self.pipeline.get_default_pipeline_options()
 
         self.search_space = self.pipeline.get_hyperparameter_search_space()
 
     @abstractmethod
-    def build_pipeline(self):
+    def build_pipeline(self) -> BasePipeline:
+        """
+        Build the task specific pipeline.
+        """
         raise NotImplementedError
+
+    def get_pipeline_config(self) -> Dict[str, Any]:
+        """
+        Returns the current pipeline configuration.
+        """
+        return self.pipeline_config
 
     def set_pipeline_config(
             self,
             **pipeline_config_kwargs: Any) -> None:
         """
-        Check wether arguments are valid and then pipeline configuration.
+        Check wether arguments are valid and then update the pipeline configuration.
         """
         unknown_keys = []
         for option, value in pipeline_config_kwargs.items:
@@ -48,11 +58,11 @@ class BaseTask():
 
         self.pipeline_config.update(pipeline_config_kwargs)
 
-    def get_pipeline_config(self) -> dict:
+    def get_search_space(self) -> ConfigurationSpace:
         """
-        Returns the current pipeline configuration.
+        Returns the current search space as ConfigurationSpace object.
         """
-        return self.pipeline_config
+        return self.search_space
 
     def set_search_space(self, search_space: ConfigurationSpace) -> None:
         """
@@ -60,27 +70,16 @@ class BaseTask():
         """
         raise NotImplementedError
 
-    def get_search_space(self) -> ConfigurationSpace:
-        """
-        Returns the current search space as ConfigurationSpace object.
-        """
-        return self.search_space
-
     @typing.no_type_check
     def search(
         self,
         dataset: BaseDataset,
     ):
-        """Refit a model configuration and calculate the model performance.
-        Given a model configuration, the model is trained on the joint train
-        and validation sets of the dataset. This corresponds to the refit
-        phase after finding a best hyperparameter configuration after the hpo
-        phase.
+        """Start searching for the optimal pipeline.
         Args:
             dataset: (Dataset)
-                The argument that will provide the dataset splits. It can either
-                be a dictionary with the splits, or the dataset object which can
-                generate the splits based on different restrictions.
+                Auto-PyTorch dataset that provides dataset properties as well as the data
+                itself and the training and validation splits.
         """
         # TODO: Check dataset type against task type
         dataset_properties = dataset.get_dataset_properties()
@@ -108,11 +107,10 @@ class BaseTask():
         phase.
         Args:
             dataset: (Dataset)
-                The argument that will provide the dataset splits. It can either
-                be a dictionary with the splits, or the dataset object which can
-                generate the splits based on different restrictions.
+                Auto-PyTorch dataset that provides dataset properties as well as the data
+                itself and the training and validation splits.
             model_config: (Configuration)
-                The configuration of the model.
+                The pipeline to fit.
         Returns:
             Value of the evaluation metric calculated on the test set.
         """

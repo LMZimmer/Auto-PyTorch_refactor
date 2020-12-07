@@ -141,7 +141,7 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
     ) -> ConfigurationSpace:
         """Create the hyperparameter configuration space.
 
-        For the given steps, and the Choices within that steps,
+        For the given steps, and the Choices within these steps,
         this procedure returns a configuration space object to
         explore.
 
