@@ -13,7 +13,8 @@ from autoPyTorch.pipeline.components.base_component import (
     autoPyTorchComponent,
     find_components,
 )
-from autoPyTorch.pipeline.components.setup.traditional_ml.base_classifier import BaseModelComponent
+from autoPyTorch.pipeline.components.setup.traditional_ml.base_model import BaseModelComponent
+
 
 directory = os.path.split(__file__)[0]
 _models = find_components(__package__,

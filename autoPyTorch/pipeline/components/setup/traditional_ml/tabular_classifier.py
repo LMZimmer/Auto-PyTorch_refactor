@@ -67,4 +67,4 @@ class TabularClassifier(BaseModelComponent):
         # Remove unwanted info
         info.pop('model', None)
         info.pop('random_state', None)
-        return f"TabularClassifier: {self.config['classifier']} -> {self.config['head']} ({str(info)})"
+        return f"TabularClassifier: {self.config['classifier']} ({str(info)})"

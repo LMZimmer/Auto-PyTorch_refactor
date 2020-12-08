@@ -40,10 +40,10 @@ def encode_categoricals(X_train, X_val=None, encode_dicts=None):
                 encode_dicts.append(cat_to_int_dict)
     return X_train, X_val, encode_dicts
 
-class LGBBaseline(BaseBaseline):
+class LGBModel(BaseClassifier):
 
     def __init__(self):
-        super(LGBBaseline, self).__init__(name="lgb")
+        super(LGBModel, self).__init__(name="lgb")
 
     def fit(self, X_train, y_train, X_val, y_val, categoricals=None):
         results = dict()
@@ -116,10 +116,10 @@ class LGBBaseline(BaseBaseline):
         return y_pred
 
 
-class CatboostBaseline(BaseBaseline):
+class CatboostModel(BaseClassifier):
 
     def __init__(self):
-        super(CatboostBaseline, self).__init__(name="catboost")
+        super(CatboostModel, self).__init__(name="catboost")
 
     def fit(self, X_train, y_train, X_val, y_val, categoricals=None):
         results = dict()
@@ -179,10 +179,10 @@ class CatboostBaseline(BaseBaseline):
         return y_pred
 
 
-class RFBaseline(BaseBaseline):
+class RFModel(BaseClassifier):
 
     def __init__(self):
-        super(RFBaseline, self).__init__(name="random_forest")
+        super(RFModel, self).__init__(name="random_forest")
 
     def fit(self, X_train, y_train, X_val, y_val):
         results = dict()
@@ -242,10 +242,10 @@ class RFBaseline(BaseBaseline):
         return y_pred
 
 
-class ExtraTreesBaseline(BaseBaseline):
+class ExtraTreesModel(BaseClassifier):
 
     def __init__(self):
-        super(ExtraTreesBaseline, self).__init__(name="extra_trees")
+        super(ExtraTreesModel, self).__init__(name="extra_trees")
 
     def fit(self, X_train, y_train, X_val, y_val):
         results = dict()
@@ -306,10 +306,10 @@ class ExtraTreesBaseline(BaseBaseline):
         return y_pred
 
 
-class RotationForestBaseline(BaseBaseline):
+class RotationForestModel(BaseClassifier):
 
     def __init__(self):
-        super(RotationForestBaseline, self).__init__(name="rotation_forest")
+        super(RotationForestModel, self).__init__(name="rotation_forest")
 
     def fit(self, X_train, y_train, X_val, y_val):
         results = dict()
@@ -361,10 +361,10 @@ class RotationForestBaseline(BaseBaseline):
         return y_pred
 
 
-class KNNBaseline(BaseBaseline):
+class KNNModel(BaseClassifier):
 
     def __init__(self):
-        super(KNNBaseline, self).__init__(name="knn")
+        super(KNNModel, self).__init__(name="knn")
 
     def fit(self, X_train, y_train, X_val, y_val):
         results = dict()
@@ -419,10 +419,10 @@ class KNNBaseline(BaseBaseline):
         return y_pred
 
 
-class SVMBaseline(BaseBaseline):
+class SVMModel(BaseClassifier):
 
     def __init__(self):
-        super(SVMBaseline, self).__init__(name="svm")
+        super(SVMModel, self).__init__(name="svm")
 
     def fit(self, X_train, y_train, X_val, y_val):
         results = dict()

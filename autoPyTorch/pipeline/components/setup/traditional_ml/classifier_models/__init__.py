@@ -6,8 +6,8 @@ from autoPyTorch.pipeline.components.base_component import (
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.classifiers import (
     CatboostModel,
-    ExtraTreesModel
-    KNNModel
+    ExtraTreesModel,
+    KNNModel,
     LGBModel,
     RFModel,
     SVMModel)
