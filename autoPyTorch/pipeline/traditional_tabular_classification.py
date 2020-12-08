@@ -192,9 +192,8 @@ class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
         steps.extend([
             ("imputer", SimpleImputer()),
             ("scaler", ScalerChoice(default_dataset_properties)),
-            ("tabular_transformer", TabularColumnTransformer()),
             ("preprocessing", EarlyPreprocessing()),
-            ("trainer", TrainerChoice(default_dataset_properties)),
+            ("model_selector", # TODO)
         ])
         return steps
 

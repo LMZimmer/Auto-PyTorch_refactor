@@ -13,16 +13,16 @@ from autoPyTorch.pipeline.components.base_component import (
     autoPyTorchComponent,
     find_components,
 )
-from autoPyTorch.pipeline.components.setup.traditional_ml.base_classifier import BaseClassifierComponent
+from autoPyTorch.pipeline.components.setup.traditional_ml.base_classifier import BaseModelComponent
 
 directory = os.path.split(__file__)[0]
 _models = find_components(__package__,
                             directory,
-                            BaseClassifierComponent)
-_addons = ThirdPartyComponents(BaseClassifierComponent)
+                            BaseModelComponent)
+_addons = ThirdPartyComponents(BaseModelComponent)
 
 
-def add_model(model: BaseClassifierComponent) -> None:
+def add_model(model: BaseModelComponent) -> None:
     _addons.add_component(model)
 
 
