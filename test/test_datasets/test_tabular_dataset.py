@@ -81,7 +81,7 @@ class TabularDatasetTest(unittest.TestCase):
             backend = create(temporary_directory='/tmp/autoPyTorch_ensemble_test_tmp',
                              output_directory='/tmp/autoPyTorch_ensemble_test_out',
                              delete_tmp_folder_after_terminate=False)
-        except FileExistsError:
+        except Exception:
             self.assertRaises(FileExistsError)
             return unittest.skip("File already exists")
 
