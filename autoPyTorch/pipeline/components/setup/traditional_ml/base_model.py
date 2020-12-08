@@ -11,7 +11,7 @@ from torch import nn
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
 
 
-class BaseClassifierComponent(autoPyTorchSetupComponent):
+class BaseModelComponent(autoPyTorchSetupComponent):
     """
     Provide an abstract interface for traditional classification methods
     in Auto-Pytorch
@@ -22,10 +22,9 @@ class BaseClassifierComponent(autoPyTorchSetupComponent):
             random_state: Optional[np.random.RandomState] = None,
             device: Optional[torch.device] = None
     ) -> None:
-        super(BaseClassifierComponent, self).__init__()
+        super(BaseModelComponent, self).__init__()
         self.model = None
         self.random_state = random_state
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchSetupComponent:
         """

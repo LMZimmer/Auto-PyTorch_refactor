@@ -18,16 +18,7 @@ from autoPyTorch.pipeline.components.preprocessing.tabular_preprocessing.encodin
 from autoPyTorch.pipeline.components.preprocessing.tabular_preprocessing.imputation.SimpleImputer import SimpleImputer
 from autoPyTorch.pipeline.components.preprocessing.tabular_preprocessing.scaling.base_scaler_choice import ScalerChoice
 from autoPyTorch.pipeline.components.setup.early_preprocessor.EarlyPreprocessing import EarlyPreprocessing
-from autoPyTorch.pipeline.components.setup.lr_scheduler.base_scheduler_choice import SchedulerChoice
-from autoPyTorch.pipeline.components.setup.network.base_network_choice import NetworkChoice
-from autoPyTorch.pipeline.components.setup.network_initializer.base_network_init_choice import (
-    NetworkInitializerChoice
-)
-from autoPyTorch.pipeline.components.setup.optimizer.base_optimizer_choice import OptimizerChoice
-from autoPyTorch.pipeline.components.training.data_loader.feature_data_loader import FeatureDataLoader
-from autoPyTorch.pipeline.components.training.trainer.base_trainer_choice import (
-    TrainerChoice
-)
+from autoPyTorch.pipeline.components.setup.traditional_ml.base_model_choice import ModelChoice
 
 
 class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
@@ -191,9 +182,12 @@ class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
 
         steps.extend([
             ("imputer", SimpleImputer()),
+            ("encoder", EncoderChoice(default_dataset_properties)),
             ("scaler", ScalerChoice(default_dataset_properties)),
+            ("tabular_transformer", TabularColumnTransformer()),
             ("preprocessing", EarlyPreprocessing()),
-            ("model_selector", # TODO)
+            ("model_selector", ModelChoice(default_dataset_properties)),
+            # TODO: trainer
         ])
         return steps
 
