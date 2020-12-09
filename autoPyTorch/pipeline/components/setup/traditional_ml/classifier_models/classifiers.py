@@ -1,68 +1,71 @@
-from catboost import Pool, CatBoostClassifier
+from typing import Any, Dict, List, Tuple, Union
+
+from catboost import CatBoostClassifier, Pool
 
 from lightgbm import LGBMClassifier
 
 import numpy as np
 
 from sklearn import metrics
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 
 
-def encode_categoricals(X_train, X_val=None, encode_dicts=None):
-
-    if encode_dicts is None:
-        encode_dicts = []
-        got_encoded_dicts = False
-    else:
-        got_encoded_dicts = True
+def encode_categoricals(X_train: np.ndarray,
+                        X_val: np.ndarray = np.ndarray(),
+                        encode_dicts: List = []) -> Tuple[np.ndarray, np.ndarray, List]:
 
     for ind in range(X_train.shape[1]):
         if isinstance(X_train[0, ind], str):
-            uniques = np.unique(X_train[0,:])
+            uniques = np.unique(X_train[0, :])
 
-            if got_encoded_dicts:
+            if encode_dicts is not None:
                 cat_to_int_dict = encode_dicts[ind]
             else:
-                cat_to_int_dict = {val:ind for ind,val in enumerate(uniques)}
+                cat_to_int_dict = {val: ind for ind, val in enumerate(uniques)}
 
-            converted_column_train = [cat_to_int_dict[v] for v in X_train[0,:]]
-            x_train[0,:] = converted_column
+            converted_column_train = [cat_to_int_dict[v] for v in X_train[0, :]]
+            X_train[0, :] = converted_column_train
 
             if X_val is not None:
-                converted_column_val = [cat_to_int_dict[v] for v in X_val[0,:]]
-                x_val[0,:] = converted_column_val
+                converted_column_val = [cat_to_int_dict[v] for v in X_val[0, :]]
+                X_val[0, :] = converted_column_val
 
-            if not got_encoded_dicts:
+            if encode_dicts is not None:
                 encode_dicts.append(cat_to_int_dict)
     return X_train, X_val, encode_dicts
 
+
 class LGBModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(LGBModel, self).__init__(name="lgb")
 
-    def fit(self, X_train, y_train, X_val, y_val, categoricals=None):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray,
+            categoricals: np.ndarray = np.array()) -> Dict[str, Any]:
+
         results = dict()
 
         self.num_classes = len(np.unique(y_train))
         self.config["num_class"] = self.num_classes
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
         X_train = np.nan_to_num(X_train)
         X_val = np.nan_to_num(X_val)
 
-        early_stopping = 150 if X_train.shape[0]>10000 else max(round(150*10000/X_train.shape[0]), 10)
+        early_stopping = 150 if X_train.shape[0] > 10000 else max(round(150 * 10000 / X_train.shape[0]), 10)
         self.config["early_stopping_rounds"] = early_stopping
 
-        categoricals = [ind for ind in range(X_train.shape[1]) if isinstance(X_train[0,ind], str)]
-        X_train, X_val, self.encode_dicts = encode_categoricals(X_train, X_val, encode_dicts=None)
+        X_train, X_val, self.encode_dicts = encode_categoricals(X_train, X_val)
 
         self.model = LGBMClassifier(**self.config)
         self.model.fit(X_train, y_train, eval_set=[(X_val, y_val)])
@@ -71,7 +74,7 @@ class LGBModel(BaseClassifier):
         pred_val = self.model.predict_proba(X_val)
 
         # This fixes a bug
-        if self.num_classes==2:
+        if self.num_classes == 2:
             pred_train = pred_train.transpose()[0:len(y_train)]
             pred_val = pred_val.transpose()[0:len(y_val)]
 
@@ -88,7 +91,7 @@ class LGBModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -98,19 +101,19 @@ class LGBModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = np.nan_to_num(X_test)
         X_test, _, _ = encode_categoricals(X_test, encode_dicts=self.encode_dicts)
 
         if predict_proba:
             y_pred_proba = self.model.predict_proba(X_test)
-            if self.num_classes==2:
+            if self.num_classes == 2:
                 y_pred_proba = y_pred_proba.transpose()[0:len(X_test)]
             return y_pred_proba
 
         y_pred = self.model.predict(X_test)
-        if self.num_classes==2:
+        if self.num_classes == 2:
             y_pred = y_pred.transpose()[0:len(X_test)]
         y_pred = np.argmax(y_pred, axis=1)
         return y_pred
@@ -118,22 +121,27 @@ class LGBModel(BaseClassifier):
 
 class CatboostModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(CatboostModel, self).__init__(name="catboost")
 
-    def fit(self, X_train, y_train, X_val, y_val, categoricals=None):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray,
+            categoricals: np.ndarray = np.array()) -> Dict[str, Any]:
+
         results = dict()
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
         X_train = np.nan_to_num(X_train)
         X_val = np.nan_to_num(X_val)
 
-        categoricals = [ind for ind in range(X_train.shape[1]) if isinstance(X_train[0,ind], str)]
+        categoricals = [ind for ind in range(X_train.shape[1]) if isinstance(X_train[0, ind], str)]
 
-        early_stopping = 150 if X_train.shape[0]>10000 else max(round(150*10000/X_train.shape[0]), 10)
+        early_stopping = 150 if X_train.shape[0] > 10000 else max(round(150 * 10000 / X_train.shape[0]), 10)
 
         X_train_pooled = Pool(data=X_train, label=y_train, cat_features=categoricals)
         X_val_pooled = Pool(data=X_val, label=y_val, cat_features=categoricals)
@@ -150,8 +158,8 @@ class CatboostModel(BaseClassifier):
         try:
             pred_train = np.argmax(pred_train, axis=1)
             pred_val = np.argmax(pred_val, axis=1)
-        except:
-            print("==> No probabilities provided in predictions")
+        except ValueError:
+            self.logger.info("==> No probabilities provided in predictions")
 
         results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
         results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
@@ -160,7 +168,7 @@ class CatboostModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -170,7 +178,7 @@ class CatboostModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = np.nan_to_num(X_test)
         if predict_proba:
@@ -181,13 +189,17 @@ class CatboostModel(BaseClassifier):
 
 class RFModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(RFModel, self).__init__(name="random_forest")
 
-    def fit(self, X_train, y_train, X_val, y_val):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray) -> Dict[str, Any]:
+
         results = dict()
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
@@ -196,8 +208,8 @@ class RFModel(BaseClassifier):
 
         self.config["warm_start"] = False
         self.num_classes = len(np.unique(y_train))
-        if self.num_classes>2:
-            print("==> Using warmstarting for multiclass")
+        if self.num_classes > 2:
+            self.logger.info("==> Using warmstarting for multiclass")
             final_n_estimators = self.config["n_estimators"]
             self.config["n_estimators"] = 8
             self.config["warm_start"] = True
@@ -223,7 +235,7 @@ class RFModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -233,7 +245,7 @@ class RFModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = np.nan_to_num(X_test)
         if predict_proba:
@@ -244,13 +256,17 @@ class RFModel(BaseClassifier):
 
 class ExtraTreesModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(ExtraTreesModel, self).__init__(name="extra_trees")
 
-    def fit(self, X_train, y_train, X_val, y_val):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray) -> Dict[str, Any]:
+
         results = dict()
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
@@ -259,8 +275,8 @@ class ExtraTreesModel(BaseClassifier):
 
         self.config["warm_start"] = False
         self.num_classes = len(np.unique(y_train))
-        if self.num_classes>2:
-            print("==> Using warmstarting for multiclass")
+        if self.num_classes > 2:
+            self.logger.info("==> Using warmstarting for multiclass")
             final_n_estimators = self.config["n_estimators"]
             self.config["n_estimators"] = 8
             self.config["warm_start"] = True
@@ -272,7 +288,6 @@ class ExtraTreesModel(BaseClassifier):
             self.model.n_estimators = final_n_estimators
             self.model.fit(X_train, y_train)
 
-
         pred_val_probas = self.model.predict_proba(X_val)
 
         pred_train = self.model.predict(X_train)
@@ -287,7 +302,7 @@ class ExtraTreesModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -297,62 +312,7 @@ class ExtraTreesModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
-        X_test = X_test[:, ~self.all_nan]
-        X_test = np.nan_to_num(X_test)
-        if predict_proba:
-            return self.model.predict_proba(X_test)
-        y_pred = self.model.predict(X_test)
-        return y_pred
-
-
-class RotationForestModel(BaseClassifier):
-
-    def __init__(self):
-        super(RotationForestModel, self).__init__(name="rotation_forest")
-
-    def fit(self, X_train, y_train, X_val, y_val):
-        results = dict()
-
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
-        X_train = X_train[:, ~self.all_nan]
-        X_val = X_val[:, ~self.all_nan]
-
-        X_train = np.nan_to_num(X_train)
-        X_val = np.nan_to_num(X_val)
-
-        self.config["warm_start"] = False
-        self.num_classes = len(np.unique(y_train))
-
-        self.model = RotationForestClassifier(**self.config)
-
-        self.model.fit(X_train, y_train)
-
-        pred_val_probas = self.model.predict_proba(X_val)
-
-        pred_train = self.model.predict(X_train)
-        pred_val = self.model.predict(X_val)
-
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
-        results["val_preds"] = pred_val_probas.tolist()
-        results["labels"] = y_val.tolist()
-
-        return results
-
-    def score(self, X_test, y_test):
-        results = dict()
-
-        y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
-
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = np.nan_to_num(X_test)
         if predict_proba:
@@ -363,17 +323,21 @@ class RotationForestModel(BaseClassifier):
 
 class KNNModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(KNNModel, self).__init__(name="knn")
 
-    def fit(self, X_train, y_train, X_val, y_val):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray) -> Dict[str, Any]:
+
         results = dict()
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
-        self.categoricals = np.array([isinstance(X_train[0,ind], str) for ind in range(X_train.shape[1])])
+        self.categoricals = np.array([isinstance(X_train[0, ind], str) for ind in range(X_train.shape[1])])
         X_train = X_train[:, ~self.categoricals]
         X_val = X_val[:, ~self.categoricals]
 
@@ -399,7 +363,7 @@ class KNNModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -409,7 +373,7 @@ class KNNModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = X_test[:, ~self.categoricals]
         X_test = np.nan_to_num(X_test)
@@ -421,15 +385,19 @@ class KNNModel(BaseClassifier):
 
 class SVMModel(BaseClassifier):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(SVMModel, self).__init__(name="svm")
 
-    def fit(self, X_train, y_train, X_val, y_val):
+    def fit(self, X_train: np.ndarray,
+            y_train: np.ndarray,
+            X_val: np.ndarray,
+            y_val: np.ndarray) -> Dict[str, Any]:
+
         results = dict()
 
         self.model = SVC(**self.config)
 
-        self.all_nan = np.all(np.isnan(X_train), axis=0)
+        self.all_nan: np.ndarray = np.all(np.isnan(X_train), axis=0)
         X_train = X_train[:, ~self.all_nan]
         X_val = X_val[:, ~self.all_nan]
 
@@ -449,7 +417,7 @@ class SVMModel(BaseClassifier):
 
         return results
 
-    def score(self, X_test, y_test):
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
         results = dict()
 
         y_pred = self.predict(X_test)
@@ -459,7 +427,7 @@ class SVMModel(BaseClassifier):
 
         return results
 
-    def predict(self, X_test, predict_proba=False):
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
         X_test = np.nan_to_num(X_test)
         if predict_proba:

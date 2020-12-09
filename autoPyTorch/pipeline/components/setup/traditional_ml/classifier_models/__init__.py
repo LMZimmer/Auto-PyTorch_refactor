@@ -20,6 +20,7 @@ _classifiers = {
     'random_forest': RFModel,
     'svm_classifier': SVMModel
 }
+_addons = ThirdPartyComponents(BaseClassifier)
 
 
 def add_classifier(classifier: BaseClassifier) -> None:

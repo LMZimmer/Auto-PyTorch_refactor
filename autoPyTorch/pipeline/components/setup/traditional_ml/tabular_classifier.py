@@ -7,11 +7,8 @@ from ConfigSpace.hyperparameters import (
 
 import numpy as np
 
-from torch import nn
-
-from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models import BaseClassifier, get_available_classifiers
 from autoPyTorch.pipeline.components.setup.traditional_ml.base_model import BaseModelComponent
-from autoPyTorch.utils import common
+from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models import BaseClassifier, get_available_classifiers
 
 
 class TabularClassifier(BaseModelComponent):
