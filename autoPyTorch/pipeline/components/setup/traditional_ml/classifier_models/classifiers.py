@@ -6,7 +6,6 @@ from lightgbm import LGBMClassifier
 
 import numpy as np
 
-from sklearn import metrics
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -15,9 +14,11 @@ from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base
 
 
 def encode_categoricals(X_train: np.ndarray,
-                        X_val: np.ndarray = np.ndarray(),
+                        X_val: np.ndarray = np.ndarray(()),
                         encode_dicts: List = []) -> Tuple[np.ndarray, np.ndarray, List]:
-
+    """
+    An ordinal encoder for categorials (required for some methods)
+    """
     for ind in range(X_train.shape[1]):
         if isinstance(X_train[0, ind], str):
             uniques = np.unique(X_train[0, :])
@@ -48,7 +49,7 @@ class LGBModel(BaseClassifier):
             y_train: np.ndarray,
             X_val: np.ndarray,
             y_val: np.ndarray,
-            categoricals: np.ndarray = np.array()) -> Dict[str, Any]:
+            categoricals: np.ndarray = np.array(())) -> Dict[str, Any]:
 
         results = dict()
 
@@ -84,22 +85,14 @@ class LGBModel(BaseClassifier):
         pred_train = np.argmax(pred_train, axis=1)
         pred_val = np.argmax(pred_val, axis=1)
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
@@ -128,7 +121,7 @@ class CatboostModel(BaseClassifier):
             y_train: np.ndarray,
             X_val: np.ndarray,
             y_val: np.ndarray,
-            categoricals: np.ndarray = np.array()) -> Dict[str, Any]:
+            categoricals: np.ndarray = np.array(())) -> Dict[str, Any]:
 
         results = dict()
 
@@ -161,22 +154,14 @@ class CatboostModel(BaseClassifier):
         except ValueError:
             self.logger.info("==> No probabilities provided in predictions")
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
@@ -226,24 +211,16 @@ class RFModel(BaseClassifier):
         pred_train = self.model.predict(X_train)
         pred_val = self.model.predict(X_val)
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
         results["val_preds"] = pred_val_probas.tolist()
         results["labels"] = y_val.tolist()
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
@@ -293,24 +270,16 @@ class ExtraTreesModel(BaseClassifier):
         pred_train = self.model.predict(X_train)
         pred_val = self.model.predict(X_val)
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
         results["val_preds"] = pred_val_probas.tolist()
         results["labels"] = y_val.tolist()
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
@@ -354,24 +323,16 @@ class KNNModel(BaseClassifier):
         pred_train = self.model.predict(X_train)
         pred_val = self.model.predict(X_val)
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
         results["val_preds"] = pred_val_probas.tolist()
         results["labels"] = y_val.tolist()
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
@@ -408,24 +369,16 @@ class SVMModel(BaseClassifier):
         pred_train = self.model.predict(X_train)
         pred_val = self.model.predict(X_val)
 
-        results["train_acc"] = metrics.accuracy_score(y_train, pred_train)
-        results["train_balanced_acc"] = metrics.balanced_accuracy_score(y_train, pred_train)
-        results["val_acc"] = metrics.accuracy_score(y_val, pred_val)
-        results["val_balanced_acc"] = metrics.balanced_accuracy_score(y_val, pred_val)
+        results["train_score"] = self.metric(y_train, pred_train)
+        results["val_score"] = self.metric(y_val, pred_val)
         results["val_preds"] = pred_val_probas.tolist()
         results["labels"] = y_val.tolist()
 
         return results
 
-    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> Dict[str, Any]:
-        results = dict()
-
+    def score(self, X_test: np.ndarray, y_test: Union[np.ndarray, List]) -> float:
         y_pred = self.predict(X_test)
-
-        results["test_acc"] = metrics.accuracy_score(y_test, y_pred)
-        results["test_balanced_acc"] = metrics.balanced_accuracy_score(y_test, y_pred)
-
-        return results
+        return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         X_test = X_test[:, ~self.all_nan]
