@@ -27,10 +27,11 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         self.random_state = random_state
         self.fit_output: Dict[str, Any] = dict()
 
-        self.add_fit_requirement([FitRequirement('X_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
-                                  FitRequirement('y_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
-                                  FitRequirement('X_val', (np.ndarray, list,), user_defined=False, dataset_property=False),
-                                  FitRequirement('y_val', (np.ndarray, list,), user_defined=False, dataset_property=False)])
+        self.add_fit_requirements([
+            FitRequirement('X_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
+            FitRequirement('y_train', (np.ndarray, list, pd.Series,), user_defined=False, dataset_property=False),
+            FitRequirement('X_val', (np.ndarray, list,), user_defined=False, dataset_property=False),
+            FitRequirement('y_val', (np.ndarray, list, pd.Series,), user_defined=False, dataset_property=False)])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchSetupComponent:
         """
@@ -47,9 +48,12 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         # information to fit this stage
         self.check_requirements(X, y)
 
-        input_shape = X['X_train'].shape[1:]
         if isinstance(X['y_train'], pd.core.series.Series):
             X['y_train'] = X['y_train'].to_numpy()
+        if isinstance(X['y_val'], pd.core.series.Series):
+            X['y_val'] = X['y_val'].to_numpy()
+
+        input_shape = X['X_train'].shape[1:]
         output_shape = X['y_train'].shape
 
         # instantiate model

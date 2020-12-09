@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from sklearn import metrics
+
 
 class BaseClassifier():
     """
@@ -19,10 +21,12 @@ class BaseClassifier():
         self.name = name
         self.config = self.get_config()
 
-        self.categoricals: np.ndarray = np.array()
-        self.all_nan = None
+        self.categoricals: np.ndarray = np.array(())
+        self.all_nan: np.ndarray = np.array(())
         self.encode_dicts: List = []
         self.num_classes: Optional[int] = None
+
+        self.metric = metrics.accuracy_score
 
     def configure_logging(self) -> None:
         """
@@ -63,7 +67,7 @@ class BaseClassifier():
         raise NotImplementedError
 
     @abstractmethod
-    def score(self, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, Any]:
+    def score(self, X_test: np.ndarray, y_test: np.ndarray) -> float:
         """
         Score the model performance on a test set.
         """

@@ -186,8 +186,7 @@ class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
             ("scaler", ScalerChoice(default_dataset_properties)),
             ("tabular_transformer", TabularColumnTransformer()),
             ("preprocessing", EarlyPreprocessing()),
-            ("model_selector", ModelChoice(default_dataset_properties)),
-            # TODO: trainer
+            ("model_trainer", ModelChoice(default_dataset_properties)),
         ])
         return steps
 
