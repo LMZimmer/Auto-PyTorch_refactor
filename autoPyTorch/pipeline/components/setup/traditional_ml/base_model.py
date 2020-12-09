@@ -9,6 +9,7 @@ import torch
 from torch import nn
 
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
+from autoPyTorch.utils.common import FitRequirement
 
 
 class BaseModelComponent(autoPyTorchSetupComponent):
@@ -23,8 +24,13 @@ class BaseModelComponent(autoPyTorchSetupComponent):
             device: Optional[torch.device] = None
     ) -> None:
         super(BaseModelComponent, self).__init__()
-        self.model = None
         self.random_state = random_state
+        self.fit_output: Dict[str, Any] = dict()
+
+        self.add_fit_requirement([FitRequirement('X_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
+                                  FitRequirement('y_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
+                                  FitRequirement('X_val', (np.ndarray, list,), user_defined=False, dataset_property=False),
+                                  FitRequirement('y_val', (np.ndarray, list,), user_defined=False, dataset_property=False)])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchSetupComponent:
         """
@@ -46,9 +52,17 @@ class BaseModelComponent(autoPyTorchSetupComponent):
             X['y_train'] = X['y_train'].to_numpy()
         output_shape = X['y_train'].shape
 
+        # instantiate model
         self.model = self.build_model(input_shape=input_shape,
                                       output_shape=output_shape)
 
+        # train model
+        self.fit_output = self.model.fit(X['X_train'], X['y_train'], X['X_val'], X['y_val'])
+
+        # infer
+        if 'X_test' in X.keys() and X['X_test'] is not None:
+            test_preds = self.model.predict(X_test=X['X_test'], predict_proba=True)
+            self.fit_output["test_preds"] = test_preds
         return self
 
     @abstractmethod
@@ -65,6 +79,7 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         The transform function updates the model in the X dictionary.
         """
         X.update({'model': self.model})
+        X.update({'results': self.fit_output})
         return X
 
     def get_model(self) -> nn.Module:

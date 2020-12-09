@@ -1,6 +1,6 @@
 import os
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import ConfigSpace.hyperparameters as CSH
 from ConfigSpace.configuration_space import ConfigurationSpace
@@ -18,8 +18,8 @@ from autoPyTorch.pipeline.components.setup.traditional_ml.base_model import Base
 
 directory = os.path.split(__file__)[0]
 _models = find_components(__package__,
-                            directory,
-                            BaseModelComponent)
+                          directory,
+                          BaseModelComponent)
 _addons = ThirdPartyComponents(BaseModelComponent)
 
 
@@ -128,7 +128,7 @@ class ModelChoice(autoPyTorchChoice):
             raise ValueError("No Network found")
 
         if default is None:
-            defaults = []
+            defaults: List[Any] = []
             for default_ in defaults:
                 if default_ in available_models:
                     default = default_
