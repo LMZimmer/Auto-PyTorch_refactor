@@ -1,8 +1,13 @@
+import sys
 import warnings
 from abc import ABCMeta
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
+
+import pandas as pd
+
+import psutil
 
 from scipy.sparse import issparse
 
@@ -40,6 +45,17 @@ def type_check(train_tensors: BASE_DATASET_INPUT, val_tensors: Optional[BASE_DAT
             check_valid_data(val_tensors[i])
 
 
+def get_tensor_size(data_tensor: BASE_DATASET_INPUT) -> int:
+    """
+    A helper function to get the size of a data tensor in bytes.
+    """
+    if isinstance(data_tensor, np.ndarray):
+        return max(data_tensor.nbytes, sys.getsizeof(data_tensor))
+    if isinstance(data_tensor, pd.DataFrame):
+        return max(sum(data_tensor.memory_usage(deep=True).tolist()), sys.getsizeof(data_tensor))
+    return sys.getsizeof(data_tensor)
+
+
 class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(
         self,
@@ -50,7 +66,8 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         resampling_strategy_args: Optional[Dict[str, Any]] = None,
         shuffle: Optional[bool] = True,
         seed: Optional[int] = 42,
-        transforms: Optional[torchvision.transforms.Compose] = None
+        transforms: Optional[torchvision.transforms.Compose] = None,
+        memory_limit_mb: int = 1000000
     ):
         """
         :param train_tensors: A tuple of objects that have a __len__ and a __getitem__ attribute.
@@ -71,9 +88,9 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.task_type: Optional[int] = None
         self.issparse: bool = issparse(self.train_tensors[0])
         self.output_type: int = STRING_TO_OUTPUT_TYPES[type_of_target(self.train_tensors[1])]
+        self.memory_limit_mb = memory_limit_mb
 
-        # TODO: Look for a criteria to define small enough to preprocess
-        self.is_small_preprocess = True
+        self.is_small_preprocess = BaseDataset.is_small_dataset([self.train_tensors, self.val_tensors], memory_limit_mb)
 
         # Make sure cross validation splits are created once
         self.splits = None  # type: Optional[List]
@@ -81,6 +98,17 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         # We also need to be able to transform the data, be it for pre-processing
         # or for augmentation
         self.transform = transforms
+
+    @staticmethod
+    def is_small_dataset(data_tensors: List[BASE_DATASET_INPUT], memory_limit_mb: int) -> bool:
+        """
+        Determine wether the whole dataset can be preprocessed in memory.
+        :param data_tensors: An iterable holding tensors used to infer the dataset size
+        """
+        available_memory_bytes = min(psutil.virtual_memory().available, memory_limit_mb * 1000000)
+        threshold = available_memory_bytes / 2
+        data_size_bytes = sum([get_tensor_size(data_tensor) for data_tensor in data_tensors])
+        return data_size_bytes < threshold
 
     def update_transform(self, transform: Optional[torchvision.transforms.Compose]
                          ) -> 'BaseDataset':
