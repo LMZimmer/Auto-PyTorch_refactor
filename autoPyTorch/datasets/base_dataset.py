@@ -1,7 +1,7 @@
 import sys
 import warnings
 from abc import ABCMeta
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 
@@ -66,7 +66,8 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         resampling_strategy_args: Optional[Dict[str, Any]] = None,
         shuffle: Optional[bool] = True,
         seed: Optional[int] = 42,
-        transforms: Optional[torchvision.transforms.Compose] = None
+        transforms: Optional[torchvision.transforms.Compose] = None,
+        memory_limit_mb: int = 1000000
     ):
         """
         :param train_tensors: A tuple of objects that have a __len__ and a __getitem__ attribute.
@@ -87,8 +88,9 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.task_type: Optional[int] = None
         self.issparse: bool = issparse(self.train_tensors[0])
         self.output_type: int = STRING_TO_OUTPUT_TYPES[type_of_target(self.train_tensors[1])]
+        self.memory_limit_mb = memory_limit_mb
 
-        self.is_small_preprocess = BaseDataset.is_small_dataset((self.train_tensors, self.val_tensors))
+        self.is_small_preprocess = BaseDataset.is_small_dataset([self.train_tensors, self.val_tensors], memory_limit_mb)
 
         # Make sure cross validation splits are created once
         self.splits = None  # type: Optional[List]
@@ -98,12 +100,12 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.transform = transforms
 
     @staticmethod
-    def is_small_dataset(data_tensors: Iterable[BASE_DATASET_INPUT]) -> bool:
+    def is_small_dataset(data_tensors: List[BASE_DATASET_INPUT], memory_limit_mb: int) -> bool:
         """
         Determine wether the whole dataset can be preprocessed in memory.
         :param data_tensors: An iterable holding tensors used to infer the dataset size
         """
-        available_memory_bytes = psutil.virtual_memory().available
+        available_memory_bytes = min(psutil.virtual_memory().available, memory_limit_mb * 1000000)
         threshold = available_memory_bytes / 2
         data_size_bytes = sum([get_tensor_size(data_tensor) for data_tensor in data_tensors])
         return data_size_bytes < threshold
