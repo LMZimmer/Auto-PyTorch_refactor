@@ -289,7 +289,7 @@ class ResNetBackbone(BaseBackbone):
         blocks = list()
         for i in range(blocks_per_group):
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     config=self.config,
                     in_features=in_features,
                     out_features=out_features,
@@ -379,7 +379,7 @@ class ResNetBackbone(BaseBackbone):
         return cs
 
 
-class ResBlock(nn.Module):
+class _ResBlock(nn.Module):
     """
     __author__ = "Max Dippel, Michael Burkart and Matthias Urban"
     """
@@ -394,7 +394,7 @@ class ResBlock(nn.Module):
             dropout: bool,
             activation: nn.Module
     ):
-        super(ResBlock, self).__init__()
+        super(_ResBlock, self).__init__()
         self.config = config
         self.dropout = dropout
         self.activation = activation
