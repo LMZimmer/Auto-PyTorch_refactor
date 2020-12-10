@@ -69,10 +69,9 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
     def _get_targets(self) -> np.ndarray:
         if isinstance(self.train_data, Dataset):
             targets = [self.train_data[idx][-1].numpy() for idx in range(len(self.train_data))]
-            targets = np.stack(targets)
+            return np.stack(targets)
         else:
-            targets = self.train_data[-1]
-        return np.array(targets)
+            return self.train_data[-1]
 
     @abstractmethod
     def get_dataset_properties(self) -> Dict[str, Any]:
