@@ -12,13 +12,9 @@ import torch
 from torch import nn
 
 from autoPyTorch.pipeline.components.setup.network.backbone.base_backbone import BaseBackbone
-from autoPyTorch.pipeline.components.setup.network.utils import (
-    get_shaped_neuron_counts,
-    shake_drop,
-    shake_drop_get_bl,
-    shake_get_alpha_beta,
-    shake_shake
-)
+from autoPyTorch.pipeline.components.setup.network.utils.shape import get_shaped_neuron_counts
+from autoPyTorch.pipeline.components.setup.network.utils.shake_tabular import shake_drop, shake_drop_get_bl, \
+    shake_get_alpha_beta, shake_shake
 
 _activations = {
     "relu": nn.ReLU,
@@ -84,9 +80,7 @@ class MLPBackbone(BaseBackbone):
                                         max_mlp_layers: int = 15,
                                         dropout: bool = True,
                                         min_num_units: int = 10,
-                                        max_num_units: int = 1024,
-                                        ) -> ConfigurationSpace:
-
+                                        max_num_units: int = 1024) -> ConfigurationSpace:
         cs = ConfigurationSpace()
 
         # The number of hidden layers the network will have.
@@ -423,7 +417,7 @@ class ResBlock(nn.Module):
         self.num_blocks = blocks_per_group * self.config["num_groups"]
         self.layers = self._build_block(in_features, out_features)
 
-        if config["use_shake_shake"]:
+        if self.config["use_shake_shake"]:
             self.shake_shake_layers = self._build_block(in_features, out_features)
 
     # each bloack consists of two linear layers with batch norm and activation
