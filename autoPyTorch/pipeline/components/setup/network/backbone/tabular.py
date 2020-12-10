@@ -496,7 +496,7 @@ class ShapedResNetBackbone(ResNetBackbone):
                                                  self.config['max_units'],
                                                  self.config['num_groups'] + 2)[:-1]
         self.config.update(
-            {"num_units_%d" % (i): num for i, num in enumerate(neuron_counts)}
+            {f"num_units_{i}": num for i, num in enumerate(neuron_counts)}
         )
         if self.config['use_dropout'] and self.config["max_dropout"] > 0.05:
             dropout_shape = get_shaped_neuron_counts(
@@ -525,7 +525,7 @@ class ShapedResNetBackbone(ResNetBackbone):
                 )
             )
 
-        layers.append(nn.BatchNorm1d(self.config["num_units_%i" % self.config['num_groups']]))
+        layers.append(nn.BatchNorm1d(self.config[f"num_units_{self.config['num_groups']}"]))
         backbone = nn.Sequential(*layers)
         self.backbone = backbone
         return backbone

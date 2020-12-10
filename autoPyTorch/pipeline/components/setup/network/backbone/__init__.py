@@ -7,7 +7,7 @@ from autoPyTorch.pipeline.components.setup.network.backbone.base_backbone import
 from autoPyTorch.pipeline.components.setup.network.backbone.image import ConvNetImageBackbone, DenseNetImageBackbone, \
     ResNetImageBackbone
 from autoPyTorch.pipeline.components.setup.network.backbone.tabular import MLPBackbone, ResNetBackbone, \
-    ShapedMLPBackbone
+    ShapedMLPBackbone, ShapedResNetBackbone
 from autoPyTorch.pipeline.components.setup.network.backbone.time_series import InceptionTimeBackbone, TCNBackbone
 
 _backbones = {
@@ -15,6 +15,7 @@ _backbones = {
     DenseNetImageBackbone.get_name(): DenseNetImageBackbone,
     ResNetImageBackbone.get_name(): ResNetImageBackbone,
     ResNetBackbone.get_name(): ResNetBackbone,
+    ShapedResNetBackbone.get_name(): ShapedResNetBackbone,
     ShapedMLPBackbone.get_name(): ShapedMLPBackbone,
     MLPBackbone.get_name(): MLPBackbone,
     TCNBackbone.get_name(): TCNBackbone,
