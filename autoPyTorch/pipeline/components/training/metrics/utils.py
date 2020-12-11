@@ -100,7 +100,7 @@ def get_metrics(dataset_properties: Dict[str, Any],
 
 
 def calculate_score(
-        solution: np.ndarray,
+        target: np.ndarray,
         prediction: np.ndarray,
         task_type: int,
         metrics: Iterable[autoPyTorchMetric],
@@ -110,7 +110,7 @@ def calculate_score(
         cprediction = sanitize_array(prediction)
         for metric_ in metrics:
             try:
-                score_dict[metric_.name] = metric_(solution, cprediction)
+                score_dict[metric_.name] = metric_(target, cprediction)
             except ValueError as e:
                 warnings.warn(f"{e} {e.args[0]}")
                 if e.args[0] == "Mean Squared Logarithmic Error cannot be used when " \
@@ -122,7 +122,7 @@ def calculate_score(
     else:
         for metric_ in metrics:
             try:
-                score_dict[metric_.name] = metric_(solution, prediction)
+                score_dict[metric_.name] = metric_(target, prediction)
             except ValueError as e:
                 if e.args[0] == 'multiclass format is not supported':
                     continue
