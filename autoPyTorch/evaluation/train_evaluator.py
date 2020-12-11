@@ -80,6 +80,7 @@ class TrainEvaluator(AbstractEvaluator):
         holdout"""
         assert self.splits is not None, "Can't fit pipeline in {} is datamanager.splits is None" \
             .format(self.__class__.__name__)
+        additional_run_info: Optional[Dict] = None
         if self.num_folds == 1:
             split_id = 0
             self.logger.info("Starting fit {}".format(split_id))
@@ -116,7 +117,6 @@ class TrainEvaluator(AbstractEvaluator):
             Y_optimization_pred: List[Optional[np.ndarray]] = [None] * self.num_folds
             Y_valid_pred: List[Optional[np.ndarray]] = [None] * self.num_folds
             Y_test_pred: List[Optional[np.ndarray]] = [None] * self.num_folds
-            additional_run_info: Optional[Dict] = None
             train_splits: List[Optional[Union[np.ndarray, List]]] = [None] * self.num_folds
 
             self.models = [self._get_model() for _ in range(self.num_folds)]
