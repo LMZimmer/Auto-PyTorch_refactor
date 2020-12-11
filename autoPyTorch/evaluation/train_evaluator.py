@@ -253,7 +253,7 @@ class TrainEvaluator(AbstractEvaluator):
         X = {'train_indices': train_indices,
              'val_indices': test_indices,
              'split_id': fold,
-             **self._init_params}  # fit dictionary
+             **self.fit_dictionary}  # fit dictionary
         y = None
         fit_and_suppress_warnings(self.logger, model, X, y)
         self.logger.info("Model fitted, now predicting")

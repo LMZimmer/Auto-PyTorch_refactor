@@ -44,16 +44,16 @@ __all__ = [
 ]
 
 
-class MyDummyClassifier(DummyClassifier):
+class DummyClassificationPipeline(DummyClassifier):
     def __init__(self, config: Configuration,
                  random_state: Optional[Union[int, np.random.RandomState]] = None,
                  init_params: Optional[Dict] = None
                  ) -> None:
         self.configuration = config
         if config == 1:
-            super(MyDummyClassifier, self).__init__(strategy="uniform")
+            super(DummyClassificationPipeline, self).__init__(strategy="uniform")
         else:
-            super(MyDummyClassifier, self).__init__(strategy="most_frequent")
+            super(DummyClassificationPipeline, self).__init__(strategy="most_frequent")
 
     def pre_transform(self, X: Dict[str, Any], y: Any,
                       fit_params: Dict[str, Any] = None
@@ -66,13 +66,13 @@ class MyDummyClassifier(DummyClassifier):
             sample_weight: Optional[np.ndarray] = None) -> object:
         X_train = X['X_train'][X['train_indices']]
         y_train = X['y_train'][X['train_indices']]
-        return super(MyDummyClassifier, self).fit(np.ones((X_train.shape[0], 1)), y_train,
-                                                  sample_weight=sample_weight)
+        return super(DummyClassificationPipeline, self).fit(np.ones((X_train.shape[0], 1)), y_train,
+                                                            sample_weight=sample_weight)
 
     def predict_proba(self, X: Dict[str, Any],
                       batch_size: int = 1000) -> np.array:
         new_X = np.ones((X['X_train']['val_indices'].shape[0], 1))
-        probas = super(MyDummyClassifier, self).predict_proba(new_X)
+        probas = super(DummyClassificationPipeline, self).predict_proba(new_X)
         probas = convert_multioutput_multiclass_to_multilabel(probas).astype(
             np.float32)
         return probas
@@ -84,15 +84,15 @@ class MyDummyClassifier(DummyClassifier):
         return None
 
 
-class MyDummyRegressor(DummyRegressor):
+class DummyRegressionPipeline(DummyRegressor):
     def __init__(self, config: Configuration,
                  random_state: Optional[Union[int, np.random.RandomState]] = None,
                  init_params: Optional[Dict] = None) -> None:
         self.configuration = config
         if config == 1:
-            super(MyDummyRegressor, self).__init__(strategy='mean')
+            super(DummyRegressionPipeline, self).__init__(strategy='mean')
         else:
-            super(MyDummyRegressor, self).__init__(strategy='median')
+            super(DummyRegressionPipeline, self).__init__(strategy='median')
 
     def pre_transform(self, X: Dict[str, Any], y: Any,
                       fit_params: Dict[str, Any] = None
@@ -105,13 +105,13 @@ class MyDummyRegressor(DummyRegressor):
             sample_weight: Optional[np.ndarray] = None) -> object:
         X_train = X['X_train'][X['train_indices']]
         y_train = X['y_train'][X['train_indices']]
-        return super(MyDummyRegressor, self).fit(np.ones((X_train.shape[0], 1)), y_train,
-                                                 sample_weight=sample_weight)
+        return super(DummyRegressionPipeline, self).fit(np.ones((X_train.shape[0], 1)), y_train,
+                                                        sample_weight=sample_weight)
 
     def predict(self, X: Dict[str, Any],
                 batch_size: int = 1000) -> np.array:
         new_X = np.ones((X['X_train']['val_indices'].shape[0], 1))
-        return super(MyDummyRegressor, self).predict(new_X).astype(np.float32)
+        return super(DummyRegressionPipeline, self).predict(new_X).astype(np.float32)
 
     def estimator_supports_iterative_fit(self) -> bool:  # pylint: disable=R0201
         return False
@@ -187,27 +187,27 @@ class AbstractEvaluator(object):
         else:
             raise ValueError('disable_file_output should be either a bool or a list')
 
-        self.model_class: Optional[BaseEstimator] = None
+        self.pipeline_class: Optional[BaseEstimator] = None
         info = {'task_type': self.datamanager.task_type,
                 'output_type': self.datamanager.output_type,
                 'issparse': self.issparse}
         if self.task_type in REGRESSION_TASKS:
             if not isinstance(self.configuration, Configuration):
-                self.model_class = MyDummyRegressor
+                self.pipeline_class = DummyRegressionPipeline
             else:
                 if self.task_type in TABULAR_TASKS:
-                    self.model_class = TabularRegressionPipeline
+                    self.pipeline_class = TabularRegressionPipeline
                 else:
                     raise ValueError('task {} not available'.format(self.task_type))
             self.predict_function = self._predict_regression
         else:
             if not isinstance(self.configuration, Configuration):
-                self.model_class = MyDummyClassifier
+                self.pipeline_class = DummyClassificationPipeline
             else:
                 if self.task_type in TABULAR_TASKS:
-                    self.model_class = TabularClassificationPipeline
+                    self.pipeline_class = TabularClassificationPipeline
                 elif self.task_type in IMAGE_TASKS:
-                    self.model_class = ImageClassificationPipeline
+                    self.pipeline_class = ImageClassificationPipeline
                 else:
                     raise ValueError('task {} not available'.format(self.task_type))
             self.predict_function = self._predict_regression
@@ -216,10 +216,9 @@ class AbstractEvaluator(object):
                          'categorical_columns': self.datamanager.categorical_columns})
         self.dataset_properties = self.datamanager.get_dataset_properties(get_dataset_requirements(info))
 
-        self._init_params = {'dataset_properties': self.dataset_properties}
-        if init_params is not None:
-            self._init_params.update(init_params)
-        self._init_params.update({
+        self.fit_dictionary = {'dataset_properties': self.dataset_properties}
+        self._init_params = init_params
+        self.fit_dictionary.update({
             'X_train': self.X_train,
             'y_train': self.y_train,
             'X_test': self.X_test,
@@ -244,7 +243,7 @@ class AbstractEvaluator(object):
 
         self.budget = budget
         self.budget_type = budget_type
-        default_pipeline_options = self.model_class.get_default_pipeline_options()
+        default_pipeline_options = self.pipeline_class.get_default_pipeline_options()
         if self.budget_type is not None:
             if self.budget_type == 'runtime':
                 default_pipeline_options['runtime'] = self.budget
@@ -256,21 +255,21 @@ class AbstractEvaluator(object):
                     del default_pipeline_options['runtime']
             default_pipeline_options['budget_type'] = self.budget_type
         self.logger.debug("Default pipeline options: {}".format(default_pipeline_options))
-        self._init_params.update({**default_pipeline_options})
+        self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}
 
     def _get_model(self) -> BaseEstimator:
-        assert self.model_class is not None, "Can't return model, model_class not initialised"
+        assert self.pipeline_class is not None, "Can't return model, model_class not initialised"
         if not isinstance(self.configuration, Configuration):
-            model = self.model_class(config=self.configuration,
-                                     random_state=np.random.RandomState(self.seed),
-                                     init_params=self._init_params)
+            model = self.pipeline_class(config=self.configuration,
+                                        random_state=np.random.RandomState(self.seed),
+                                        init_params=self.fit_dictionary)
         else:
-            model = self.model_class(config=self.configuration,
-                                     dataset_properties=self.dataset_properties,
-                                     random_state=np.random.RandomState(self.seed),
-                                     include=self.include,
-                                     exclude=self.exclude,
-                                     init_params=self._init_params)
+            model = self.pipeline_class(config=self.configuration,
+                                        dataset_properties=self.dataset_properties,
+                                        random_state=np.random.RandomState(self.seed),
+                                        include=self.include,
+                                        exclude=self.exclude,
+                                        init_params=self._init_params)
         return model
 
     def _loss(self, y_true: np.ndarray, y_hat: np.ndarray) -> Dict[str, float]:
