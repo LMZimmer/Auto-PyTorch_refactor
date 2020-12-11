@@ -106,24 +106,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         **resampling_strategy_args
     ):
 
-        eval_function = None
-        # COMMENTED AS A WA THAT THIS IS NOT YET READY. Uncomment when Ravin finishes
-        if resampling_strategy == 'holdout':
-            eval_function = autoPyTorch.evaluation.train_evaluator.eval_function
-        # elif resampling_strategy == 'cv' or (
-        #         isinstance(resampling_strategy, type) and (
-        #         issubclass(resampling_strategy, (BaseCrossValidator,
-        #                                          _RepeatedSplits,
-        #                                          BaseShuffleSplit)))):
-        #     eval_function = autoPyTorch.evaluation.train_evaluator.eval_cv
-        # elif resampling_strategy == 'partial-cv':
-        #     eval_function = autoPyTorch.evaluation.train_evaluator.eval_partial_cv
-        # elif resampling_strategy == 'test':
-        #     eval_function = autoPyTorch.evaluation.test_evaluator.eval_t
-        #     output_y_hat_optimization = False
-        # else:
-        #     raise ValueError('Unknown resampling strategy %s' %
-        #                      resampling_strategy)
+        eval_function = autoPyTorch.evaluation.train_evaluator.eval_function
 
         self.worst_possible_result = cost_for_crash
 
