@@ -109,7 +109,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         eval_function = None
         # COMMENTED AS A WA THAT THIS IS NOT YET READY. Uncomment when Ravin finishes
         if resampling_strategy == 'holdout':
-            eval_function = autoPyTorch.evaluation.train_evaluator.eval_holdout
+            eval_function = autoPyTorch.evaluation.train_evaluator.eval_function
         # elif resampling_strategy == 'cv' or (
         #         isinstance(resampling_strategy, type) and (
         #         issubclass(resampling_strategy, (BaseCrossValidator,

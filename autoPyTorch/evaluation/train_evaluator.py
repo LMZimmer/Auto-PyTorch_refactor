@@ -21,7 +21,7 @@ from autoPyTorch.evaluation.abstract_evaluator import (
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.utils.backend import Backend
 
-__all__ = ['TrainEvaluator', 'eval_holdout']
+__all__ = ['TrainEvaluator', 'eval_function']
 
 
 def _get_y_array(y: np.ndarray, task_type: int) -> np.ndarray:
@@ -303,7 +303,7 @@ class TrainEvaluator(AbstractEvaluator):
 
 
 # create closure for evaluating an algorithm
-def eval_holdout(
+def eval_function(
         backend: Backend,
         queue: Queue,
         metric: List[autoPyTorchMetric],
