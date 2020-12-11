@@ -2,13 +2,14 @@ from multiprocessing.queues import Queue
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ConfigSpace.configuration_space import Configuration
+
 import numpy as np
 
 import pandas as pd
 
-from smac.tae import StatusType
-
 from sklearn.base import BaseEstimator
+
+from smac.tae import StatusType
 
 from autoPyTorch.constants import (
     CLASSIFICATION_TASKS,

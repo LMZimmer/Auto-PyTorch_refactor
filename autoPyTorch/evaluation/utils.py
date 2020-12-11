@@ -1,8 +1,6 @@
-from multiprocessing.queues import Queue
-
-from typing import List, Optional, Union
-
 import queue
+from multiprocessing.queues import Queue
+from typing import List, Optional, Union
 
 import numpy as np
 

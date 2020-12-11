@@ -2,8 +2,6 @@ from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
-from scipy.sparse import issparse
-
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
 from autoPyTorch.pipeline.components.preprocessing.tabular_preprocessing.scaling.base_scaler import BaseScaler

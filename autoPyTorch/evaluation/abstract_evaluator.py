@@ -1,18 +1,18 @@
 import logging.handlers
-from multiprocessing.queues import Queue
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
 import warnings
+from multiprocessing.queues import Queue
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ConfigSpace import Configuration
 
 import numpy as np
 
-from smac.tae import StatusType
-
 from sklearn.base import BaseEstimator
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import VotingClassifier, VotingRegressor
+
+from smac.tae import StatusType
 
 from autoPyTorch.constants import (
     CLASSIFICATION_TASKS,
@@ -35,7 +35,7 @@ from autoPyTorch.pipeline.image_classification import ImageClassificationPipelin
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
 from autoPyTorch.pipeline.tabular_regression import TabularRegressionPipeline
 from autoPyTorch.utils.backend import Backend
-from autoPyTorch.utils.logging_ import get_named_client_logger, PicklableClientLogger
+from autoPyTorch.utils.logging_ import PicklableClientLogger, get_named_client_logger
 from autoPyTorch.utils.pipeline import get_dataset_requirements
 
 __all__ = [

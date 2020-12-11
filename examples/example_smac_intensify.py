@@ -9,8 +9,8 @@ import dask.distributed
 import sklearn.datasets
 import sklearn.model_selection
 
-from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes
+from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.pipeline.components.training.metrics.utils import get_metrics
 from autoPyTorch.utils.backend import create
