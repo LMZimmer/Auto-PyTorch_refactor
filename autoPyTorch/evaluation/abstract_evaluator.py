@@ -120,7 +120,7 @@ class DummyRegressionPipeline(DummyRegressor):
         return None
 
 
-def fit_and_suppress_warnings(logger: PicklableClientLogger, model: BaseEstimator,
+def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstimator,
                               X: Dict[str, Any], y: Any
                               ) -> BaseEstimator:
     def send_warnings_to_log(message, category, filename, lineno,
@@ -131,9 +131,9 @@ def fit_and_suppress_warnings(logger: PicklableClientLogger, model: BaseEstimato
 
     with warnings.catch_warnings():
         warnings.showwarning = send_warnings_to_log
-        model.fit(X, y)
+        pipeline.fit(X, y)
 
-    return model
+    return pipeline
 
 
 class AbstractEvaluator(object):
@@ -256,20 +256,20 @@ class AbstractEvaluator(object):
         self.logger.debug("Default pipeline options: {}".format(default_pipeline_options))
         self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}
 
-    def _get_model(self) -> BaseEstimator:
-        assert self.pipeline_class is not None, "Can't return model, model_class not initialised"
+    def _get_pipeline(self) -> BaseEstimator:
+        assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"
         if not isinstance(self.configuration, Configuration):
-            model = self.pipeline_class(config=self.configuration,
-                                        random_state=np.random.RandomState(self.seed),
-                                        init_params=self.fit_dictionary)
+            pipeline = self.pipeline_class(config=self.configuration,
+                                           random_state=np.random.RandomState(self.seed),
+                                           init_params=self.fit_dictionary)
         else:
-            model = self.pipeline_class(config=self.configuration,
-                                        dataset_properties=self.dataset_properties,
-                                        random_state=np.random.RandomState(self.seed),
-                                        include=self.include,
-                                        exclude=self.exclude,
-                                        init_params=self._init_params)
-        return model
+            pipeline = self.pipeline_class(config=self.configuration,
+                                           dataset_properties=self.dataset_properties,
+                                           random_state=np.random.RandomState(self.seed),
+                                           include=self.include,
+                                           exclude=self.exclude,
+                                           init_params=self._init_params)
+        return pipeline
 
     def _loss(self, y_true: np.ndarray, y_hat: np.ndarray) -> Dict[str, float]:
         """SMAC follows a minimization goal, so the make_scorer
@@ -441,25 +441,25 @@ class AbstractEvaluator(object):
             if self.output_y_hat_optimization:
                 self.backend.save_targets_ensemble(self.Y_optimization)
 
-        if hasattr(self, 'models') and len(self.models) > 0 and self.models[0] is not None:
-            if ('models' not in self.disable_file_output):
+        if hasattr(self, 'pipelines') and len(self.pipelines) > 0 and self.pipelines[0] is not None:
+            if ('pipelines' not in self.disable_file_output):
 
                 if self.task_type in CLASSIFICATION_TASKS:
-                    models = VotingClassifier(estimators=None, voting='soft', )
+                    pipelines = VotingClassifier(estimators=None, voting='soft', )
                 else:
-                    models = VotingRegressor(estimators=None)
-                models.estimators_ = self.models
+                    pipelines = VotingRegressor(estimators=None)
+                pipelines.estimators_ = self.pipelines
             else:
-                models = None
+                pipelines = None
         else:
-            models = None
+            pipelines = None
 
         self.backend.save_numrun_to_dir(
             seed=self.seed,
             idx=self.num_run,
             budget=self.budget,
-            model=self.model if 'model' not in self.disable_file_output else None,
-            cv_model=models if 'cv_model' not in self.disable_file_output else None,
+            model=self.pipeline if 'pipeline' not in self.disable_file_output else None,
+            cv_model=pipelines if 'cv_pipeline' not in self.disable_file_output else None,
             ensemble_predictions=(
                 Y_optimization_pred if 'y_optimization' not in self.disable_file_output else None
             ),
@@ -473,7 +473,7 @@ class AbstractEvaluator(object):
 
         return None, {}
 
-    def _predict_proba(self, X: np.ndarray, model: BaseEstimator, Y_train: np.ndarray) -> np.ndarray:
+    def _predict_proba(self, X: np.ndarray, pipeline: BaseEstimator, Y_train: np.ndarray) -> np.ndarray:
         def send_warnings_to_log(message, category, filename, lineno,
                                  file=None, line=None):
             self.logger.debug('%s:%s: %s:%s' %
@@ -482,12 +482,12 @@ class AbstractEvaluator(object):
 
         with warnings.catch_warnings():
             warnings.showwarning = send_warnings_to_log
-            Y_pred = model.predict_proba(X, batch_size=1000)
+            Y_pred = pipeline.predict_proba(X, batch_size=1000)
 
         Y_pred = self._ensure_prediction_array_sizes(Y_pred, Y_train)
         return Y_pred
 
-    def _predict_regression(self, X: np.ndarray, model: BaseEstimator,
+    def _predict_regression(self, X: np.ndarray, pipeline: BaseEstimator,
                             Y_train: Optional[np.ndarray] = None) -> np.ndarray:
         def send_warnings_to_log(message, category, filename, lineno,
                                  file=None, line=None):
@@ -497,7 +497,7 @@ class AbstractEvaluator(object):
 
         with warnings.catch_warnings():
             warnings.showwarning = send_warnings_to_log
-            Y_pred = model.predict(X, batch_size=1000)
+            Y_pred = pipeline.predict(X, batch_size=1000)
 
         if len(Y_pred.shape) == 1:
             Y_pred = Y_pred.reshape((-1, 1))

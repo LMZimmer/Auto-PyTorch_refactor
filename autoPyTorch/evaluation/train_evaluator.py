@@ -71,7 +71,7 @@ class TrainEvaluator(AbstractEvaluator):
         self.Y_optimization = None
         self.Y_targets: List[Optional[np.ndarray]] = [None] * self.num_folds
         self.Y_train_targets: np.ndarray = np.ones(self.y_train.shape) * np.NaN
-        self.models: List[Optional[BaseEstimator]] = [None] * self.num_folds
+        self.pipelines: List[Optional[BaseEstimator]] = [None] * self.num_folds
         self.indices: List[Optional[Tuple[Union[np.ndarray, List], Union[np.ndarray, List]]]] = [None] * self.num_folds
 
         self.keep_models = keep_models
@@ -86,19 +86,19 @@ class TrainEvaluator(AbstractEvaluator):
             split_id = 0
             self.logger.info("Starting fit {}".format(split_id))
 
-            model = self._get_model()
+            pipeline = self._get_pipeline()
 
             train_split, test_split = self.splits[split_id]
             self.Y_optimization = self.y_train[test_split]
             self.Y_actual_train = self.y_train[train_split]
-            y_train_pred, y_opt_pred, y_valid_pred, y_test_pred = self._fit_and_predict(model, split_id,
+            y_train_pred, y_opt_pred, y_valid_pred, y_test_pred = self._fit_and_predict(pipeline, split_id,
                                                                                         train_indices=train_split,
                                                                                         test_indices=test_split,
-                                                                                        add_model_to_self=True)
+                                                                                        add_pipeline_to_self=True)
             train_loss = self._loss(self.y_train[train_split], y_train_pred)
             loss = self._loss(self.y_train[test_split], y_opt_pred)
 
-            additional_run_info = model.get_additional_run_info() if hasattr(model, 'get_additional_run_info') else {}
+            additional_run_info = pipeline.get_additional_run_info() if hasattr(pipeline, 'get_additional_run_info') else {}
 
             status = StatusType.SUCCESS
 
@@ -120,7 +120,7 @@ class TrainEvaluator(AbstractEvaluator):
             Y_test_pred: List[Optional[np.ndarray]] = [None] * self.num_folds
             train_splits: List[Optional[Union[np.ndarray, List]]] = [None] * self.num_folds
 
-            self.models = [self._get_model() for _ in range(self.num_folds)]
+            self.pipelines = [self._get_pipeline() for _ in range(self.num_folds)]
 
             # stores train loss of each fold.
             train_losses = [np.NaN] * self.num_folds
@@ -133,11 +133,11 @@ class TrainEvaluator(AbstractEvaluator):
 
             for i, (train_split, test_split) in enumerate(self.splits):
 
-                model = self.models[i]
-                train_pred, opt_pred, valid_pred, test_pred = self._fit_and_predict(model, i,
+                pipeline = self.pipelines[i]
+                train_pred, opt_pred, valid_pred, test_pred = self._fit_and_predict(pipeline, i,
                                                                                     train_indices=train_split,
                                                                                     test_indices=test_split,
-                                                                                    add_model_to_self=False)
+                                                                                    add_pipeline_to_self=False)
                 Y_train_pred[i] = train_pred
                 Y_optimization_pred[i] = opt_pred
                 Y_valid_pred[i] = valid_pred
@@ -206,7 +206,7 @@ class TrainEvaluator(AbstractEvaluator):
                 Y_valid_preds = np.array([Y_valid_pred[i]
                                           for i in range(self.num_folds)
                                           if Y_valid_pred[i] is not None])
-                # Average the predictions of several models
+                # Average the predictions of several pipelines
                 if len(Y_valid_preds.shape) == 3:
                     Y_valid_preds = np.nanmean(Y_valid_preds, axis=0)
             else:
@@ -216,7 +216,7 @@ class TrainEvaluator(AbstractEvaluator):
                 Y_test_preds = np.array([Y_test_pred[i]
                                          for i in range(self.num_folds)
                                          if Y_test_pred[i] is not None])
-                # Average the predictions of several models
+                # Average the predictions of several pipelines
                 if len(Y_test_preds.shape) == 3:
                     Y_test_preds = np.nanmean(Y_test_preds, axis=0)
             else:
@@ -225,7 +225,7 @@ class TrainEvaluator(AbstractEvaluator):
             self.Y_optimization = Y_targets
             self.Y_actual_train = Y_train_targets
 
-            self.model = self._get_model()
+            self.pipeline = self._get_pipeline()
 
             status = StatusType.SUCCESS
             self.logger.debug("In train evaluator fit_predict_and_loss, loss:{}".format(opt_loss))
@@ -240,9 +240,9 @@ class TrainEvaluator(AbstractEvaluator):
                 status=status,
             )
 
-    def _fit_and_predict(self, model: BaseEstimator, fold: int, train_indices: Union[np.ndarray, List],
+    def _fit_and_predict(self, pipeline: BaseEstimator, fold: int, train_indices: Union[np.ndarray, List],
                          test_indices: Union[np.ndarray, List],
-                         add_model_to_self: bool
+                         add_pipeline_to_self: bool
                          ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
 
         self.indices[fold] = ((train_indices, test_indices))
@@ -252,7 +252,7 @@ class TrainEvaluator(AbstractEvaluator):
              'split_id': fold,
              **self.fit_dictionary}  # fit dictionary
         y = None
-        fit_and_suppress_warnings(self.logger, model, X, y)
+        fit_and_suppress_warnings(self.logger, pipeline, X, y)
         self.logger.info("Model fitted, now predicting")
         (
             Y_train_pred,
@@ -260,19 +260,19 @@ class TrainEvaluator(AbstractEvaluator):
             Y_valid_pred,
             Y_test_pred
         ) = self._predict(
-            model,
+            pipeline,
             train_indices=train_indices,
             test_indices=test_indices,
         )
 
-        if add_model_to_self:
-            self.model = model
+        if add_pipeline_to_self:
+            self.pipeline = pipeline
         else:
-            self.models[fold] = model
+            self.pipelines[fold] = pipeline
 
         return Y_train_pred, Y_opt_pred, Y_valid_pred, Y_test_pred
 
-    def _predict(self, model: BaseEstimator,
+    def _predict(self, pipeline: BaseEstimator,
                  test_indices: Union[np.ndarray, List],
                  train_indices: Union[np.ndarray, List]
                  ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
@@ -280,19 +280,19 @@ class TrainEvaluator(AbstractEvaluator):
         X_train = self.X_train
         if isinstance(X_train, pd.DataFrame):
             X_train = X_train.to_numpy()
-        train_pred = self.predict_function(X_train[train_indices], model,
+        train_pred = self.predict_function(X_train[train_indices], pipeline,
                                            self.y_train[train_indices])
 
-        opt_pred = self.predict_function(X_train[test_indices], model,
+        opt_pred = self.predict_function(X_train[test_indices], pipeline,
                                          self.y_train[train_indices])
 
         if self.X_valid is not None:
-            valid_pred = self.predict_function(self.X_valid, model,
+            valid_pred = self.predict_function(self.X_valid, pipeline,
                                                self.y_valid)
         else:
             valid_pred = None
         if self.X_test is not None:
-            test_pred = self.predict_function(self.X_test, model,
+            test_pred = self.predict_function(self.X_test, pipeline,
                                               self.y_train[train_indices])
         else:
             test_pred = None
