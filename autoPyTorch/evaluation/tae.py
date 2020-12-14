@@ -90,7 +90,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self,
         backend: Backend,
         seed: int,
-        resampling_strategy: str,
         metric: autoPyTorchMetric,
         logger: PicklableClientLogger,
         cost_for_crash: float,
@@ -109,7 +108,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         ta: typing.Optional[typing.Callable] = None,
         logger_port: int = None,
         all_supported_metrics: bool = True,
-        **resampling_strategy_args
     ):
 
         eval_function = autoPyTorch.evaluation.train_evaluator.eval_function
@@ -135,8 +133,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self.seed = seed
         self.initial_num_run = initial_num_run
         self.metric = metric
-        self.resampling_strategy = resampling_strategy
-        self.resampling_strategy_args = resampling_strategy_args
         self.output_y_hat_optimization = output_y_hat_optimization
         self.include = include
         self.exclude = exclude
@@ -160,6 +156,10 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             self._get_test_loss = True
         else:
             self._get_test_loss = False
+
+        self.resampling_strategy = dm.resampling_strategy
+        self.resampling_strategy_args = dm.resampling_strategy_args
+
 
     def run_wrapper(
             self,
@@ -372,6 +372,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         if (
                 info is not None
+                and self.resampling_strategy in ['holdout-iterative-fit', 'cv-iterative-fit']
                 and status != StatusType.CRASHED
         ):
             learning_curve = extract_learning_curve(info)

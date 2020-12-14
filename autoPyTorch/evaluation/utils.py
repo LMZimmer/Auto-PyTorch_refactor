@@ -13,6 +13,8 @@ __all__ = [
     'empty_queue'
 ]
 
+subsampler = lambda data, x: data[x] if isinstance(data, np.ndarray) else data.iloc[x]
+
 
 def read_queue(queue_: Queue) -> List[RunValue]:
     stack: List[RunValue] = []

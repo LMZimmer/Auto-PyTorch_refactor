@@ -8,28 +8,28 @@ from autoPyTorch.pipeline.components.training.losses import get_loss_instance
 
 class LossTest(unittest.TestCase):
     def test_get_no_name(self):
-        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multi-class'}
+        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multiclass'}
         loss = get_loss_instance(dataset_properties)
         self.assertTrue(isinstance(loss, nn.Module))
 
     def test_get_name(self):
-        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multi-class'}
+        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multiclass'}
         name = 'CrossEntropyLoss'
         loss = get_loss_instance(dataset_properties, name)
         self.assertIsInstance(loss, nn.Module)
         self.assertEqual(str(loss), 'CrossEntropyLoss()')
 
     def test_get_name_error(self):
-        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multi-class'}
+        dataset_properties = {'task_type': 'tabular_classification', 'output_type': 'multiclass'}
         name = 'BCELoss'
         try:
             get_loss_instance(dataset_properties, name)
         except ValueError as msg:
             self.assertRegex(str(msg), r"Invalid name entered for task [a-z]+_[a-z]+, "
-                                       r"and output type [a-z]+-[a-z]+ currently supported losses for task include .*")
+                                       r"and output type [a-z]+ currently supported losses for task include .*")
 
     def test_losses(self):
-        list_properties = [{'task_type': 'tabular_classification', 'output_type': 'multi-class'},
+        list_properties = [{'task_type': 'tabular_classification', 'output_type': 'multiclass'},
                            {'task_type': 'tabular_classification', 'output_type': 'binary'},
                            {'task_type': 'tabular_regression', 'output_type': 'continuous'}]
         pred_cross_entropy = torch.randn(4, 4, requires_grad=True)

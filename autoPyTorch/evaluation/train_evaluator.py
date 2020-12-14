@@ -19,6 +19,7 @@ from autoPyTorch.evaluation.abstract_evaluator import (
     AbstractEvaluator,
     fit_and_suppress_warnings
 )
+from autoPyTorch.evaluation.utils import subsampler
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.utils.backend import Backend
 
@@ -280,12 +281,10 @@ class TrainEvaluator(AbstractEvaluator):
                  train_indices: Union[np.ndarray, List]
                  ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
 
-        X_subsampler = lambda x: self.X_train[x] if isinstance(self.X_train, np.ndarray) else self.X_train.iloc[x]
-
-        train_pred = self.predict_function(X_subsampler(train_indices), pipeline,
+        train_pred = self.predict_function(subsampler(self.X_train, train_indices), pipeline,
                                            self.y_train[train_indices])
 
-        opt_pred = self.predict_function(X_subsampler(test_indices), pipeline,
+        opt_pred = self.predict_function(subsampler(self.X_train, test_indices), pipeline,
                                          self.y_train[train_indices])
 
         if self.X_valid is not None:

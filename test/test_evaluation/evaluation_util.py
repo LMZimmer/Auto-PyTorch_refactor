@@ -142,6 +142,7 @@ def get_multiclass_classification_datamanager():
         X=X_train, Y=Y_train,
         X_test=X_test, Y_test=Y_test,
     )
+    dataset.create_splits()
     return dataset
 
 

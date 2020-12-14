@@ -8,6 +8,8 @@ from ConfigSpace import Configuration
 
 import numpy as np
 
+import pandas as pd
+
 from sklearn.base import BaseEstimator
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -25,7 +27,8 @@ from autoPyTorch.constants import (
 )
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.evaluation.utils import (
-    convert_multioutput_multiclass_to_multilabel
+    convert_multioutput_multiclass_to_multilabel,
+    subsampler
 )
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import (
@@ -56,27 +59,25 @@ class DummyClassificationPipeline(DummyClassifier):
         else:
             super(DummyClassificationPipeline, self).__init__(strategy="most_frequent")
 
-    def pre_transform(self, X: Dict[str, Any], y: Any,
-                      fit_params: Dict[str, Any] = None
-                      ) -> Tuple[Dict[str, Any], Dict[str, Any]]:  # pylint: disable=R0201
-        if fit_params is None:
-            fit_params = {}
-        return X, fit_params
-
     def fit(self, X: Dict[str, Any], y: Any,
             sample_weight: Optional[np.ndarray] = None) -> object:
-        X_train = X['X_train'][X['train_indices']]
-        y_train = X['y_train'][X['train_indices']]
+        X_train = subsampler(X['X_train'], X['train_indices'])
+        y_train = subsampler(X['y_train'], X['train_indices'])
         return super(DummyClassificationPipeline, self).fit(np.ones((X_train.shape[0], 1)), y_train,
                                                             sample_weight=sample_weight)
 
-    def predict_proba(self, X: Dict[str, Any],
+    def predict_proba(self, X: Union[np.ndarray, pd.DataFrame],
                       batch_size: int = 1000) -> np.array:
-        new_X = np.ones((X['X_train']['val_indices'].shape[0], 1))
+        new_X = np.ones((X.shape[0], 1))
         probas = super(DummyClassificationPipeline, self).predict_proba(new_X)
         probas = convert_multioutput_multiclass_to_multilabel(probas).astype(
             np.float32)
         return probas
+
+    def predict(self, X: Union[np.ndarray, pd.DataFrame],
+                batch_size: int = 1000) -> np.array:
+        new_X = np.ones((X.shape[0], 1))
+        return super(DummyClassificationPipeline, self).predict(new_X).astype(np.float32)
 
     def estimator_supports_iterative_fit(self) -> bool:  # pylint: disable=R0201
         return False
@@ -99,23 +100,16 @@ class DummyRegressionPipeline(DummyRegressor):
         else:
             super(DummyRegressionPipeline, self).__init__(strategy='median')
 
-    def pre_transform(self, X: Dict[str, Any], y: Any,
-                      fit_params: Dict[str, Any] = None
-                      ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        if fit_params is None:
-            fit_params = {}
-        return X, fit_params
-
     def fit(self, X: Dict[str, Any], y: Any,
             sample_weight: Optional[np.ndarray] = None) -> object:
-        X_train = X['X_train'][X['train_indices']]
-        y_train = X['y_train'][X['train_indices']]
+        X_train = subsampler(X['X_train'], X['train_indices'])
+        y_train = subsampler(X['y_train'], X['train_indices'])
         return super(DummyRegressionPipeline, self).fit(np.ones((X_train.shape[0], 1)), y_train,
                                                         sample_weight=sample_weight)
 
-    def predict(self, X: Dict[str, Any],
+    def predict(self, X: Union[np.ndarray, pd.DataFrame],
                 batch_size: int = 1000) -> np.array:
-        new_X = np.ones((X['X_train']['val_indices'].shape[0], 1))
+        new_X = np.ones((X.shape[0], 1))
         return super(DummyRegressionPipeline, self).predict(new_X).astype(np.float32)
 
     def estimator_supports_iterative_fit(self) -> bool:  # pylint: disable=R0201
