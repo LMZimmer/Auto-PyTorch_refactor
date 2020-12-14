@@ -34,7 +34,8 @@ def _get_y_array(y: np.ndarray, task_type: int) -> np.ndarray:
 
 
 class TrainEvaluator(AbstractEvaluator):
-    def __init__(self, backend: Backend, queue: Queue, metric: List[autoPyTorchMetric],
+    def __init__(self, backend: Backend, queue: Queue,
+                 metric: autoPyTorchMetric,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
@@ -46,7 +47,8 @@ class TrainEvaluator(AbstractEvaluator):
                  budget: Optional[float] = None,
                  budget_type: Optional[str] = None,
                  logger_port: Optional[int] = None,
-                 keep_models: Optional[bool] = None) -> None:
+                 keep_models: Optional[bool] = None,
+                 all_supported_metrics: bool = True) -> None:
         super().__init__(
             backend=backend,
             queue=queue,
@@ -61,7 +63,8 @@ class TrainEvaluator(AbstractEvaluator):
             init_params=init_params,
             budget=budget,
             budget_type=budget_type,
-            logger_port=logger_port
+            logger_port=logger_port,
+            all_supported_metrics=all_supported_metrics
         )
 
         self.splits = self.datamanager.splits
@@ -176,7 +179,7 @@ class TrainEvaluator(AbstractEvaluator):
 
             # train_losses is a list of dicts. It is
             # computed using the target metric (self.metric).
-            train_loss = np.average([train_losses[i][str(self.metric[0])]
+            train_loss = np.average([train_losses[i][str(self.metric)]
                                      for i in range(self.num_folds)],
                                     weights=train_fold_weights,
                                     )
@@ -277,13 +280,12 @@ class TrainEvaluator(AbstractEvaluator):
                  train_indices: Union[np.ndarray, List]
                  ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
 
-        X_train = self.X_train
-        if isinstance(X_train, pd.DataFrame):
-            X_train = X_train.to_numpy()
-        train_pred = self.predict_function(X_train[train_indices], pipeline,
+        X_subsampler = lambda x: self.X_train[x] if isinstance(self.X_train, np.ndarray) else self.X_train.iloc[x]
+
+        train_pred = self.predict_function(X_subsampler(train_indices), pipeline,
                                            self.y_train[train_indices])
 
-        opt_pred = self.predict_function(X_train[test_indices], pipeline,
+        opt_pred = self.predict_function(X_subsampler(test_indices), pipeline,
                                          self.y_train[train_indices])
 
         if self.X_valid is not None:
@@ -304,7 +306,7 @@ class TrainEvaluator(AbstractEvaluator):
 def eval_function(
         backend: Backend,
         queue: Queue,
-        metric: List[autoPyTorchMetric],
+        metric: autoPyTorchMetric,
         config: Optional[Configuration],
         seed: int,
         output_y_hat_optimization: bool,
@@ -317,6 +319,7 @@ def eval_function(
         budget: float = 100,
         budget_type: Optional[str] = None,
         logger_port: Optional[int] = None,
+        all_supported_metrics: bool = True,
 ) -> None:
     evaluator = TrainEvaluator(
         backend=backend,
@@ -332,6 +335,7 @@ def eval_function(
         init_params=init_params,
         budget=budget,
         budget_type=budget_type,
-        logger_port=logger_port
+        logger_port=logger_port,
+        all_supported_metrics=all_supported_metrics
     )
     evaluator.fit_predict_and_loss()

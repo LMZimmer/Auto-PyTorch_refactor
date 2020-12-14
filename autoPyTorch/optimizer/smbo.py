@@ -20,6 +20,7 @@ from smac.utils.io.traj_logging import TrajLogger
 # TODO: Enable when merged Ensemble
 # from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.datasets.base_dataset import BaseDataset
+from autoPyTorch.datasets.resampling_strategy import CrossValTypes
 from autoPyTorch.evaluation.tae import ExecuteTaFuncWithQueue, get_cost_of_crash
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.utils.backend import Backend
@@ -81,7 +82,7 @@ class AutoMLSMBO(object):
                  total_walltime_limit: float,
                  func_eval_time_limit: float,
                  memory_limit: typing.Optional[int],
-                 metric: typing.List[autoPyTorchMetric],
+                 metric: autoPyTorchMetric,
                  watcher: StopWatch,
                  n_jobs: int,
                  dask_client: typing.Optional[dask.distributed.Client],
@@ -94,6 +95,7 @@ class AutoMLSMBO(object):
                  disable_file_output: bool = False,
                  smac_scenario_args: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  get_smac_object_callback: typing.Optional[typing.Callable] = None,
+                 all_supported_metrics: bool = True,
                  # TODO: Re-enable when ensemble merged
                  # ensemble_callback: typing.Optional[EnsembleBuilderManager] = None,
                  ensemble_callback: typing.Any = None,
@@ -155,6 +157,7 @@ class AutoMLSMBO(object):
         self.metric = metric
         self.task = None
         self.backend = backend
+        self.all_supported_metrics = all_supported_metrics
 
         # the configuration space
         self.config_space = config_space
@@ -170,7 +173,7 @@ class AutoMLSMBO(object):
         self.resampling_strategy_args = resampling_strategy_args
 
         # and a bunch of useful limits
-        self.worst_possible_result = get_cost_of_crash(self.metric[0])
+        self.worst_possible_result = get_cost_of_crash(self.metric)
         self.total_walltime_limit = int(total_walltime_limit)
         self.func_eval_time_limit = int(func_eval_time_limit)
         self.memory_limit = memory_limit
@@ -219,12 +222,11 @@ class AutoMLSMBO(object):
 
         # Initialize some SMAC dependencies
 
-        if self.resampling_strategy in ['partial-cv',
-                                        'partial-cv-iterative-fit']:
-            num_folds = self.resampling_strategy_args['folds']
+        if isinstance(self.resampling_strategy, CrossValTypes):
+            num_splits = self.resampling_strategy_args['num_splits']
             instances = [[json.dumps({'task_id': self.dataset_name,
                                       'fold': fold_number})]
-                         for fold_number in range(num_folds)]
+                         for fold_number in range(num_splits)]
         else:
             instances = [[json.dumps({'task_id': self.dataset_name})]]
 
@@ -245,6 +247,7 @@ class AutoMLSMBO(object):
             disable_file_output=self.disable_file_output,
             ta=func,
             logger_port=self.logger_port,
+            all_supported_metrics=self.all_supported_metrics,
             **self.resampling_strategy_args
         )
         ta = ExecuteTaFuncWithQueue

@@ -108,6 +108,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         budget_type: str = None,
         ta: typing.Optional[typing.Callable] = None,
         logger_port: int = None,
+        all_supported_metrics: bool = True,
         **resampling_strategy_args
     ):
 
@@ -145,6 +146,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self.budget_type = budget_type
         self.logger = logger
         self.logger_port = logger_port
+        self.all_supported_metrics = all_supported_metrics
+
         if memory_limit is not None:
             memory_limit = int(math.ceil(memory_limit))
         self.memory_limit = memory_limit
@@ -187,9 +190,9 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             elif run_info.budget <= 0 or run_info.budget > 100:
                 raise ValueError('Illegal value for budget, must be >0 and <=100, but is %f' %
                                  run_info.budget)
-            if self.budget_type not in ('subsample', 'iterations', 'mixed'):
+            if self.budget_type not in ('epochs', 'runtime'):
                 raise ValueError("Illegal value for budget type, must be one of "
-                                 "('subsample', 'iterations', 'mixed'), but is : %s" %
+                                 "('epochs', 'runtime'), but is : %s" %
                                  self.budget_type)
 
         remaining_time = self.stats.get_remaing_time_budget()
@@ -262,7 +265,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             init_params=init_params,
             budget=budget,
             budget_type=self.budget_type,
-            logger_port=self.logger_port
+            logger_port=self.logger_port,
+            all_supported_metrics=self.all_supported_metrics
         )
 
         try:

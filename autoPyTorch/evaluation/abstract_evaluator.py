@@ -29,6 +29,7 @@ from autoPyTorch.evaluation.utils import (
 )
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import (
+    get_metrics,
     calculate_score,
 )
 from autoPyTorch.pipeline.image_classification import ImageClassificationPipeline
@@ -137,7 +138,7 @@ def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstim
 
 
 class AbstractEvaluator(object):
-    def __init__(self, backend: Backend, queue: Queue, metric: List[autoPyTorchMetric],
+    def __init__(self, backend: Backend, queue: Queue, metric: autoPyTorchMetric,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
@@ -148,7 +149,8 @@ class AbstractEvaluator(object):
                  init_params: Optional[Dict[str, Any]] = None,
                  budget: Optional[float] = None,
                  budget_type: Optional[str] = None,
-                 logger_port: Optional[int] = None) -> None:
+                 logger_port: Optional[int] = None,
+                 all_supported_metrics: bool = True) -> None:
 
         self.starttime = time.time()
 
@@ -173,6 +175,7 @@ class AbstractEvaluator(object):
             self.X_test, self.y_test = None, None
 
         self.metric = metric
+
         self.task_type = STRING_TO_TASK_TYPES[self.datamanager.task_type]
         self.output_type = STRING_TO_OUTPUT_TYPES[self.datamanager.output_type]
         self.issparse = self.datamanager.issparse
@@ -214,6 +217,11 @@ class AbstractEvaluator(object):
             info.update({'numerical_columns': self.datamanager.numerical_columns,
                          'categorical_columns': self.datamanager.categorical_columns})
         self.dataset_properties = self.datamanager.get_dataset_properties(get_dataset_requirements(info))
+
+        self.additional_metrics: Optional[List[autoPyTorchMetric]] = None
+        if all_supported_metrics:
+            self.additional_metrics = get_metrics(dataset_properties=self.dataset_properties,
+                                                  all_supported_metrics=all_supported_metrics)
 
         self.fit_dictionary = {'dataset_properties': self.dataset_properties}
         self._init_params = init_params
@@ -285,12 +293,16 @@ class AbstractEvaluator(object):
         """
 
         if not isinstance(self.configuration, Configuration):
-            return {self.metric[0].name: 1.0}
+            return {self.metric.name: 1.0}
 
+        if self.additional_metrics is not None:
+            metrics = self.additional_metrics
+        else:
+            metrics = [self.metric]
         score = calculate_score(
-            y_true, y_hat, self.task_type, self.metric)
+            y_true, y_hat, self.task_type, metrics)
 
-        err = {metric.name: metric._optimum - score[metric.name] for metric in self.metric
+        err = {metric.name: metric._optimum - score[metric.name] for metric in metrics
                if metric.name in score.keys()}
 
         return err
@@ -328,11 +340,9 @@ class AbstractEvaluator(object):
 
         if isinstance(loss, dict):
             loss_ = loss
-            loss = loss_[self.metric[0].name]
+            loss = loss_[self.metric.name]
         else:
             loss_ = {}
-
-        self.logger.debug("In abstract evaluator finish up, is loss_ is none, loss:{}".format(loss))
 
         additional_run_info = (
             {} if additional_run_info is None else additional_run_info
@@ -351,8 +361,6 @@ class AbstractEvaluator(object):
         rval_dict = {'loss': loss,
                      'additional_run_info': additional_run_info,
                      'status': status}
-        # if final_call:
-        #     rval_dict['final_queue_element'] = True
 
         self.queue.put(rval_dict)
         return None
@@ -367,7 +375,7 @@ class AbstractEvaluator(object):
             if self.y_valid is not None:
                 validation_loss = self._loss(self.y_valid, Y_valid_pred)
                 if isinstance(validation_loss, dict):
-                    validation_loss = validation_loss[self.metric[0].name]
+                    validation_loss = validation_loss[self.metric.name]
             else:
                 validation_loss = None
         else:
@@ -377,7 +385,7 @@ class AbstractEvaluator(object):
             if self.y_test is not None:
                 test_loss = self._loss(self.y_test, Y_test_pred)
                 if isinstance(test_loss, dict):
-                    test_loss = test_loss[self.metric[0].name]
+                    test_loss = test_loss[self.metric.name]
             else:
                 test_loss = None
         else:
