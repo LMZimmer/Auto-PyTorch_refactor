@@ -133,7 +133,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         self.backend = backend
         self.seed = seed
-        self.resampling_strategy = resampling_strategy
         self.initial_num_run = initial_num_run
         self.metric = metric
         self.resampling_strategy = resampling_strategy

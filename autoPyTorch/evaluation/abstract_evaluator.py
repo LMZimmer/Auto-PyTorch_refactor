@@ -84,6 +84,10 @@ class DummyClassificationPipeline(DummyClassifier):
     def get_additional_run_info(self) -> None:  # pylint: disable=R0201
         return None
 
+    @staticmethod
+    def get_default_pipeline_options() -> Dict[str, Any]:
+        return {}
+
 
 class DummyRegressionPipeline(DummyRegressor):
     def __init__(self, config: Configuration,
@@ -119,6 +123,10 @@ class DummyRegressionPipeline(DummyRegressor):
 
     def get_additional_run_info(self) -> None:  # pylint: disable=R0201
         return None
+
+    @staticmethod
+    def get_default_pipeline_options() -> Dict[str, Any]:
+        return {}
 
 
 def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstimator,
@@ -335,7 +343,6 @@ class AbstractEvaluator(object):
         )
 
         if loss_ is not None:
-            self.logger.debug("In abstract evaluator finish up, is loss_ is not none, loss:{}".format(loss_))
             return self.duration, loss_, self.seed, additional_run_info_
 
         if isinstance(loss, dict):
@@ -462,12 +469,20 @@ class AbstractEvaluator(object):
         else:
             pipelines = None
 
+        if hasattr(self, 'pipeline'):
+            if 'pipeline' not in self.disable_file_output:
+                pipeline = self.pipeline
+            else:
+                pipeline = None
+        else:
+            pipeline = None
+
         self.backend.save_numrun_to_dir(
             seed=self.seed,
             idx=self.num_run,
             budget=self.budget,
-            model=self.pipeline if 'pipeline' not in self.disable_file_output else None,
-            cv_model=pipelines if 'cv_pipeline' not in self.disable_file_output else None,
+            model=pipeline,
+            cv_model=pipelines,
             ensemble_predictions=(
                 Y_optimization_pred if 'y_optimization' not in self.disable_file_output else None
             ),

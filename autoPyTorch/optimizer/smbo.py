@@ -99,7 +99,7 @@ class AutoMLSMBO(object):
                  # TODO: Re-enable when ensemble merged
                  # ensemble_callback: typing.Optional[EnsembleBuilderManager] = None,
                  ensemble_callback: typing.Any = None,
-                 logger_port=logging.handlers.DEFAULT_TCP_LOGGING_PORT
+                 logger_port=None
                  ):
         """
         Interface to SMAC. This method calls the SMAC optimize method, and allows
