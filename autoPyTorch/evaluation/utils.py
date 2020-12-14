@@ -4,6 +4,8 @@ from typing import List, Optional, Union
 
 import numpy as np
 
+import pandas as pd
+
 from smac.runhistory.runhistory import RunValue
 
 __all__ = [
@@ -13,7 +15,11 @@ __all__ = [
     'empty_queue'
 ]
 
-subsampler = lambda data, x: data[x] if isinstance(data, np.ndarray) else data.iloc[x]
+
+def subsampler(data: Union[np.ndarray, pd.DataFrame],
+               x: Union[np.ndarray, List[int]]
+               ) -> Union[np.ndarray, pd.DataFrame]:
+    return data[x] if isinstance(data, np.ndarray) else data.iloc[x]
 
 
 def read_queue(queue_: Queue) -> List[RunValue]:

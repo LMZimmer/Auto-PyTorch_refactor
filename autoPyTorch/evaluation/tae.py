@@ -160,7 +160,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self.resampling_strategy = dm.resampling_strategy
         self.resampling_strategy_args = dm.resampling_strategy_args
 
-
     def run_wrapper(
             self,
             run_info: RunInfo,

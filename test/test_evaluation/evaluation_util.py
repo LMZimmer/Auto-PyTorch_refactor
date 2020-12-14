@@ -8,8 +8,8 @@ from numpy.linalg import LinAlgError
 import scipy.sparse
 
 import sklearn.datasets
-from sklearn import preprocessing
 import sklearn.model_selection
+from sklearn import preprocessing
 
 
 from autoPyTorch.datasets.tabular_dataset import TabularDataset

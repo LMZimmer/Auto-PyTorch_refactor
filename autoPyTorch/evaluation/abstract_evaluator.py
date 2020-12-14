@@ -32,8 +32,8 @@ from autoPyTorch.evaluation.utils import (
 )
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import (
-    get_metrics,
     calculate_score,
+    get_metrics,
 )
 from autoPyTorch.pipeline.image_classification import ImageClassificationPipeline
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline

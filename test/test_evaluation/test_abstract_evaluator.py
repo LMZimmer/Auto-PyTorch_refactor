@@ -6,12 +6,14 @@ import unittest
 import unittest.mock
 
 import numpy as np
+
 import sklearn.dummy
+
+from smac.tae import StatusType
 
 from autoPyTorch.evaluation.abstract_evaluator import AbstractEvaluator
 from autoPyTorch.pipeline.components.training.metrics.metrics import accuracy
 from autoPyTorch.utils.backend import Backend, BackendContext
-from smac.tae import StatusType
 
 this_directory = os.path.dirname(__file__)
 sys.path.append(this_directory)

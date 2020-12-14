@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 import shutil
 import sys
 import time
@@ -7,14 +7,15 @@ import unittest
 import unittest.mock
 
 import numpy as np
+
 import pynisher
+
 from smac.runhistory.runhistory import RunInfo
 from smac.stats.stats import Stats
 from smac.tae import StatusType
-from smac.utils.constants import MAXINT
 
 from autoPyTorch.evaluation.tae import ExecuteTaFuncWithQueue, get_cost_of_crash
-from autoPyTorch.pipeline.components.training.metrics.metrics import accuracy, log_loss
+from autoPyTorch.pipeline.components.training.metrics.metrics import accuracy
 
 this_directory = os.path.dirname(__file__)
 sys.path.append(this_directory)
@@ -152,7 +153,6 @@ class EvaluationTest(unittest.TestCase):
         self.assertIsInstance(info[1].time, float)
         self.assertNotIn('exitcode', info[1].additional_info)
 
-
     @unittest.mock.patch('pynisher.enforce_limits')
     def test_zero_or_negative_cutoff(self, pynisher_mock):
         config = unittest.mock.Mock()
@@ -170,24 +170,6 @@ class EvaluationTest(unittest.TestCase):
         run_info, run_value = ta.run_wrapper(RunInfo(config=config, cutoff=9, instance=None,
                                              instance_specific=None, seed=1, capped=False))
         self.assertEqual(run_value.status, StatusType.STOP)
-
-    @unittest.mock.patch('pynisher.enforce_limits')
-    def test_cutoff_lower_than_remaining_time(self, pynisher_mock):
-        config = unittest.mock.Mock()
-        config.config_id = 198
-        ta = ExecuteTaFuncWithQueue(backend=BackendMock(), seed=1,
-                                    stats=self.stats,
-                                    memory_limit=3072,
-                                    metric=accuracy,
-                                    cost_for_crash=get_cost_of_crash(accuracy),
-                                    abort_on_first_run_crash=False,
-                                    logger=self.logger
-                                    )
-        self.stats.ta_runs = 1
-        ta.run_wrapper(RunInfo(config=config, cutoff=30, instance=None, instance_specific=None,
-                               seed=1, capped=False))
-        self.assertEqual(pynisher_mock.call_args[1]['wall_time_in_s'], 4)
-        self.assertIsInstance(pynisher_mock.call_args[1]['wall_time_in_s'], int)
 
     @unittest.mock.patch('autoPyTorch.evaluation.train_evaluator.eval_function')
     def test_eval_with_limits_holdout_fail_silent(self, pynisher_mock):
@@ -250,32 +232,6 @@ class EvaluationTest(unittest.TestCase):
         # For accuracy, worst possible result is MAXINT
         worst_possible_result = 1
         self.assertEqual(info[1].cost, worst_possible_result)
-        self.assertIsInstance(info[1].time, float)
-        self.assertNotIn('exitcode', info[1].additional_info)
-
-    @unittest.mock.patch('pynisher.enforce_limits')
-    def test_eval_with_limits_holdout_fail_timeout(self, pynisher_mock):
-        config = unittest.mock.Mock()
-        config.config_id = 198
-
-        m1 = unittest.mock.Mock()
-        m2 = unittest.mock.Mock()
-        m1.return_value = m2
-        pynisher_mock.return_value = m1
-        m2.exit_status = pynisher.TimeoutException
-        m2.wall_clock_time = 30
-        ta = ExecuteTaFuncWithQueue(backend=BackendMock(), seed=1,
-                                    stats=self.stats,
-                                    memory_limit=3072,
-                                    metric=accuracy,
-                                    cost_for_crash=get_cost_of_crash(accuracy),
-                                    abort_on_first_run_crash=False,
-                                    logger=self.logger
-                                    )
-        info = ta.run_wrapper(RunInfo(config=config, cutoff=30, instance=None,
-                                      instance_specific=None, seed=1, capped=False))
-        self.assertEqual(info[1].status, StatusType.TIMEOUT)
-        self.assertEqual(info[1].cost, 1.0)
         self.assertIsInstance(info[1].time, float)
         self.assertNotIn('exitcode', info[1].additional_info)
 
