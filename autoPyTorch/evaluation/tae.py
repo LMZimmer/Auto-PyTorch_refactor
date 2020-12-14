@@ -80,7 +80,12 @@ def _encode_exit_status(exit_status: multiprocessing.connection.Connection) -> s
 
 
 class ExecuteTaFuncWithQueue(AbstractTAFunc):
-
+    """
+    Wrapper class that executes the target algorithm with
+    queues according to what SMAC expects. This allows us to
+    run our target algorithm with different configurations
+    in parallel
+    """
     def __init__(
         self,
         backend: Backend,
@@ -230,7 +235,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         if self.init_params is not None:
             init_params.update(self.init_params)
 
-        arguments = dict(
+        pynisher_arguments = dict(
             logger=get_named_client_logger(self.backend.temporary_directory, "pynisher", port=self.logger_port),
             wall_time_in_s=cutoff,
             mem_in_mb=self.memory_limit,
@@ -261,21 +266,21 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         )
 
         try:
-            obj = pynisher.enforce_limits(**arguments)(self.ta)
+            obj = pynisher.enforce_limits(**pynisher_arguments)(self.ta)
             obj(**obj_kwargs)
         except Exception as e:
             exception_traceback = traceback.format_exc()
             error_message = repr(e)
-            additional_info = {
+            additional_run_info = {
                 'traceback': exception_traceback,
                 'error': error_message
             }
-            return StatusType.CRASHED, self.cost_for_crash, 0.0, additional_info
+            return StatusType.CRASHED, self.cost_for_crash, 0.0, additional_run_info
 
         if obj.exit_status in (pynisher.TimeoutException, pynisher.MemorylimitException):
             # Even if the pynisher thinks that a timeout or memout occured,
             # it can be that the target algorithm wrote something into the queue
-            #  - then we treat it as a succesful run
+            #  - then we treat it as a successful run
             try:
                 info = read_queue(queue)
                 result = info[-1]['loss']
@@ -364,7 +369,6 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         if (
                 info is not None
-                and self.resampling_strategy in ('holdout-iterative-fit', 'cv-iterative-fit')
                 and status != StatusType.CRASHED
         ):
             learning_curve = extract_learning_curve(info)

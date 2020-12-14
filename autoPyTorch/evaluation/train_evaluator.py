@@ -247,9 +247,6 @@ class TrainEvaluator(AbstractEvaluator):
 
         self.indices[fold] = ((train_indices, test_indices))
 
-        # Do only output the files in the case of iterative holdout,
-        # In case of iterative partial cv, no file output is needed
-        # because ensembles cannot be built
         X = {'train_indices': train_indices,
              'val_indices': test_indices,
              'split_id': fold,

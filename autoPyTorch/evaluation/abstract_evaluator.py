@@ -136,7 +136,6 @@ def fit_and_suppress_warnings(logger: PicklableClientLogger, model: BaseEstimato
     return model
 
 
-# TODO: adjust for differences in image and tabular data, also maybe time series but its low priority
 class AbstractEvaluator(object):
     def __init__(self, backend: Backend, queue: Queue, metric: List[autoPyTorchMetric],
                  configuration: Optional[Configuration] = None,
@@ -273,7 +272,7 @@ class AbstractEvaluator(object):
         return model
 
     def _loss(self, y_true: np.ndarray, y_hat: np.ndarray) -> Dict[str, float]:
-        """Auto-sklearn follows a minimization goal, so the make_scorer
+        """SMAC follows a minimization goal, so the make_scorer
         sign is used as a guide to obtain the value to reduce.
 
         On this regard, to optimize a metric:

@@ -53,7 +53,7 @@ def empty_queue(queue_: Queue) -> None:
 def extract_learning_curve(stack: List[RunValue], key: Optional[str] = None) -> List[List]:
     learning_curve = []
     for entry in stack:
-        if key:
+        if key is not None:
             learning_curve.append(entry['additional_run_info'][key])
         else:
             learning_curve.append(entry['loss'])
