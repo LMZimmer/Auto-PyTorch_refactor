@@ -241,7 +241,6 @@ class AutoMLSMBO(object):
         ta_kwargs = dict(
             backend=copy.deepcopy(self.backend),
             seed=seed,
-            resampling_strategy=self.resampling_strategy,
             initial_num_run=num_run,
             logger=self.logger,
             include=self.include if self.include is not None else dict(),
@@ -252,7 +251,6 @@ class AutoMLSMBO(object):
             ta=func,
             logger_port=self.logger_port,
             all_supported_metrics=self.all_supported_metrics,
-            **self.resampling_strategy_args
         )
         ta = ExecuteTaFuncWithQueue
         self.logger.info("Created TA")

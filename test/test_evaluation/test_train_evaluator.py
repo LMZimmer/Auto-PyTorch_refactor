@@ -16,6 +16,7 @@ from autoPyTorch.datasets.resampling_strategy import CrossValTypes
 from autoPyTorch.evaluation.utils import read_queue
 from autoPyTorch.evaluation.train_evaluator import TrainEvaluator
 from autoPyTorch.utils import backend
+from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.training.metrics.metrics import accuracy
 
 this_directory = os.path.dirname(__file__)
@@ -73,7 +74,6 @@ class TestTrainEvaluator(BaseEvaluatorTest, unittest.TestCase):
     def test_holdout(self, pipeline_mock):
         # Binary iris, contains 69 train samples, 31 test samples
         D = get_binary_classification_datamanager()
-
         pipeline_mock.predict_proba.side_effect = \
             lambda X, batch_size=None: np.tile([0.6, 0.4], (len(X), 1))
         pipeline_mock.side_effect = lambda **kwargs: pipeline_mock

@@ -137,7 +137,6 @@ if __name__ == "__main__":
         memory_limit=4096,
         metric=get_metrics(dataset_properties=dict({'task_type': datamanager.task_type,
                                                     'output_type': datamanager.output_type}))[0],
-        all_supported_metrics=True,
         watcher=StopWatch(),
         n_jobs=2,
         ensemble_callback=None,

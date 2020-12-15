@@ -73,7 +73,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         if len(train_tensors) == 2 and train_tensors[1] is not None:
             self.output_type: str = type_of_target(self.train_tensors[1])
             self.num_classes: int = len(np.unique(self.train_tensors[1]))
-            self.output_shape: int = train_tensors[1][1].shape
+            self.output_shape: int = train_tensors[1].shape[1] if train_tensors[1].shape == 2 else 1
         # TODO: Look for a criteria to define small enough to preprocess
         self.is_small_preprocess = True
 
@@ -254,6 +254,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                                    'output_type': self.output_type,
                                    'issparse': self.issparse,
                                    'input_shape': self.input_shape,
-                                   'output_shape': self.output_shape
+                                   'output_shape': self.output_shape,
+                                   'num_classes': self.num_classes,
                                    })
         return dataset_properties

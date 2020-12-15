@@ -248,7 +248,7 @@ class AbstractEvaluator(object):
         })
 
         default_pipeline_options = self.pipeline_class.get_default_pipeline_options() \
-            if isinstance(self.pipeline_class, BasePipeline) else {'budget_type': 'epochs',
+            if issubclass(self.pipeline_class, BasePipeline) else {'budget_type': 'epochs',
                                                                    'epochs': 1,
                                                                    'runtime': 1}
         self.budget_type = default_pipeline_options['budget_type'] if budget_type is None else budget_type
@@ -267,6 +267,7 @@ class AbstractEvaluator(object):
         self.Y_actual_train: Optional[np.ndarray] = None
         self.pipelines: Optional[List[BaseEstimator]] = None
         self.pipeline: Optional[BaseEstimator] = None
+        self.logger.debug("Fit dictionary in Abtract evaluator: {}".format(self.fit_dictionary))
 
     def _get_pipeline(self) -> BaseEstimator:
         assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"

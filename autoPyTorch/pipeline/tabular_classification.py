@@ -98,7 +98,7 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
 
     def _predict_proba(self, X: np.ndarray):
         # Pre-process X
-        loader = self.named_steps['data_loader'].get_loader(X=X, batch_size=X.shape[0])
+        loader = self.named_steps['data_loader'].get_loader(X=X)
         pred = self.named_steps['network'].predict(loader)
         if self.dataset_properties['output_shape'] == 1:
             proba = pred[:, :self.dataset_properties['num_classes']]
@@ -144,7 +144,7 @@ class TabularClassificationPipeline(ClassifierMixin, BasePipeline):
 
             else:
                 # Probe for the target array dimensions
-                target = self.predict(X[0:2].copy())
+                target = self.predict_proba(X[0:2].copy())
 
                 y = np.zeros((X.shape[0], target.shape[1]),
                              dtype=np.float32)
