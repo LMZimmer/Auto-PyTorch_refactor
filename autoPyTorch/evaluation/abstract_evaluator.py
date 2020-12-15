@@ -2,7 +2,7 @@ import logging.handlers
 import time
 import warnings
 from multiprocessing.queues import Queue
-from typing import Any, Dict, List, no_type_check, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, no_type_check
 
 from ConfigSpace import Configuration
 
@@ -16,6 +16,9 @@ from sklearn.ensemble import VotingClassifier, VotingRegressor
 
 from smac.tae import StatusType
 
+import autoPyTorch.pipeline.image_classification
+import autoPyTorch.pipeline.tabular_classification
+import autoPyTorch.pipeline.tabular_regression
 from autoPyTorch.constants import (
     CLASSIFICATION_TASKS,
     IMAGE_TASKS,
@@ -37,9 +40,6 @@ from autoPyTorch.pipeline.components.training.metrics.utils import (
     calculate_score,
     get_metrics,
 )
-from autoPyTorch.pipeline.image_classification import ImageClassificationPipeline
-from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
-from autoPyTorch.pipeline.tabular_regression import TabularRegressionPipeline
 from autoPyTorch.utils.backend import Backend
 from autoPyTorch.utils.logging_ import PicklableClientLogger, get_named_client_logger
 from autoPyTorch.utils.pipeline import get_dataset_requirements
@@ -210,7 +210,7 @@ class AbstractEvaluator(object):
                 self.pipeline_class = DummyRegressionPipeline
             else:
                 if self.task_type in TABULAR_TASKS:
-                    self.pipeline_class = TabularRegressionPipeline
+                    self.pipeline_class = autoPyTorch.pipeline.tabular_regression.TabularRegressionPipeline
                 else:
                     raise ValueError('task {} not available'.format(self.task_type))
             self.predict_function = self._predict_regression
@@ -219,12 +219,12 @@ class AbstractEvaluator(object):
                 self.pipeline_class = DummyClassificationPipeline
             else:
                 if self.task_type in TABULAR_TASKS:
-                    self.pipeline_class = TabularClassificationPipeline
+                    self.pipeline_class = autoPyTorch.pipeline.tabular_classification.TabularClassificationPipeline
                 elif self.task_type in IMAGE_TASKS:
-                    self.pipeline_class = ImageClassificationPipeline
+                    self.pipeline_class = autoPyTorch.pipeline.image_classification.ImageClassificationPipeline
                 else:
                     raise ValueError('task {} not available'.format(self.task_type))
-            self.predict_function = self._predict_regression
+            self.predict_function = self._predict_proba
         if self.task_type in TABULAR_TASKS:
             assert isinstance(self.datamanager, TabularDataset)
             info.update({'numerical_columns': self.datamanager.numerical_columns,

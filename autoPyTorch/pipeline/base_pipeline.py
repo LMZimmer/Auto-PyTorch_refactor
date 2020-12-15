@@ -117,7 +117,7 @@ class BasePipeline(Pipeline):
 
     def predict(self, X: np.ndarray, batch_size: Optional[int] = None
                 ) -> np.ndarray:
-        """Predict the classes using the selected model.
+        """Predict the output using the selected model.
 
         Args:
             X (np.ndarray): input data to the array

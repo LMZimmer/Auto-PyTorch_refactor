@@ -69,10 +69,11 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.resampling_strategy_args = resampling_strategy_args
         self.task_type: Optional[str] = None
         self.issparse: bool = issparse(self.train_tensors[0])
-        self.num_classes = None
+        self.input_shape: Tuple[int] = train_tensors[0][1:].shape
         if len(train_tensors) == 2 and train_tensors[1] is not None:
             self.output_type: str = type_of_target(self.train_tensors[1])
-            self.num_classes = len(np.unique(self.train_tensors[1]))
+            self.num_classes: int = len(np.unique(self.train_tensors[1]))
+            self.output_shape: int = train_tensors[1][1].shape
         # TODO: Look for a criteria to define small enough to preprocess
         self.is_small_preprocess = True
 
@@ -251,5 +252,8 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         # they are not a dataset requirement in the pipeline
         dataset_properties.update({'task_type': self.task_type,
                                    'output_type': self.output_type,
-                                   'issparse': self.issparse})
+                                   'issparse': self.issparse,
+                                   'input_shape': self.input_shape,
+                                   'output_shape': self.output_shape
+                                   })
         return dataset_properties

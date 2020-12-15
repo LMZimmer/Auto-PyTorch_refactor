@@ -110,7 +110,7 @@ class TrainEvaluator(AbstractEvaluator):
                 valid_pred=y_valid_pred,
                 test_pred=y_test_pred,
                 additional_run_info=additional_run_info,
-                file_output=self.num_folds == 1,
+                file_output=True,
                 status=status,
             )
 
@@ -237,7 +237,7 @@ class TrainEvaluator(AbstractEvaluator):
                 valid_pred=Y_valid_preds,
                 test_pred=Y_test_preds,
                 additional_run_info=additional_run_info,
-                file_output=self.num_folds == 1,
+                file_output=True,
                 status=status,
             )
 

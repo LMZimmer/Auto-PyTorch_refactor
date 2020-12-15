@@ -34,6 +34,7 @@ class PipelineTest(unittest.TestCase):
             'categorical_columns': [],
             'categories': [],
             'is_small_preprocess': False,
+            'issparse': False,
             'num_features': self.num_features,
             'num_classes': self.num_classes,
         }

@@ -225,9 +225,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             seed: int = 12345,
             budget: float = 0.0,
             instance_specific: typing.Optional[str] = None,
-    ) -> typing.Tuple[
-        StatusType, float, float,
-        typing.Dict[str, typing.Any]]:
+    ) -> typing.Tuple[StatusType, float, float, typing.Dict[str, typing.Any]]:
 
         queue: multiprocessing.queues.Queue = multiprocessing.Queue()
 
