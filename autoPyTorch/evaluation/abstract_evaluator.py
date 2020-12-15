@@ -89,7 +89,9 @@ class DummyClassificationPipeline(DummyClassifier):
 
     @staticmethod
     def get_default_pipeline_options() -> Dict[str, Any]:
-        return {}
+        return {'budget_type': 'epochs',
+                'epochs': 1,
+                'runtime': 1}
 
 
 class DummyRegressionPipeline(DummyRegressor):
@@ -122,7 +124,9 @@ class DummyRegressionPipeline(DummyRegressor):
 
     @staticmethod
     def get_default_pipeline_options() -> Dict[str, Any]:
-        return {}
+        return {'budget_type': 'epochs',
+                'epochs': 1,
+                'runtime': 1}
 
 
 def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstimator,
@@ -247,10 +251,8 @@ class AbstractEvaluator(object):
             'logger_port': logger_port
         })
 
-        default_pipeline_options = self.pipeline_class.get_default_pipeline_options() \
-            if issubclass(self.pipeline_class, BasePipeline) else {'budget_type': 'epochs',
-                                                                   'epochs': 1,
-                                                                   'runtime': 1}
+        default_pipeline_options = self.pipeline_class.get_default_pipeline_options()
+
         self.budget_type = default_pipeline_options['budget_type'] if budget_type is None else budget_type
         self.budget = default_pipeline_options[self.budget_type] if budget == 0 else budget
         self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}

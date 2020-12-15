@@ -10,6 +10,8 @@ from ConfigSpace import Configuration
 
 import numpy as np
 
+from sklearn.base import BaseEstimator
+
 from smac.tae import StatusType
 
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes
@@ -37,6 +39,17 @@ class BackendMock(object):
 class Dummy(object):
     def __init__(self):
         self.name = 'dummy'
+
+
+class DummyPipeline(BasePipeline):
+    def __init__(self):
+        mocked_estimator = unittest.mock.Mock(spec=BaseEstimator)
+        self.steps = [('MockStep', mocked_estimator)]
+        pass
+    def predict_proba(self, X, batch_size=None):
+        return np.tile([0.6, 0.4], (len(X), 1))
+    def get_additional_run_info(self) -> None:
+        return None
 
 
 class TestTrainEvaluator(BaseEvaluatorTest, unittest.TestCase):
