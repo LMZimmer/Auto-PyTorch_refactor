@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 import functools
 import json
+import logging.handlers
 import math
 import multiprocessing
 import time
@@ -19,7 +20,6 @@ from smac.runhistory.runhistory import RunInfo, RunValue
 from smac.stats.stats import Stats
 from smac.tae import StatusType, TAEAbortException
 from smac.tae.execute_func import AbstractTAFunc
-
 
 import autoPyTorch.evaluation.train_evaluator
 from autoPyTorch.evaluation.utils import empty_queue, extract_learning_curve, read_queue
@@ -71,10 +71,11 @@ def get_cost_of_crash(metric: autoPyTorchMetric) -> float:
     return worst_possible_result
 
 
-def _encode_exit_status(exit_status: multiprocessing.connection.Connection) -> str:
+def _encode_exit_status(exit_status: multiprocessing.connection.Connection
+                        ) -> str:
     try:
-        json.dumps(exit_status)
-        return exit_status
+        encoded_exit_status: str = json.dumps(exit_status)
+        return encoded_exit_status
     except (TypeError, OverflowError):
         return str(exit_status)
 
@@ -86,28 +87,29 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
     run our target algorithm with different configurations
     in parallel
     """
+
     def __init__(
-        self,
-        backend: Backend,
-        seed: int,
-        metric: autoPyTorchMetric,
-        logger: PicklableClientLogger,
-        cost_for_crash: float,
-        abort_on_first_run_crash: bool,
-        initial_num_run: int = 1,
-        stats: typing.Optional[Stats] = None,
-        run_obj: str = 'quality',
-        par_factor: int = 1,
-        output_y_hat_optimization: bool = True,
-        include: typing.Optional[typing.Dict[str, typing.Any]] = None,
-        exclude: typing.Optional[typing.Dict[str, typing.Any]] = None,
-        memory_limit: typing.Optional[int] = None,
-        disable_file_output: bool = False,
-        init_params: typing.Dict[str, typing.Any] = None,
-        budget_type: str = None,
-        ta: typing.Optional[typing.Callable] = None,
-        logger_port: int = None,
-        all_supported_metrics: bool = True,
+            self,
+            backend: Backend,
+            seed: int,
+            metric: autoPyTorchMetric,
+            logger: PicklableClientLogger,
+            cost_for_crash: float,
+            abort_on_first_run_crash: bool,
+            initial_num_run: int = 1,
+            stats: typing.Optional[Stats] = None,
+            run_obj: str = 'quality',
+            par_factor: int = 1,
+            output_y_hat_optimization: bool = True,
+            include: typing.Optional[typing.Dict[str, typing.Any]] = None,
+            exclude: typing.Optional[typing.Dict[str, typing.Any]] = None,
+            memory_limit: typing.Optional[int] = None,
+            disable_file_output: bool = False,
+            init_params: typing.Dict[str, typing.Any] = None,
+            budget_type: str = None,
+            ta: typing.Optional[typing.Callable] = None,
+            logger_port: int = None,
+            all_supported_metrics: bool = True,
     ):
 
         eval_function = autoPyTorch.evaluation.train_evaluator.eval_function
@@ -140,7 +142,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self.init_params = init_params
         self.budget_type = budget_type
         self.logger = logger
-        self.logger_port = logger_port
+        self.logger_port = logger_port if logger_port is not None else logging.handlers.DEFAULT_TCP_LOGGING_PORT
         self.all_supported_metrics = all_supported_metrics
 
         if memory_limit is not None:
@@ -225,10 +227,9 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             instance_specific: typing.Optional[str] = None,
     ) -> typing.Tuple[
         StatusType, float, float,
-        typing.Dict[str, typing.Union[int, float, str, typing.Dict, typing.List, typing.Tuple]]
-    ]:
+        typing.Dict[str, typing.Any]]:
 
-        queue = multiprocessing.Queue()
+        queue: multiprocessing.queues.Queue = multiprocessing.Queue()
 
         if not (instance_specific is None or instance_specific == '0'):
             raise ValueError(instance_specific)
@@ -267,6 +268,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             all_supported_metrics=self.all_supported_metrics
         )
 
+        info: typing.Optional[typing.List[RunValue]]
+        additional_run_info: typing.Dict[str, typing.Any]
         try:
             obj = pynisher.enforce_limits(**pynisher_arguments)(self.ta)
             obj(**obj_kwargs)
@@ -312,7 +315,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
                 elif obj.exit_status is pynisher.MemorylimitException:
                     status = StatusType.MEMOUT
                     additional_run_info = {
-                        'error': 'Memout (used more than %d MB).' % self.memory_limit
+                        'error': 'Memout (used more than {} MB).'.format(self.memory_limit)
                     }
                 else:
                     raise ValueError(obj.exit_status)

@@ -59,7 +59,7 @@ class AbstractEvaluatorTest(unittest.TestCase):
         queue_mock = unittest.mock.Mock()
         ae = AbstractEvaluator(backend=self.backend_mock,
                                output_y_hat_optimization=False,
-                               queue=queue_mock, metric=accuracy)
+                               queue=queue_mock, metric=accuracy, budget=0)
         ae.Y_optimization = rs.rand(33, 3)
         predictions_ensemble = rs.rand(33, 3)
         predictions_test = rs.rand(25, 3)
@@ -68,8 +68,8 @@ class AbstractEvaluatorTest(unittest.TestCase):
         # NaNs in prediction ensemble
         predictions_ensemble[5, 2] = np.NaN
         _, loss, _, additional_run_info = ae.finish_up(
-            loss=0.1,
-            train_loss=0.1,
+            loss={'accuracy': 0.1},
+            train_loss={'accuracy': 0.1},
             opt_pred=predictions_ensemble,
             valid_pred=predictions_valid,
             test_pred=predictions_test,
@@ -86,8 +86,8 @@ class AbstractEvaluatorTest(unittest.TestCase):
         predictions_ensemble[5, 2] = 0.5
         predictions_valid[5, 2] = np.NaN
         _, loss, _, additional_run_info = ae.finish_up(
-            loss=0.1,
-            train_loss=0.1,
+            loss={'accuracy': 0.1},
+            train_loss={'accuracy': 0.1},
             opt_pred=predictions_ensemble,
             valid_pred=predictions_valid,
             test_pred=predictions_test,
@@ -104,8 +104,8 @@ class AbstractEvaluatorTest(unittest.TestCase):
         predictions_valid[5, 2] = 0.5
         predictions_test[5, 2] = np.NaN
         _, loss, _, additional_run_info = ae.finish_up(
-            loss=0.1,
-            train_loss=0.1,
+            loss={'accuracy': 0.1},
+            train_loss={'accuracy': 0.1},
             opt_pred=predictions_ensemble,
             valid_pred=predictions_valid,
             test_pred=predictions_test,
@@ -130,7 +130,8 @@ class AbstractEvaluatorTest(unittest.TestCase):
             queue=queue_mock,
             disable_file_output=True,
             metric=accuracy,
-            logger_port=unittest.mock.Mock()
+            logger_port=unittest.mock.Mock(),
+            budget=0
         )
         ae.pipeline = unittest.mock.Mock()
         predictions_ensemble = rs.rand(33, 3)
@@ -157,6 +158,7 @@ class AbstractEvaluatorTest(unittest.TestCase):
                 queue=queue_mock,
                 disable_file_output=[disable],
                 metric=accuracy,
+                budget=0
             )
             ae.Y_optimization = predictions_ensemble
             ae.pipeline = unittest.mock.Mock()
@@ -202,6 +204,7 @@ class AbstractEvaluatorTest(unittest.TestCase):
             queue=queue_mock,
             metric=accuracy,
             disable_file_output=['y_optimization'],
+            budget=0
         )
         ae.Y_optimization = predictions_ensemble
         ae.pipeline = 'pipeline'
@@ -253,6 +256,7 @@ class AbstractEvaluatorTest(unittest.TestCase):
                 output_y_hat_optimization=False,
                 queue=queue_mock,
                 metric=accuracy,
+                budget=0
             )
             ae.model = sklearn.dummy.DummyClassifier()
 
@@ -269,6 +273,6 @@ class AbstractEvaluatorTest(unittest.TestCase):
             )
 
             self.assertTrue(os.path.exists(os.path.join(self.working_directory, 'tmp',
-                                                        '.autoPyTorch', 'runs', '1_0_None')))
+                                                        '.autoPyTorch', 'runs', '1_0_1')))
 
             shutil.rmtree(self.working_directory, ignore_errors=True)

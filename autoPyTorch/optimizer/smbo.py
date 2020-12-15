@@ -1,5 +1,6 @@
 import copy
 import json
+import logging.handlers
 import typing
 
 import ConfigSpace
@@ -98,7 +99,7 @@ class AutoMLSMBO(object):
                  # TODO: Re-enable when ensemble merged
                  # ensemble_callback: typing.Optional[EnsembleBuilderManager] = None,
                  ensemble_callback: typing.Any = None,
-                 logger_port=None
+                 logger_port: typing.Optional[int]=None
                  ):
         """
         Interface to SMAC. This method calls the SMAC optimize method, and allows
@@ -152,9 +153,9 @@ class AutoMLSMBO(object):
         super(AutoMLSMBO, self).__init__()
         # data related
         self.dataset_name = dataset_name
-        self.datamanager = None
+        self.datamanager: typing.Optional[BaseDataset] = None
         self.metric = metric
-        self.task = None
+        self.task: typing.Optional[str] = None
         self.backend = backend
         self.all_supported_metrics = all_supported_metrics
 
@@ -188,7 +189,10 @@ class AutoMLSMBO(object):
         self.ensemble_callback = ensemble_callback
 
         dataset_name_ = "" if dataset_name is None else dataset_name
-        self.logger_port = logger_port
+        if logger_port is None:
+            self.logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
+        else:
+            self.logger_port = logger_port
         logger_name = '%s(%d):%s' % (self.__class__.__name__, self.seed, ":" + dataset_name_)
         self.logger = get_named_client_logger(output_dir=backend.temporary_directory, name=logger_name,
                                               port=self.logger_port)
@@ -202,7 +206,8 @@ class AutoMLSMBO(object):
         else:
             self.datamanager = self.backend.load_datamanager()
 
-        self.task = self.datamanager.task_type
+        if self.datamanager.task_type is not None:
+            self.task = self.datamanager.task_type
 
     def run_smbo(self, func: typing.Optional[typing.Callable] = None
                  ) -> typing.Tuple[RunHistory, TrajLogger, str]:
@@ -295,18 +300,20 @@ class AutoMLSMBO(object):
                     )
             scenario_dict.update(self.smac_scenario_args)
 
-        smac_args = {
-            'scenario_dict': scenario_dict,
-            'seed': seed,
-            'ta': ta,
-            'ta_kwargs': ta_kwargs,
-            'n_jobs': self.n_jobs,
-            'dask_client': self.dask_client,
-        }
         if self.get_smac_object_callback is not None:
-            smac = self.get_smac_object_callback(**smac_args)
+            smac = self.get_smac_object_callback(scenario_dict=scenario_dict,
+                                                 seed=seed,
+                                                 ta=ta,
+                                                 ta_kwargs=ta_kwargs,
+                                                 n_jobs=self.n_jobs,
+                                                 dask_client=self.dask_client)
         else:
-            smac = get_smac_object(**smac_args)
+            smac = get_smac_object(scenario_dict=scenario_dict,
+                                   seed=seed,
+                                   ta=ta,
+                                   ta_kwargs=ta_kwargs,
+                                   n_jobs=self.n_jobs,
+                                   dask_client=self.dask_client)
 
         if self.ensemble_callback is not None:
             smac.register_callback(self.ensemble_callback)

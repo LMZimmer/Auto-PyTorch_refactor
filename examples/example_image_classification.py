@@ -11,7 +11,6 @@ import torchvision.datasets
 
 from autoPyTorch.pipeline.image_classification import ImageClassificationPipeline
 
-
 # Get the training data for tabular classification
 trainset = torchvision.datasets.FashionMNIST(root='../datasets/', train=True, download=True)
 data = trainset.data.numpy()
@@ -39,14 +38,15 @@ print("Fitting the pipeline...")
 
 pipeline.fit(X=dict(X_train=data,
                     is_small_preprocess=True,
-                    mean=np.array([np.mean(data[:, :, :, i]) for i in range(1)]),
-                    std=np.array([np.std(data[:, :, :, i]) for i in range(1)]),
-                    num_classes=10,
-                    num_features=data.shape[1] * data.shape[2],
+                    dataset_properties=dict(mean=np.array([np.mean(data[:, :, :, i]) for i in range(1)]),
+                                            std=np.array([np.std(data[:, :, :, i]) for i in range(1)]),
+                                            num_classes=10,
+                                            num_features=data.shape[1] * data.shape[2],
+                                            image_height=data.shape[1],
+                                            image_width=data.shape[2],
+                                            is_small_preprocess=True),
                     train_indices=train_indices,
                     val_indices=val_indices,
-                    image_height=data.shape[1],
-                    image_width=data.shape[2]
                     )
              )
 

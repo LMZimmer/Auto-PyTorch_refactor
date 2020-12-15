@@ -194,7 +194,7 @@ class EvaluationTest(unittest.TestCase):
         self.assertIsInstance(info[1].time, float)
         self.assertEqual(info[1].additional_info, {'configuration_origin': 'MOCK',
                                                    'error': "Result queue is empty",
-                                                   'exit_status': 0,
+                                                   'exit_status': '0',
                                                    'exitcode': 0,
                                                    'subprocess_stdout': '',
                                                    'subprocess_stderr': ''})
@@ -207,7 +207,7 @@ class EvaluationTest(unittest.TestCase):
         self.assertIsInstance(info[1].time, float)
         self.assertEqual(info[1].additional_info, {'configuration_origin': 'MOCK',
                                                    'error': "Result queue is empty",
-                                                   'exit_status': 0,
+                                                   'exit_status': '0',
                                                    'exitcode': 0,
                                                    'subprocess_stdout': '',
                                                    'subprocess_stderr': ''})

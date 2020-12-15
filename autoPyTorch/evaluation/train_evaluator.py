@@ -35,16 +35,16 @@ def _get_y_array(y: np.ndarray, task_type: int) -> np.ndarray:
 class TrainEvaluator(AbstractEvaluator):
     def __init__(self, backend: Backend, queue: Queue,
                  metric: autoPyTorchMetric,
+                 budget: float,
+                 budget_type: str = None,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
                  num_run: Optional[int] = None,
                  include: Optional[Dict[str, Any]] = None,
                  exclude: Optional[Dict[str, Any]] = None,
-                 disable_file_output: bool = False,
+                 disable_file_output: Union[bool, List] = False,
                  init_params: Optional[Dict[str, Any]] = None,
-                 budget: Optional[float] = None,
-                 budget_type: Optional[str] = None,
                  logger_port: Optional[int] = None,
                  keep_models: Optional[bool] = None,
                  all_supported_metrics: bool = True) -> None:
@@ -70,7 +70,6 @@ class TrainEvaluator(AbstractEvaluator):
         if self.splits is None:
             raise AttributeError("Must have called create_splits on {}".format(self.datamanager.__class__.__name__))
         self.num_folds: int = len(self.splits)
-        self.Y_optimization = None
         self.Y_targets: List[Optional[np.ndarray]] = [None] * self.num_folds
         self.Y_train_targets: np.ndarray = np.ones(self.y_train.shape) * np.NaN
         self.pipelines: List[Optional[BaseEstimator]] = [None] * self.num_folds
@@ -304,19 +303,19 @@ def eval_function(
         backend: Backend,
         queue: Queue,
         metric: autoPyTorchMetric,
+        budget: float,
         config: Optional[Configuration],
         seed: int,
         output_y_hat_optimization: bool,
         num_run: int,
-        instance,
         include: Optional[Dict[str, Any]],
         exclude: Optional[Dict[str, Any]],
-        disable_file_output: bool,
+        disable_file_output: Union[bool, List],
+        budget_type: str = None,
         init_params: Optional[Dict[str, Any]] = None,
-        budget: float = 100,
-        budget_type: Optional[str] = None,
         logger_port: Optional[int] = None,
         all_supported_metrics: bool = True,
+        instance: str = None,
 ) -> None:
     evaluator = TrainEvaluator(
         backend=backend,

@@ -2,7 +2,7 @@ import logging.handlers
 import time
 import warnings
 from multiprocessing.queues import Queue
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, no_type_check, Optional, Tuple, Union
 
 from ConfigSpace import Configuration
 
@@ -26,10 +26,12 @@ from autoPyTorch.constants import (
     TABULAR_TASKS,
 )
 from autoPyTorch.datasets.base_dataset import BaseDataset
+from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.evaluation.utils import (
     convert_multioutput_multiclass_to_multilabel,
     subsampler
 )
+from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import (
     calculate_score,
@@ -126,6 +128,7 @@ class DummyRegressionPipeline(DummyRegressor):
 def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstimator,
                               X: Dict[str, Any], y: Any
                               ) -> BaseEstimator:
+    @no_type_check
     def send_warnings_to_log(message, category, filename, lineno,
                              file=None, line=None) -> None:
         logger.debug('%s:%s: %s:%s',
@@ -140,27 +143,36 @@ def fit_and_suppress_warnings(logger: PicklableClientLogger, pipeline: BaseEstim
 
 
 class AbstractEvaluator(object):
-    def __init__(self, backend: Backend, queue: Queue, metric: autoPyTorchMetric,
+    def __init__(self, backend: Backend,
+                 queue: Queue,
+                 metric: autoPyTorchMetric,
+                 budget: float,
+                 budget_type: str = None,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
                  num_run: Optional[int] = None,
                  include: Optional[Dict[str, Any]] = None,
                  exclude: Optional[Dict[str, Any]] = None,
-                 disable_file_output: bool = False,
+                 disable_file_output: Union[bool, List[str]] = False,
                  init_params: Optional[Dict[str, Any]] = None,
-                 budget: Optional[float] = None,
-                 budget_type: Optional[str] = None,
                  logger_port: Optional[int] = None,
                  all_supported_metrics: bool = True) -> None:
 
         self.starttime = time.time()
 
         self.configuration = configuration
-        self.backend = backend
+        self.backend: Backend = backend
         self.queue = queue
 
         self.datamanager: BaseDataset = self.backend.load_datamanager()
+
+        assert self.datamanager.task_type is not None, \
+            "Expected dataset {} to have task_type got None".format(self.datamanager.__class__.__name__)
+        self.task_type = STRING_TO_TASK_TYPES[self.datamanager.task_type]
+        self.output_type = STRING_TO_OUTPUT_TYPES[self.datamanager.output_type]
+        self.issparse = self.datamanager.issparse
+
         self.include = include
         self.exclude = exclude
 
@@ -178,23 +190,21 @@ class AbstractEvaluator(object):
 
         self.metric = metric
 
-        self.task_type = STRING_TO_TASK_TYPES[self.datamanager.task_type]
-        self.output_type = STRING_TO_OUTPUT_TYPES[self.datamanager.output_type]
-        self.issparse = self.datamanager.issparse
-
         self.seed = seed
 
         self.output_y_hat_optimization = output_y_hat_optimization
 
-        if isinstance(disable_file_output, (bool, list)):
-            self.disable_file_output = disable_file_output
+        if isinstance(disable_file_output, bool):
+            self.disable_file_output: bool = disable_file_output
+        elif isinstance(disable_file_output, List):
+            self.disabled_file_outputs: List[str] = disable_file_output
         else:
             raise ValueError('disable_file_output should be either a bool or a list')
 
-        self.pipeline_class: Optional[BaseEstimator] = None
-        info = {'task_type': self.datamanager.task_type,
-                'output_type': self.datamanager.output_type,
-                'issparse': self.issparse}
+        self.pipeline_class: Optional[Union[BaseEstimator, BasePipeline]] = None
+        info: Dict[str, Any] = {'task_type': self.datamanager.task_type,
+                                'output_type': self.datamanager.output_type,
+                                'issparse': self.issparse}
         if self.task_type in REGRESSION_TASKS:
             if not isinstance(self.configuration, Configuration):
                 self.pipeline_class = DummyRegressionPipeline
@@ -216,6 +226,7 @@ class AbstractEvaluator(object):
                     raise ValueError('task {} not available'.format(self.task_type))
             self.predict_function = self._predict_regression
         if self.task_type in TABULAR_TASKS:
+            assert isinstance(self.datamanager, TabularDataset)
             info.update({'numerical_columns': self.datamanager.numerical_columns,
                          'categorical_columns': self.datamanager.categorical_columns})
         self.dataset_properties = self.datamanager.get_dataset_properties(get_dataset_requirements(info))
@@ -225,7 +236,7 @@ class AbstractEvaluator(object):
             self.additional_metrics = get_metrics(dataset_properties=self.dataset_properties,
                                                   all_supported_metrics=all_supported_metrics)
 
-        self.fit_dictionary = {'dataset_properties': self.dataset_properties}
+        self.fit_dictionary: Dict[str, Any] = {'dataset_properties': self.dataset_properties}
         self._init_params = init_params
         self.fit_dictionary.update({
             'X_train': self.X_train,
@@ -236,9 +247,15 @@ class AbstractEvaluator(object):
             'logger_port': logger_port
         })
 
-        if num_run is None:
-            num_run = 0
-        self.num_run = num_run
+        default_pipeline_options = self.pipeline_class.get_default_pipeline_options() \
+            if isinstance(self.pipeline_class, BasePipeline) else {'budget_type': 'epochs',
+                                                                   'epochs': 1,
+                                                                   'runtime': 1}
+        self.budget_type = default_pipeline_options['budget_type'] if budget_type is None else budget_type
+        self.budget = default_pipeline_options[self.budget_type] if budget == 0 else budget
+        self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}
+
+        self.num_run = 0 if num_run is None else num_run
 
         logger_name = '%s(%d)' % (self.__class__.__name__.split('.')[-1],
                                   self.seed)  # TODO: Add name to dataset class
@@ -246,25 +263,10 @@ class AbstractEvaluator(object):
             logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
         self.logger = get_named_client_logger(output_dir=self.backend.temporary_directory, name=logger_name,
                                               port=logger_port)
-        self.logger.debug("Dataset Properties created in train_evaluator: {}".format(self.dataset_properties))
-        self.Y_optimization = None
-        self.Y_actual_train = None
-
-        self.budget = budget
-        self.budget_type = budget_type
-        default_pipeline_options = self.pipeline_class.get_default_pipeline_options()
-        if self.budget_type is not None:
-            if self.budget_type == 'runtime':
-                default_pipeline_options['runtime'] = self.budget
-                if 'epochs' in default_pipeline_options:
-                    del default_pipeline_options['epochs']
-            elif self.budget_type == 'epochs':
-                default_pipeline_options['epochs'] = self.budget
-                if 'runtime' in default_pipeline_options:
-                    del default_pipeline_options['runtime']
-            default_pipeline_options['budget_type'] = self.budget_type
-        self.logger.debug("Default pipeline options: {}".format(default_pipeline_options))
-        self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}
+        self.Y_optimization: Optional[np.ndarray] = None
+        self.Y_actual_train: Optional[np.ndarray] = None
+        self.pipelines: Optional[List[BaseEstimator]] = None
+        self.pipeline: Optional[BaseEstimator] = None
 
     def _get_pipeline(self) -> BaseEstimator:
         assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"
@@ -339,16 +341,12 @@ class AbstractEvaluator(object):
         if loss_ is not None:
             return self.duration, loss_, self.seed, additional_run_info_
 
-        if isinstance(loss, dict):
-            loss_ = loss
-            loss = loss_[self.metric.name]
-        else:
-            loss_ = {}
+        cost = loss[self.metric.name]
 
         additional_run_info = (
             {} if additional_run_info is None else additional_run_info
         )
-        for metric_name, value in loss_.items():
+        for metric_name, value in loss.items():
             additional_run_info[metric_name] = value
         additional_run_info['duration'] = self.duration
         additional_run_info['num_run'] = self.num_run
@@ -359,7 +357,7 @@ class AbstractEvaluator(object):
         if test_loss is not None:
             additional_run_info['test_loss'] = test_loss
 
-        rval_dict = {'loss': loss,
+        rval_dict = {'loss': cost,
                      'additional_run_info': additional_run_info,
                      'status': status}
 
@@ -372,25 +370,18 @@ class AbstractEvaluator(object):
             Y_test_pred: np.ndarray,
     ) -> Tuple[Optional[float], Optional[float]]:
 
+        validation_loss: Optional[float] = None
+
         if Y_valid_pred is not None:
             if self.y_valid is not None:
-                validation_loss = self._loss(self.y_valid, Y_valid_pred)
-                if isinstance(validation_loss, dict):
-                    validation_loss = validation_loss[self.metric.name]
-            else:
-                validation_loss = None
-        else:
-            validation_loss = None
+                validation_loss_dict = self._loss(self.y_valid, Y_valid_pred)
+                validation_loss = validation_loss_dict[self.metric.name]
 
+        test_loss: Optional[float] = None
         if Y_test_pred is not None:
             if self.y_test is not None:
-                test_loss = self._loss(self.y_test, Y_test_pred)
-                if isinstance(test_loss, dict):
-                    test_loss = test_loss[self.metric.name]
-            else:
-                test_loss = None
-        else:
-            test_loss = None
+                test_loss_dict = self._loss(self.y_test, Y_test_pred)
+                test_loss = test_loss_dict[self.metric.name]
 
         return validation_loss, test_loss
 
@@ -435,36 +426,34 @@ class AbstractEvaluator(object):
                 )
 
         # Abort if we don't want to output anything.
-        # Since disable_file_output can also be a list, we have to explicitly
-        # compare it with True.
-        if self.disable_file_output is True:
-            return None, {}
-
-        # Notice that disable_file_output==False and disable_file_output==[]
-        # means the same thing here.
-        if self.disable_file_output is False:
-            self.disable_file_output = []
+        if hasattr(self, 'disable_file_output'):
+            if self.disable_file_output:
+                return None, {}
+            else:
+                self.disabled_file_outputs = []
 
         # This file can be written independently of the others down bellow
-        if ('y_optimization' not in self.disable_file_output):
+        if 'y_optimization' not in self.disabled_file_outputs:
             if self.output_y_hat_optimization:
                 self.backend.save_targets_ensemble(self.Y_optimization)
 
-        if hasattr(self, 'pipelines') and len(self.pipelines) > 0 and self.pipelines[0] is not None:
-            if ('pipelines' not in self.disable_file_output):
-
-                if self.task_type in CLASSIFICATION_TASKS:
-                    pipelines = VotingClassifier(estimators=None, voting='soft', )
+        if hasattr(self, 'pipelines') and self.pipelines is not None:
+            if self.pipelines[0] is not None and len(self.pipelines) > 0:
+                if 'pipelines' not in self.disabled_file_outputs:
+                    if self.task_type in CLASSIFICATION_TASKS:
+                        pipelines = VotingClassifier(estimators=None, voting='soft', )
+                    else:
+                        pipelines = VotingRegressor(estimators=None)
+                    pipelines.estimators_ = self.pipelines
                 else:
-                    pipelines = VotingRegressor(estimators=None)
-                pipelines.estimators_ = self.pipelines
+                    pipelines = None
             else:
                 pipelines = None
         else:
             pipelines = None
 
-        if hasattr(self, 'pipeline'):
-            if 'pipeline' not in self.disable_file_output:
+        if hasattr(self, 'pipeline') and self.pipeline is not None:
+            if 'pipeline' not in self.disabled_file_outputs:
                 pipeline = self.pipeline
             else:
                 pipeline = None
@@ -478,19 +467,23 @@ class AbstractEvaluator(object):
             model=pipeline,
             cv_model=pipelines,
             ensemble_predictions=(
-                Y_optimization_pred if 'y_optimization' not in self.disable_file_output else None
+                Y_optimization_pred if 'y_optimization' not in
+                                       self.disabled_file_outputs else None
             ),
             valid_predictions=(
-                Y_valid_pred if 'y_valid' not in self.disable_file_output else None
+                Y_valid_pred if 'y_valid' not in
+                                self.disabled_file_outputs else None
             ),
             test_predictions=(
-                Y_test_pred if 'y_test' not in self.disable_file_output else None
+                Y_test_pred if 'y_test' not in
+                               self.disabled_file_outputs else None
             ),
         )
 
         return None, {}
 
     def _predict_proba(self, X: np.ndarray, pipeline: BaseEstimator, Y_train: np.ndarray) -> np.ndarray:
+        @no_type_check
         def send_warnings_to_log(message, category, filename, lineno,
                                  file=None, line=None):
             self.logger.debug('%s:%s: %s:%s' %
@@ -506,6 +499,7 @@ class AbstractEvaluator(object):
 
     def _predict_regression(self, X: np.ndarray, pipeline: BaseEstimator,
                             Y_train: Optional[np.ndarray] = None) -> np.ndarray:
+        @no_type_check
         def send_warnings_to_log(message, category, filename, lineno,
                                  file=None, line=None):
             self.logger.debug('%s:%s: %s:%s' %
