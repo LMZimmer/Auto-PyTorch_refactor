@@ -196,6 +196,7 @@ class AbstractEvaluator(object):
 
         self.seed = seed
 
+        # Flag to save target for ensemble
         self.output_y_hat_optimization = output_y_hat_optimization
 
         if isinstance(disable_file_output, bool):
