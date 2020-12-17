@@ -1,15 +1,17 @@
 # mypy: ignore-errors
 import typing
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, List
 
-from ConfigurationSpace.configuration_space import \
+from ConfigSpace.configuration_space import \
     Configuration, \
     ConfigurationSpace
 
 import numpy as np
 
 from autoPyTorch.datasets.base_dataset import BaseDataset
+from autoPyTorch.pipeline.base_pipeline import BasePipeline
+from autoPyTorch.utils.common import FitRequirement
 
 
 class BaseTask():
@@ -22,12 +24,14 @@ class BaseTask():
     ):
         self.pipeline = self.build_pipeline()
 
-        self.pipeline_config = self.pipeline.get_default_config()
+        self.pipeline_config = self.pipeline.get_default_pipeline_options()
 
         self.search_space = self.pipeline.get_hyperparameter_search_space()
 
+        self._dataset_requirements: List[FitRequirement] = self.pipeline.get_dataset_requirements()
+
     @abstractmethod
-    def build_pipeline(self):
+    def build_pipeline(self) -> BasePipeline:
         raise NotImplementedError
 
     def set_pipeline_config(
@@ -70,20 +74,25 @@ class BaseTask():
     def search(
         self,
         dataset: BaseDataset,
+        budget_type: Optional[str] = None,
+        budget: Optional[float] = None
     ):
-        """Refit a model configuration and calculate the model performance.
-        Given a model configuration, the model is trained on the joint train
-        and validation sets of the dataset. This corresponds to the refit
-        phase after finding a best hyperparameter configuration after the hpo
-        phase.
+        """
+        Search for the best pipeline configuration for the given dataset
+        using the optimizer.
         Args:
             dataset: (Dataset)
-                The argument that will provide the dataset splits. It can either
-                be a dictionary with the splits, or the dataset object which can
+                The argument that will provide the dataset splits. It is
+                a subclass of the  base dataset object which can
                 generate the splits based on different restrictions.
+            budget_type: (Optional[str])
+                Type of budget to be used when fitting the pipeline.
+                Either 'epochs' or 'runtime'.
+            budget: (Optional[float])
+                Budget to fit a single run of the pipeline.
         """
         # TODO: Check dataset type against task type
-        dataset_properties = dataset.get_dataset_properties()
+        dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
         X = {}
         X.update(dataset_properties)
@@ -120,7 +129,7 @@ class BaseTask():
         # instead of it being given from the hpo algorithm
         # it takes it from us ?
 
-        dataset_properties = dataset.get_dataset_properties()
+        dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
         X = {}
         X.update(dataset_properties)
