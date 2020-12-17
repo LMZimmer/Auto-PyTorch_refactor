@@ -20,7 +20,9 @@ from smac.utils.io.traj_logging import TrajLogger
 # TODO: Enable when merged Ensemble
 # from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.datasets.base_dataset import BaseDataset
-from autoPyTorch.datasets.resampling_strategy import CrossValTypes
+from autoPyTorch.datasets.resampling_strategy import (
+    CrossValTypes, RESAMPLING_STRATEGIES, HoldoutValTypes, DEFAULT_RESAMPLING_PARAMETERS
+)
 from autoPyTorch.evaluation.tae import ExecuteTaFuncWithQueue, get_cost_of_crash
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.utils.backend import Backend
@@ -86,9 +88,10 @@ class AutoMLSMBO(object):
                  watcher: StopWatch,
                  n_jobs: int,
                  dask_client: typing.Optional[dask.distributed.Client],
+                 pipeline_config: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  start_num_run: int = 1,
                  seed: int = 1,
-                 resampling_strategy: str = 'holdout',
+                 resampling_strategy: typing.Union[RESAMPLING_STRATEGIES] = HoldoutValTypes.holdout_validation,
                  resampling_strategy_args: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  include: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  exclude: typing.Optional[typing.Dict[str, typing.Any]] = None,
@@ -99,7 +102,7 @@ class AutoMLSMBO(object):
                  # TODO: Re-enable when ensemble merged
                  # ensemble_callback: typing.Optional[EnsembleBuilderManager] = None,
                  ensemble_callback: typing.Any = None,
-                 logger_port: typing.Optional[int] = None
+                 logger_port: typing.Optional[int] = None,
                  ):
         """
         Interface to SMAC. This method calls the SMAC optimize method, and allows
@@ -159,6 +162,7 @@ class AutoMLSMBO(object):
         self.backend = backend
         self.all_supported_metrics = all_supported_metrics
 
+        self.pipeline_config = pipeline_config
         # the configuration space
         self.config_space = config_space
 
@@ -169,7 +173,7 @@ class AutoMLSMBO(object):
         # Evaluation
         self.resampling_strategy = resampling_strategy
         if resampling_strategy_args is None:
-            resampling_strategy_args = {}
+            resampling_strategy_args = DEFAULT_RESAMPLING_PARAMETERS[resampling_strategy]
         self.resampling_strategy_args = resampling_strategy_args
 
         # and a bunch of useful limits
@@ -251,6 +255,7 @@ class AutoMLSMBO(object):
             ta=func,
             logger_port=self.logger_port,
             all_supported_metrics=self.all_supported_metrics,
+            pipeline_config=self.pipeline_config
         )
         ta = ExecuteTaFuncWithQueue
         self.logger.info("Created TA")

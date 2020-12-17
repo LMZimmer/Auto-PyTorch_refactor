@@ -152,6 +152,7 @@ class AbstractEvaluator(object):
                  metric: autoPyTorchMetric,
                  budget: float,
                  budget_type: str = None,
+                 pipeline_config: Optional[Dict[str, Any]] = None,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
@@ -251,12 +252,11 @@ class AbstractEvaluator(object):
             'backend': self.backend,
             'logger_port': logger_port
         })
-
-        default_pipeline_options = self.pipeline_class.get_default_pipeline_options()
-
-        self.budget_type = default_pipeline_options['budget_type'] if budget_type is None else budget_type
-        self.budget = default_pipeline_options[self.budget_type] if budget == 0 else budget
-        self.fit_dictionary = {**default_pipeline_options, **self.fit_dictionary}
+        pipeline_config = pipeline_config if pipeline_config is not None\
+            else self.pipeline_class.get_default_pipeline_options()
+        self.budget_type = pipeline_config['budget_type'] if budget_type is None else budget_type
+        self.budget = pipeline_config[self.budget_type] if budget == 0 else budget
+        self.fit_dictionary = {**pipeline_config, **self.fit_dictionary}
 
         self.num_run = 0 if num_run is None else num_run
 

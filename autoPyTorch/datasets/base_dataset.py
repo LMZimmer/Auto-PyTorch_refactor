@@ -22,6 +22,7 @@ from autoPyTorch.datasets.resampling_strategy import (
     is_stratified,
 )
 from autoPyTorch.utils.common import FitRequirement
+from autoPyTorch.utils.hash import hash_array_or_matrix
 
 BASE_DATASET_INPUT = Union[Tuple[np.ndarray, np.ndarray], Dataset]
 
@@ -61,6 +62,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(
         self,
         train_tensors: BASE_DATASET_INPUT,
+        dataset_name: str = None,
         val_tensors: Optional[BASE_DATASET_INPUT] = None,
         test_tensors: Optional[BASE_DATASET_INPUT] = None,
         resampling_strategy: Union[CrossValTypes, HoldoutValTypes] = HoldoutValTypes.holdout_validation,
@@ -75,6 +77,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         :param val_tensors: A optional tuple of objects that have a __len__ and a __getitem__ attribute.
         :param shuffle: Whether to shuffle the data before performing splits
         """
+        self.dataset_name = dataset_name if dataset_name is not None else hash_array_or_matrix(train_tensors[0])
         if not hasattr(train_tensors[0], 'shape'):
             type_check(train_tensors, val_tensors)
         self.train_tensors = train_tensors

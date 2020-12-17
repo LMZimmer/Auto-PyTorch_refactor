@@ -37,6 +37,7 @@ class TrainEvaluator(AbstractEvaluator):
                  metric: autoPyTorchMetric,
                  budget: float,
                  budget_type: str = None,
+                 pipeline_config: Optional[Dict[str, Any]] = None,
                  configuration: Optional[Configuration] = None,
                  seed: int = 1,
                  output_y_hat_optimization: bool = True,
@@ -63,7 +64,8 @@ class TrainEvaluator(AbstractEvaluator):
             budget=budget,
             budget_type=budget_type,
             logger_port=logger_port,
-            all_supported_metrics=all_supported_metrics
+            all_supported_metrics=all_supported_metrics,
+            pipeline_config=pipeline_config
         )
 
         self.splits = self.datamanager.splits
@@ -312,6 +314,7 @@ def eval_function(
         include: Optional[Dict[str, Any]],
         exclude: Optional[Dict[str, Any]],
         disable_file_output: Union[bool, List],
+        pipeline_config: Optional[Dict[str, Any]] = None,
         budget_type: str = None,
         init_params: Optional[Dict[str, Any]] = None,
         logger_port: Optional[int] = None,
@@ -333,6 +336,7 @@ def eval_function(
         budget=budget,
         budget_type=budget_type,
         logger_port=logger_port,
-        all_supported_metrics=all_supported_metrics
+        all_supported_metrics=all_supported_metrics,
+        pipeline_config=pipeline_config
     )
     evaluator.fit_predict_and_loss()

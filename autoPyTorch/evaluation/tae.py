@@ -96,6 +96,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             logger: PicklableClientLogger,
             cost_for_crash: float,
             abort_on_first_run_crash: bool,
+            pipeline_config: typing.Optional[typing.Dict[str, typing.Any]] = None,
             initial_num_run: int = 1,
             stats: typing.Optional[Stats] = None,
             run_obj: str = 'quality',
@@ -140,7 +141,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         self.exclude = exclude
         self.disable_file_output = disable_file_output
         self.init_params = init_params
-        self.budget_type = budget_type
+        self.pipeline_config = pipeline_config
+        self.budget_type = pipeline_config['budget_type'] if pipeline_config is not None else budget_type
         self.logger = logger
         self.logger_port = logger_port if logger_port is not None else logging.handlers.DEFAULT_TCP_LOGGING_PORT
         self.all_supported_metrics = all_supported_metrics
@@ -262,6 +264,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             init_params=init_params,
             budget=budget,
             budget_type=self.budget_type,
+            pipeline_config=self.pipeline_config,
             logger_port=self.logger_port,
             all_supported_metrics=self.all_supported_metrics
         )
