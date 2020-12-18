@@ -6,7 +6,7 @@ import multiprocessing
 import os
 import time
 import typing
-from typing import Any, Callable, Dict, Optional, List
+from typing import Any, Callable, Dict, Optional, List, Union
 import tempfile
 import warnings
 
@@ -24,23 +24,28 @@ import sklearn
 from sklearn.utils.validation import check_is_fitted
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
+from smac.runhistory.runhistory import RunHistory
+from smac.utils.io.traj_logging import TrajLogger
+
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.utils.common import FitRequirement
 from autoPyTorch.utils.stopwatch import StopWatch
 from autoPyTorch.utils.backend import create, Backend
+from autoPyTorch.utils.pipeline import get_configuration_space, get_dataset_requirements
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import get_metrics
 from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.utils.logging_ import setup_logger, start_log_server, get_named_client_logger, PicklableClientLogger
 from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
-from autoPyTorch.constants import STRING_TO_TASK_TYPES, STRING_TO_OUTPUT_TYPES, REGRESSION_TASKS
+from autoPyTorch.constants import STRING_TO_TASK_TYPES, STRING_TO_OUTPUT_TYPES, REGRESSION_TASKS, \
+    DEFAULT_PIPELINE_OPTIONS_FILE_PATH
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
 
 
-def _model_predict(model, X, batch_size, logger, task):
+def _pipeline_predict(pipeline, X, batch_size, logger, task):
     def send_warnings_to_log(
             message, category, filename, lineno, file=None, line=None):
         logger.debug('%s:%s: %s:%s' % (filename, lineno, category.__name__, message))
@@ -50,22 +55,22 @@ def _model_predict(model, X, batch_size, logger, task):
     with warnings.catch_warnings():
         warnings.showwarning = send_warnings_to_log
         if task in REGRESSION_TASKS:
-            prediction = model.predict(X_, batch_size=batch_size)
+            prediction = pipeline.predict(X_, batch_size=batch_size)
         else:
-            prediction = model.predict_proba(X_, batch_size=batch_size)
+            prediction = pipeline.predict_proba(X_, batch_size=batch_size)
 
             # Check that all probability values lie between 0 and 1.
             assert (
                     (prediction >= 0).all() and (prediction <= 1).all()
             ), "For {}, prediction probability not within [0, 1]!".format(
-                model
+                pipeline
             )
 
     if len(prediction.shape) < 1 or len(X_.shape) < 1 or \
             X_.shape[0] < 1 or prediction.shape[0] != X_.shape[0]:
         logger.warning(
             "Prediction shape for model %s is %s while X_.shape is %s",
-            model, str(prediction.shape), str(X_.shape)
+            pipeline, str(prediction.shape), str(X_.shape)
         )
     return prediction
 
@@ -77,35 +82,49 @@ class BaseTask:
 
     def __init__(
             self,
+            seed: int = 1,
+            n_jobs: int = 1,
             logging_config=None,
+            ensemble_size: int = 1,
+            ensemble_nbest: int = 1,
+            max_models_on_disc: int = 1,
             temporary_directory: str = './tmp/autoPyTorch_smac_test_tmp',
             output_directory: str = './tmp/autoPyTorch_smac_test_out',
-            delete_tmp_folder_after_terminate: bool = False
+            delete_tmp_folder_after_terminate: bool = False,
+            include_components: Optional[Dict[str, Any]] = None,
+            exclude_components: Optional[Dict[str, Any]] = None,
     ):
-        self.pipeline = self.build_pipeline()
-
-        self.pipeline_config = self.pipeline.get_default_pipeline_options()
-
-        self.search_space = self.pipeline.get_hyperparameter_search_space()
-
-        self._dataset_requirements: List[FitRequirement] = self.pipeline.get_dataset_requirements()
-        self._stopwatch = StopWatch()
-        self.task_type: Optional[str] = None
-        self._automl: Optional[AutoMLSMBO] = None
+        self.seed = seed
+        self.n_jobs = n_jobs
+        self.ensemble_size = ensemble_size
+        self.ensemble_nbest = ensemble_nbest
+        self.max_models_on_disc = max_models_on_disc
         self.logging_config = logging_config
+        self.include_components = include_components
+        self.exclude_components = exclude_components
         self._temporary_directory = temporary_directory
         self._output_directory = output_directory
-        self._delete_tmp_folder_after_terminate = delete_tmp_folder_after_terminate
         self._backend = create(temporary_directory=self._temporary_directory,
                                output_directory=self._output_directory,
-                               delete_output_folder_after_terminate=self._delete_tmp_folder_after_terminate)
-        self._seed: Optional[int] = None
+                               delete_output_folder_after_terminate=delete_tmp_folder_after_terminate)
+        self._stopwatch = StopWatch()
+
+        self.default_pipeline_options = json.load(open(DEFAULT_PIPELINE_OPTIONS_FILE_PATH))
+
+        self.search_space: Optional[ConfigurationSpace] = None
+        self._dataset_requirements: Optional[List[FitRequirement]] = None
+        self.task_type: Optional[str] = None
         self._metric: Optional[autoPyTorchMetric] = None
         self._logger: Optional[PicklableClientLogger] = None
-        self._is_pipeline_fitted = False
+        self.run_history: Optional[RunHistory] = None
+        self.trajectory: Optional[TrajLogger] = None
 
     @abstractmethod
-    def build_pipeline(self) -> BasePipeline:
+    def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
+        """
+        using the dataset entered, this function will
+        return the required dataset properties given the task
+        """
         raise NotImplementedError
 
     def set_pipeline_config(
@@ -116,7 +135,7 @@ class BaseTask:
         """
         unknown_keys = []
         for option, value in pipeline_config_kwargs.items():
-            if option in self.pipeline_config.keys():
+            if option in self.default_pipeline_options.keys():
                 pass
             else:
                 unknown_keys.append(option)
@@ -124,22 +143,22 @@ class BaseTask:
         if len(unknown_keys) > 0:
             raise ValueError("Invalid configuration arguments given {},"
                              " expected arguments to be in {}".
-                             format(unknown_keys, self.pipeline_config.keys()))
+                             format(unknown_keys, self.default_pipeline_options.keys()))
 
-        self.pipeline_config.update(pipeline_config_kwargs)
+        self.default_pipeline_options.update(pipeline_config_kwargs)
 
-    def get_pipeline_config(self) -> dict:
+    def get_pipeline_options(self) -> dict:
         """
         Returns the current pipeline configuration.
         """
-        return self.pipeline_config
+        return self.default_pipeline_options
 
-    def set_search_space(self, search_space: ConfigurationSpace) -> None:
-        """
-        Update the search space.
-        """
-        raise NotImplementedError
-
+    # def set_search_space(self, search_space: ConfigurationSpace) -> None:
+    #     """
+    #     Update the search space.
+    #     """
+    #     raise NotImplementedError
+    #
     def get_search_space(self) -> ConfigurationSpace:
         """
         Returns the current search space as ConfigurationSpace object.
@@ -206,12 +225,12 @@ class BaseTask:
             self.logging_server.terminate()
             del self.stop_logging_server
 
-    def _create_dask_client(self, n_jobs):
+    def _create_dask_client(self):
         self._is_dask_client_internally_created = True
         dask.config.set({'distributed.worker.daemon': False})
         self._dask_client = dask.distributed.Client(
             dask.distributed.LocalCluster(
-                n_workers=n_jobs,
+                n_workers=self.n_jobs,
                 processes=True,
                 threads_per_worker=1,
                 # We use the temporal directory to save the
@@ -242,7 +261,7 @@ class BaseTask:
             del self._is_dask_client_internally_created
 
     def _load_models(self, resampling_strategy):
-        self.ensemble_ = self._backend.load_ensemble(self._seed)
+        self.ensemble_ = self._backend.load_ensemble(self.seed)
 
         # If no ensemble is loaded, try to get the best performing model
         if not self.ensemble_:
@@ -270,15 +289,15 @@ class BaseTask:
         elif self._disable_file_output or \
                 (isinstance(self._disable_file_output, list) and
                  'pipeline' not in self._disable_file_output):
-            model_names = self._backend.list_all_models(self._seed)
+            model_names = self._backend.list_all_models(self.seed)
 
             if len(model_names) == 0:
                 raise ValueError('No models fitted!')
 
-            self.models_ = []
+            self.models_ = {}
 
         else:
-            self.models_ = []
+            self.models_ = {}
 
     def _load_best_individual_model(self):
         """
@@ -292,7 +311,7 @@ class BaseTask:
         # SingleBest contains the best model found by AutoML
         ensemble = SingleBest(
             metric=self._metric,
-            seed=self._seed,
+            seed=self.seed,
             run_history=self.run_history,
             backend=self._backend,
         )
@@ -304,30 +323,7 @@ class BaseTask:
         )
         return ensemble
 
-    def _clean_search_run(self):
-        if self._seed is not None:
-            self._seed = None
-        if self._metric is not None:
-            self._metric = None
-        if self.models_ is not None:
-            self.models_ = None
-        if self.cv_models_ is not None:
-            self.cv_models_ = None
-        if self.ensemble_ is not None:
-            self.ensemble_ = None
-        if self._logger is not None:
-            self._logger = None
-        if hasattr(self, 'run_history') and self.run_history is not None:
-            del self.run_history
-        if hasattr(self, 'trajectory') and self.trajectory is not None:
-            del self.trajectory
-        if hasattr(self, 'ensemble_performance_history') and self.ensemble_performance_history is not None:
-            del self.ensemble_performance_history
-        if hasattr(self, '_disable_file_output') and self._disable_file_output is not None:
-            del self._disable_file_output
-
-    @typing.no_type_check
-    def search(
+    def fit(
             self,
             dataset: BaseDataset,
             budget_type: Optional[str] = None,
@@ -335,20 +331,12 @@ class BaseTask:
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
             memory_limit: Optional[int] = 3096,
-            n_jobs: int = 2,
-            seed: int = 1,
-            include: Optional[Dict[str, Any]] = None,
-            exclude: Optional[Dict[str, Any]] = None,
-            disable_file_output: bool = False,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
             all_supported_metrics: bool = True,
             optimize_metric: Optional[str] = None,
             precision: int = 32,
-            load_models: bool = True,
-            ensemble_size: int = 1,
-            ensemble_nbest: int = 1,
-            max_models_on_disc: int = 1
+            disable_file_output: Union[bool, List] = False,
     ):
         """
         Search for the best pipeline configuration for the given dataset
@@ -366,24 +354,26 @@ class BaseTask:
                 Budget to fit a single run of the pipeline. If not
                 provided, uses the default in the pipeline config
         """
-        self._clean_search_run()  # clean attributes created in previous search
         assert self.task_type == dataset.task_type, "Incompatible dataset entered for current task," \
                                                     "expected dataset to have task type :{} got " \
                                                     ":{}".format(self.task_type, dataset.task_type)
         # Initialise information needed for the experiment
         experiment_task_name = 'runSearch'
+        self._dataset_requirements = get_dataset_requirements(info=self._get_required_dataset_properties(dataset))
+        dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
         self._stopwatch.start_task(experiment_task_name)
-        self._seed = seed
         self._logger = self._get_logger(dataset.dataset_name)
         self._disable_file_output = disable_file_output
         # Save start time to backend
-        self._backend.save_start_time(str(self._seed))
+        self._backend.save_start_time(str(self.seed))
 
         self._backend.save_datamanager(dataset)
 
-        dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
         self._metric = get_metrics(names=[optimize_metric], dataset_properties=dataset_properties)[0]
 
+        self.search_space = get_configuration_space(info=dataset_properties,
+                                                    include_estimators=self.include_components,
+                                                    exclude_estimators=self.exclude_components)
         budget_config = {}
         if budget_type is not None:
             assert budget is not None, "budget type was mentioned but not the budget to be used with it"
@@ -392,9 +382,9 @@ class BaseTask:
         else:
             assert budget is None, "budget was mentioned but the budget type was not"
 
-        self._create_dask_client(n_jobs=n_jobs)
+        self._create_dask_client()
         proc_ensemble = None
-        if ensemble_size <= 0:
+        if self.ensemble_size <= 0:
             self._logger.info("Not starting ensemble builder as ensemble size is 0")
         else:
             self._logger.info("Starting ensemble")
@@ -409,14 +399,14 @@ class BaseTask:
                 task_type=STRING_TO_TASK_TYPES[self.task_type],
                 metrics=[self._metric],
                 opt_metric=optimize_metric,
-                ensemble_size=ensemble_size,
-                ensemble_nbest=ensemble_nbest,
-                max_models_on_disc=max_models_on_disc,
-                seed=self._seed,
+                ensemble_size=self.ensemble_size,
+                ensemble_nbest=self.ensemble_nbest,
+                max_models_on_disc=self.max_models_on_disc,
+                seed=self.seed,
                 max_iterations=1,
                 read_at_most=np.inf,
                 ensemble_memory_limit=memory_limit,
-                random_state=self._seed,
+                random_state=self.seed,
                 precision=precision,
             )
             self._stopwatch.stop_task(ensemble_task_name)
@@ -429,35 +419,35 @@ class BaseTask:
 
         self._logger.info("Starting SMAC with %5.2f sec time left" % time_left_for_smac)
         if time_left_for_smac <= 0:
-            self._logger.warning(" Not starting SMAC becayse there is no time left")
+            self._logger.warning(" Not starting SMAC because there is no time left")
         else:
 
             _proc_smac = AutoMLSMBO(
-                config_space=self.get_search_space(),
+                config_space=self.search_space,
                 dataset_name=dataset.dataset_name,
                 backend=self._backend,
                 total_walltime_limit=total_walltime_limit,
                 func_eval_time_limit=func_eval_time_limit,
                 dask_client=self._dask_client,
                 memory_limit=memory_limit,
-                n_jobs=n_jobs,
+                n_jobs=self.n_jobs,
                 watcher=self._stopwatch,
                 metric=self._metric,
-                seed=self._seed,
-                include=include,
-                exclude=exclude,
+                seed=self.seed,
+                include=self.include_components,
+                exclude=self.exclude_components,
                 disable_file_output=disable_file_output,
                 all_supported_metrics=all_supported_metrics,
                 smac_scenario_args=smac_scenario_args,
                 get_smac_object_callback=get_smac_object_callback,
-                pipeline_config={**self.pipeline_config, **budget_config},
+                pipeline_config={**self.default_pipeline_options, **budget_config},
                 ensemble_callback=proc_ensemble
             )
             try:
                 self.run_history, self.trajectory, budget_type = \
                     _proc_smac.run_smbo()
                 trajectory_filename = os.path.join(
-                    self._backend.get_smac_output_directory_for_run(self._seed),
+                    self._backend.get_smac_output_directory_for_run(self.seed),
                     'trajectory.json')
                 saveable_trajectory = \
                     [list(entry[:2]) + [entry[2].get_dictionary()] + list(entry[3:])
@@ -487,27 +477,22 @@ class BaseTask:
                 future.result()
                 self._logger.info("Ensemble script finished, continue shutdown.")
 
-        if load_models:
-            self._logger.info("Loading models...")
-            self._load_models(dataset.resampling_strategy)
-            self._logger.info("Finished loading models...")
-
         self._logger.info("Closing the dask infrastructure")
         self._close_dask_client()
         self._logger.info("Finished closing the dask infrastructure")
 
+        self._logger.info("Fitting found models on the dataset")
+        self._fit(dataset, budget_config)
         # Clean up the logger
         self._logger.info("Starting to clean up the logger")
         self._clean_logger()
 
         return self
 
-    @typing.no_type_check
-    def fit(
+    def _fit(
             self,
             dataset: BaseDataset,
-            budget_type: str,
-            budget: int,
+            budget_config: Dict[str, Union[int, str]]
     ):
         """Refit a model configuration and calculate the model performance.
         Given a model configuration, the model is trained on the joint train
@@ -524,18 +509,11 @@ class BaseTask:
         Returns:
             Value of the evaluation metric calculated on the test set.
         """
-        budget_config = {}
-        if budget_type is not None:
-            assert budget is not None, "budget type was mentioned but not the budget to be used with it"
-            budget_config['budget_type'] = budget_type
-            budget_config[budget_type] = budget
-        else:
-            assert budget is None, "budget was mentioned but the budget type was not"
 
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties})
-        X.update({**self.pipeline_config, **budget_config})
+        X.update({**self.default_pipeline_options, **budget_config})
         if self.models_ is None or len(self.models_) == 0 or self.ensemble_ is None:
             self._load_models(dataset.resampling_strategy)
 
@@ -553,8 +531,6 @@ class BaseTask:
             # the ordering of the data.
             fit_and_suppress_warnings(self._logger, model, X, y=None)
 
-        self._is_pipeline_fitted = True
-
         return self
 
     def predict(
@@ -571,7 +547,6 @@ class BaseTask:
         Returns:
             Array with estimator predictions.
         """
-        assert self._is_pipeline_fitted, "Can't predict if the pipeline has not been fitted yet"
         # Parallelize predictions across models with n_jobs processes.
         # Each process computes predictions in chunks of batch_size rows.
         try:
@@ -594,7 +569,7 @@ class BaseTask:
                 raise ValueError('Found no fitted models!')
 
         all_predictions = joblib.Parallel(n_jobs=n_jobs)(
-            joblib.delayed(_model_predict)(
+            joblib.delayed(_pipeline_predict)(
                 models[identifier], X_test, batch_size, self._logger, self.task_type
             )
             for identifier in self.ensemble_.get_selected_model_identifiers()
