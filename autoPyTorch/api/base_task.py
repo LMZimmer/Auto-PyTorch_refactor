@@ -32,7 +32,7 @@ from autoPyTorch.constants import (
     STRING_TO_TASK_TYPES,
 )
 from autoPyTorch.datasets.base_dataset import BaseDataset
-from autoPyTorch.datasets.resampling_strategy import CrossValTypes
+from autoPyTorch.datasets.resampling_strategy import CrossValTypes, HoldoutValTypes
 from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
@@ -102,8 +102,8 @@ class BaseTask:
             temporary_directory: str = './tmp/autoPyTorch_test_tmp',
             output_directory: str = './tmp/autoPyTorch_test_out',
             delete_tmp_folder_after_terminate: bool = False,
-            include_components: Optional[Dict[str, Any]] = None,
-            exclude_components: Optional[Dict[str, Any]] = None,
+            include_components: Optional[List[str]] = None,
+            exclude_components: Optional[List[str]] = None,
     ) -> None:
         self.seed = seed
         self.n_jobs = n_jobs
@@ -131,6 +131,7 @@ class BaseTask:
         self.run_history: Optional[RunHistory] = None
         self.trajectory: Optional[List] = None
         self.dataset_name: Optional[str] = None
+        self.cv_models_: Optional[Dict] = None
 
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
@@ -178,7 +179,7 @@ class BaseTask:
         """
         return self.search_space
 
-    def _get_logger(self, name):
+    def _get_logger(self, name: str) -> PicklableClientLogger:
         logger_name = 'AutoML:%s' % name
 
         # As AutoPyTorch works with distributed process,
@@ -220,7 +221,7 @@ class BaseTask:
                                        name=logger_name,
                                        port=port)
 
-    def _clean_logger(self):
+    def _clean_logger(self) -> None:
         if not hasattr(self, 'stop_logging_server') or self.stop_logging_server is None:
             return
 
@@ -238,7 +239,7 @@ class BaseTask:
             self.logging_server.terminate()
             del self.stop_logging_server
 
-    def _create_dask_client(self):
+    def _create_dask_client(self) -> None:
         self._is_dask_client_internally_created = True
         dask.config.set({'distributed.worker.daemon': False})
         self._dask_client = dask.distributed.Client(
@@ -260,7 +261,7 @@ class BaseTask:
             heartbeat_interval=10000,
         )
 
-    def _close_dask_client(self):
+    def _close_dask_client(self) -> None:
         if (
                 hasattr(self, '_is_dask_client_internally_created')
                 and self._is_dask_client_internally_created
@@ -273,7 +274,7 @@ class BaseTask:
             self._is_dask_client_internally_created = False
             del self._is_dask_client_internally_created
 
-    def _load_models(self, resampling_strategy):
+    def _load_models(self, resampling_strategy: Union[CrossValTypes, HoldoutValTypes]) -> None:
         self.ensemble_ = self._backend.load_ensemble(self.seed)
 
         # If no ensemble is loaded, try to get the best performing model
@@ -287,17 +288,9 @@ class BaseTask:
                 self.cv_models_ = self._backend.load_cv_models_by_identifiers(identifiers)
             else:
                 self.cv_models_ = None
-            # TODO: check for assertions in our case
-            # if (
-            #         len(self.models_) == 0 and
-            #         self._resampling_strategy not in ['partial-cv', 'partial-cv-iterative-fit']
-            # ):
-            #     raise ValueError('No models fitted!')
-            # if (
-            #         self._resampling_strategy in ['cv', 'cv-iterative-fit']
-            #         and len(self.cv_models_) == 0
-            # ):
-            #     raise ValueError('No models fitted!')
+
+            if isinstance(resampling_strategy, CrossValTypes) and len(self.cv_models_.keys()) == 0:
+                raise ValueError('No models fitted!')
 
         elif self._disable_file_output or (isinstance(
                 self._disable_file_output, list) and 'pipeline' not in self._disable_file_output):
@@ -311,7 +304,7 @@ class BaseTask:
         else:
             self.models_ = {}
 
-    def _load_best_individual_model(self):
+    def _load_best_individual_model(self) -> SingleBest:
         """
         In case of failure during ensemble building,
         this method returns the single best model found
@@ -338,6 +331,7 @@ class BaseTask:
     def fit(
             self,
             dataset: BaseDataset,
+            optimize_metric: str,
             budget_type: Optional[str] = None,
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
@@ -346,7 +340,6 @@ class BaseTask:
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
             all_supported_metrics: bool = True,
-            optimize_metric: Optional[str] = None,
             precision: int = 32,
             disable_file_output: Union[bool, List] = False,
             load_models: bool = True,
@@ -388,7 +381,7 @@ class BaseTask:
         self.search_space = get_configuration_space(info=dataset_properties,
                                                     include_estimators=self.include_components,
                                                     exclude_estimators=self.exclude_components)
-        budget_config = {}
+        budget_config: Dict[str, Union[float, str]] = {}
         if budget_type is not None:
             assert budget is not None, "budget type was mentioned but not the budget to be used with it"
             budget_config['budget_type'] = budget_type
