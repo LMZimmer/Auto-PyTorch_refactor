@@ -489,7 +489,7 @@ class BaseTask:
 
         # Clean up the logger
         self._logger.info("Starting to clean up the logger")
-        # self._clean_logger()
+        self._clean_logger()
 
         return self
 
@@ -575,7 +575,7 @@ class BaseTask:
 
         all_predictions = joblib.Parallel(n_jobs=n_jobs)(
             joblib.delayed(_pipeline_predict)(
-                models[identifier], X_test, batch_size, self._logger, self.task_type
+                models[identifier], X_test, batch_size, self.task_type
             )
             for identifier in self.ensemble_.get_selected_model_identifiers()
         )
@@ -614,7 +614,6 @@ class BaseTask:
         Returns:
             Value of the evaluation metric calculated on the test set.
         """
-        self._logger.debug("y_test: {}, y_pred: {}".format(y_test, y_pred))
         return calculate_score(target=y_test, prediction=y_pred, task_type=self.task_type, metrics=[self._metric])
 
     @typing.no_type_check
