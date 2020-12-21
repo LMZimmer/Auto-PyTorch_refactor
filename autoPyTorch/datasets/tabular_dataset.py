@@ -10,8 +10,10 @@ from sklearn.utils import check_array
 import torchvision.transforms
 
 from autoPyTorch.constants import (
+    CLASSIFICATION_TASKS,
     CLASSIFICATION_OUTPUTS,
     REGRESSION_OUTPUTS,
+    STRING_TO_TASK_TYPES,
     STRING_TO_OUTPUT_TYPES,
     TABULAR_CLASSIFICATION,
     TABULAR_REGRESSION,
@@ -102,6 +104,8 @@ class TabularDataset(BaseDataset):
                 raise ValueError("Output type not currently supported ")
         else:
             raise ValueError("Task type not currently supported ")
+        if STRING_TO_TASK_TYPES[self.task_type] in CLASSIFICATION_TASKS:
+            self.num_classes: int = len(np.unique(self.train_tensors[1]))
 
     def interpret_columns(self, data: Any, assert_single_column: bool = False) -> tuple:
         single_column = False
