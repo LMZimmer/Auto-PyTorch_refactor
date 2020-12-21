@@ -46,7 +46,7 @@ class BaseNetworkComponent(autoPyTorchSetupComponent):
         # information to fit this stage
         self.check_requirements(X, y)
 
-        output_shape = X['dataset_properties']['num_classes'] if \
+        output_shape = (X['dataset_properties']['num_classes'],) if \
             STRING_TO_TASK_TYPES[X['dataset_properties']['task_type']] in \
             CLASSIFICATION_TASKS else X['dataset_properties']['output_shape']
         self.network = self.build_network(input_shape=X['dataset_properties']['input_shape'],

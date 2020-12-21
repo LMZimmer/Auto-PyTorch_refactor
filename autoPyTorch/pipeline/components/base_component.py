@@ -229,8 +229,9 @@ class autoPyTorchComponent(BaseEstimator):
         for requirement in self._fit_requirements:
             check_dict = X['dataset_properties'] if requirement.dataset_property else X
             if requirement.name not in check_dict.keys():
-                if requirement.name == 'X_train' and 'backend' in X:
-                    continue
+                if requirement.name in ['X_train', 'backend']:
+                    if 'X_train' in check_dict.keys() or 'backend' in check_dict.keys():
+                        continue
                 else:
                     raise ValueError(
                         "To fit {}, expected fit dictionary to have '{}'"

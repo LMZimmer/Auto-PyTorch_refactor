@@ -40,7 +40,7 @@ class PipelineTest(unittest.TestCase):
             'categories': [],
             'is_small_preprocess': False,
             'issparse': False,
-            'num_features': self.num_features,
+            'input_shape': (self.num_features,),
             'num_classes': self.num_classes,
         }
 
@@ -128,7 +128,7 @@ class PipelineTest(unittest.TestCase):
 
         prediction = pipeline.predict(pd.DataFrame(self.X).infer_objects().convert_dtypes())
         self.assertIsInstance(prediction, np.ndarray)
-        self.assertEqual(prediction.shape, (200, 200))
+        self.assertEqual(prediction.shape, (200, 2))
 
     def test_pipeline_transform(self):
         """
@@ -232,7 +232,7 @@ class PipelineTest(unittest.TestCase):
             'numerical_columns': [],
             'categorical_columns': [],
             'task_type': 'tabular_classification',
-            'num_features': 10,
+            'input_shape': (10,),
             'num_classes': 2,
         }
         pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)

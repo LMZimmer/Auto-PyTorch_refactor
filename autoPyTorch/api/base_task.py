@@ -116,6 +116,7 @@ class BaseTask:
         self._logger: Optional[PicklableClientLogger] = None
         self.run_history: Optional[RunHistory] = None
         self.trajectory: Optional[List] = None
+        self.dataset_name: Optional[str] = None
 
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
@@ -361,7 +362,8 @@ class BaseTask:
         self._dataset_requirements = get_dataset_requirements(info=self._get_required_dataset_properties(dataset))
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
         self._stopwatch.start_task(experiment_task_name)
-        self._logger = self._get_logger(dataset.dataset_name)
+        self.dataset_name = dataset.dataset_name
+        self._logger = self._get_logger(self.dataset_name)
         self._disable_file_output = disable_file_output
         # Save start time to backend
         self._backend.save_start_time(str(self.seed))
@@ -513,6 +515,7 @@ class BaseTask:
         Returns:
             Value of the evaluation metric calculated on the test set.
         """
+        self._logger = self._get_logger(self.dataset_name)
 
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
@@ -536,6 +539,8 @@ class BaseTask:
             # the ordering of the data.
             fit_and_suppress_warnings(self._logger, model, X, y=None)
 
+        self._clean_logger()
+
         return self
 
     def predict(
@@ -554,6 +559,8 @@ class BaseTask:
         """
         # Parallelize predictions across models with n_jobs processes.
         # Each process computes predictions in chunks of batch_size rows.
+        self._logger = self._get_logger(self.dataset_name)
+
         try:
             for i, tmp_model in enumerate(self.models_.values()):
                 if isinstance(tmp_model, (DummyRegressor, DummyClassifier)):
@@ -575,7 +582,7 @@ class BaseTask:
 
         all_predictions = joblib.Parallel(n_jobs=n_jobs)(
             joblib.delayed(_pipeline_predict)(
-                models[identifier], X_test, batch_size, self.task_type
+                models[identifier], X_test, batch_size, self._logger, self.task_type
             )
             for identifier in self.ensemble_.get_selected_model_identifiers()
         )
@@ -595,12 +602,14 @@ class BaseTask:
             # Individual models are checked in _model_predict
             predictions = np.clip(predictions, 0.0, 1.0)
 
+        self._clean_logger()
+
         return predictions
 
     def score(
             self,
             y_pred: np.ndarray,
-            y_test: np.ndarray,
+            y_test: Union[np.ndarray, pd.DataFrame]
     ) -> float:
         """Calculate the score on the test set.
         Calculate the evaluation measure on the test set.
@@ -614,6 +623,8 @@ class BaseTask:
         Returns:
             Value of the evaluation metric calculated on the test set.
         """
+        if isinstance(y_test, pd.Series):
+            y_test = y_test.to_numpy(dtype=np.float)
         return calculate_score(target=y_test, prediction=y_pred, task_type=self.task_type, metrics=[self._metric])
 
     @typing.no_type_check

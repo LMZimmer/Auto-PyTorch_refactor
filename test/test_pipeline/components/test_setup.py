@@ -328,7 +328,10 @@ class NetworkTest(unittest.TestCase):
                 network_choice.set_hyperparameters(config)
                 network_choice.fit(X={"X_train": np.zeros(input_shape),
                                       "y_train": np.zeros(output_shape),
-                                      'dataset_properties': {}}, y=None)
+                                      'dataset_properties': {"task_type": task_type,
+                                                             'input_shape': input_shape[1:],
+                                                             "output_shape": output_shape,
+                                                             "num_classes": output_shape[0]}}, y=None)
                 self.assertNotEqual(network_choice.choice.network, None)
                 network_choice.choice.to(device)
                 dummy_input = torch.randn((2, *input_shape[1:]), dtype=torch.float)
