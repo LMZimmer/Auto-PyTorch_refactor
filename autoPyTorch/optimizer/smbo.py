@@ -15,7 +15,7 @@ from smac.runhistory.runhistory2epm import RunHistory2EPM4LogCost
 from smac.scenario.scenario import Scenario
 from smac.tae.dask_runner import DaskParallelRunner
 from smac.tae.serial_runner import SerialRunner
-from smac.utils.io.traj_logging import TrajLogger
+from smac.utils.io.traj_logging import TrajLogger, TrajEntry
 
 # TODO: Enable when merged Ensemble
 # from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
@@ -91,7 +91,7 @@ class AutoMLSMBO(object):
                  pipeline_config: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  start_num_run: int = 1,
                  seed: int = 1,
-                 resampling_strategy: typing.Union[RESAMPLING_STRATEGIES] = HoldoutValTypes.holdout_validation,
+                 resampling_strategy: typing.Union[HoldoutValTypes, CrossValTypes] = HoldoutValTypes.holdout_validation,
                  resampling_strategy_args: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  include: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  exclude: typing.Optional[typing.Dict[str, typing.Any]] = None,
@@ -214,7 +214,7 @@ class AutoMLSMBO(object):
             self.task = self.datamanager.task_type
 
     def run_smbo(self, func: typing.Optional[typing.Callable] = None
-                 ) -> typing.Tuple[RunHistory, TrajLogger, str]:
+                 ) -> typing.Tuple[RunHistory, typing.List[TrajEntry], str]:
 
         self.watcher.start_task('SMBO')
         self.logger.info("Started run of SMBO")

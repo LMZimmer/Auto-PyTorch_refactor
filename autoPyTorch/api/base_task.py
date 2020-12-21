@@ -25,23 +25,20 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
 from smac.runhistory.runhistory import RunHistory
-from smac.utils.io.traj_logging import TrajLogger
 
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes
-from autoPyTorch.pipeline.base_pipeline import BasePipeline
-from autoPyTorch.utils.common import FitRequirement
+from autoPyTorch.utils.common import FitRequirement, replace_string_bool_to_bool
 from autoPyTorch.utils.stopwatch import StopWatch
 from autoPyTorch.utils.backend import create, Backend
 from autoPyTorch.utils.pipeline import get_configuration_space, get_dataset_requirements
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
-from autoPyTorch.pipeline.components.training.metrics.utils import get_metrics
+from autoPyTorch.pipeline.components.training.metrics.utils import get_metrics, calculate_score
 from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.utils.logging_ import setup_logger, start_log_server, get_named_client_logger, PicklableClientLogger
 from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
-from autoPyTorch.constants import STRING_TO_TASK_TYPES, STRING_TO_OUTPUT_TYPES, REGRESSION_TASKS, \
-    DEFAULT_PIPELINE_OPTIONS_FILE_PATH
+from autoPyTorch.constants import STRING_TO_TASK_TYPES, STRING_TO_OUTPUT_TYPES, REGRESSION_TASKS
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
 
 
@@ -58,13 +55,13 @@ def _pipeline_predict(pipeline, X, batch_size, logger, task):
             prediction = pipeline.predict(X_, batch_size=batch_size)
         else:
             prediction = pipeline.predict_proba(X_, batch_size=batch_size)
-
             # Check that all probability values lie between 0 and 1.
-            assert (
+            if(
                     (prediction >= 0).all() and (prediction <= 1).all()
-            ), "For {}, prediction probability not within [0, 1]!".format(
-                pipeline
-            )
+            ):
+                raise ValueError("For {}, prediction probability not within [0, 1]!".format(
+                pipeline)
+                )
 
     if len(prediction.shape) < 1 or len(X_.shape) < 1 or \
             X_.shape[0] < 1 or prediction.shape[0] != X_.shape[0]:
@@ -88,8 +85,8 @@ class BaseTask:
             ensemble_size: int = 1,
             ensemble_nbest: int = 1,
             max_models_on_disc: int = 1,
-            temporary_directory: str = './tmp/autoPyTorch_smac_test_tmp',
-            output_directory: str = './tmp/autoPyTorch_smac_test_out',
+            temporary_directory: str = './tmp/autoPyTorch_test_tmp',
+            output_directory: str = './tmp/autoPyTorch_test_out',
             delete_tmp_folder_after_terminate: bool = False,
             include_components: Optional[Dict[str, Any]] = None,
             exclude_components: Optional[Dict[str, Any]] = None,
@@ -109,7 +106,8 @@ class BaseTask:
                                delete_output_folder_after_terminate=delete_tmp_folder_after_terminate)
         self._stopwatch = StopWatch()
 
-        self.default_pipeline_options = json.load(open(DEFAULT_PIPELINE_OPTIONS_FILE_PATH))
+        self.default_pipeline_options = replace_string_bool_to_bool(json.load(open(
+            os.path.join(os.path.dirname(__file__),'default_pipeline_options.json'))))
 
         self.search_space: Optional[ConfigurationSpace] = None
         self._dataset_requirements: Optional[List[FitRequirement]] = None
@@ -117,7 +115,7 @@ class BaseTask:
         self._metric: Optional[autoPyTorchMetric] = None
         self._logger: Optional[PicklableClientLogger] = None
         self.run_history: Optional[RunHistory] = None
-        self.trajectory: Optional[TrajLogger] = None
+        self.trajectory: Optional[List] = None
 
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
@@ -337,6 +335,7 @@ class BaseTask:
             optimize_metric: Optional[str] = None,
             precision: int = 32,
             disable_file_output: Union[bool, List] = False,
+            load_models: bool = True,
     ):
         """
         Search for the best pipeline configuration for the given dataset
@@ -408,6 +407,7 @@ class BaseTask:
                 ensemble_memory_limit=memory_limit,
                 random_state=self.seed,
                 precision=precision,
+                logger_port=self._logger_port
             )
             self._stopwatch.stop_task(ensemble_task_name)
 
@@ -441,7 +441,8 @@ class BaseTask:
                 smac_scenario_args=smac_scenario_args,
                 get_smac_object_callback=get_smac_object_callback,
                 pipeline_config={**self.default_pipeline_options, **budget_config},
-                ensemble_callback=proc_ensemble
+                ensemble_callback=proc_ensemble,
+                logger_port=self._logger_port
             )
             try:
                 self.run_history, self.trajectory, budget_type = \
@@ -451,7 +452,7 @@ class BaseTask:
                     'trajectory.json')
                 saveable_trajectory = \
                     [list(entry[:2]) + [entry[2].get_dictionary()] + list(entry[3:])
-                     for entry in self.trajectory.trajectory]
+                     for entry in self.trajectory]
                 with open(trajectory_filename, 'w') as fh:
                     json.dump(saveable_trajectory, fh)
             except Exception as e:
@@ -481,15 +482,18 @@ class BaseTask:
         self._close_dask_client()
         self._logger.info("Finished closing the dask infrastructure")
 
-        self._logger.info("Fitting found models on the dataset")
-        self._fit(dataset, budget_config)
+        if load_models:
+            self._logger.info("Loading models...")
+            self._load_models(dataset.resampling_strategy)
+            self._logger.info("Finished loading models...")
+
         # Clean up the logger
         self._logger.info("Starting to clean up the logger")
-        self._clean_logger()
+        # self._clean_logger()
 
         return self
 
-    def _fit(
+    def refit(
             self,
             dataset: BaseDataset,
             budget_config: Dict[str, Union[int, str]]
@@ -512,7 +516,8 @@ class BaseTask:
 
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
-        X: Dict[str, Any] = dict({'dataset_properties': dataset_properties})
+        X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
+                                  'backend': self._backend})
         X.update({**self.default_pipeline_options, **budget_config})
         if self.models_ is None or len(self.models_) == 0 or self.ensemble_ is None:
             self._load_models(dataset.resampling_strategy)
@@ -592,26 +597,25 @@ class BaseTask:
 
         return predictions
 
-    # def score(
-    #         self,
-    #         X_test: np.ndarray,
-    #         y_test: np.ndarray,
-    #         sample_weights: Optional[np.ndarray] = None,
-    # ) -> float:
-    #     """Calculate the score on the test set.
-    #     Calculate the evaluation measure on the test set.
-    #     Args:
-    #     X_test: (np.ndarray)
-    #         The test examples of the dataset.
-    #     y_test: (np.ndarray)
-    #         The test ground truth labels.
-    #     sample_weights: (np.ndarray|None)
-    #         The weights for each sample.
-    #     Returns:
-    #         Value of the evaluation metric calculated on the test set.
-    #     """
-    #     assert self._is_pipeline_fitted, "Can't calculate score if the pipeline has not been fitted yet"
-    #     return self.pipeline.score(X_test, y_test, sample_weights)
+    def score(
+            self,
+            y_pred: np.ndarray,
+            y_test: np.ndarray,
+    ) -> float:
+        """Calculate the score on the test set.
+        Calculate the evaluation measure on the test set.
+        Args:
+        y_pred: (np.ndarray)
+            The test predictions
+        y_test: (np.ndarray)
+            The test ground truth labels.
+        sample_weights: (np.ndarray|None)
+            The weights for each sample.
+        Returns:
+            Value of the evaluation metric calculated on the test set.
+        """
+        self._logger.debug("y_test: {}, y_pred: {}".format(y_test, y_pred))
+        return calculate_score(target=y_test, prediction=y_pred, task_type=self.task_type, metrics=[self._metric])
 
     @typing.no_type_check
     def get_incumbent_results(

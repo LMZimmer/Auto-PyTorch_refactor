@@ -57,4 +57,5 @@ setuptools.setup(
         "docs": ["sphinx", "sphinx-gallery", "sphinx_bootstrap_theme", "numpydoc"],
     },
     test_suite="pytest",
+    data_files=[('api', ['autoPyTorch/api/default_pipeline_options.json'])]
 )

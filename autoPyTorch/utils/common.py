@@ -73,3 +73,13 @@ def custom_collate_fn(batch: List) -> List[Optional[torch.tensor]]:
     else:
         items[1] = default_collate(items[1])
     return items
+
+
+def replace_string_bool_to_bool(dictionary: Dict[str, Any]):
+    for key, item in dictionary.items():
+        if isinstance(item, str):
+            if item.lower() == "true":
+                dictionary[key] = True
+            elif item.lower() == "false":
+                dictionary[key] = False
+    return dictionary

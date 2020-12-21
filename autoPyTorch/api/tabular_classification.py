@@ -8,8 +8,8 @@ from autoPyTorch.datasets.tabular_dataset import TabularDataset
 class TabularClassificationTask(BaseTask):
     def __init__(self, seed: int = 1, n_jobs: int = 1, logging_config=None, ensemble_size: int = 1,
                  ensemble_nbest: int = 1, max_models_on_disc: int = 1,
-                 temporary_directory: str = './tmp/autoPyTorch_smac_test_tmp',
-                 output_directory: str = './tmp/autoPyTorch_smac_test_out',
+                 temporary_directory: str = './tmp/autoPyTorch_test_tmp',
+                 output_directory: str = './tmp/autoPyTorch_test_out',
                  delete_tmp_folder_after_terminate: bool = False):
         super().__init__(seed, n_jobs, logging_config, ensemble_size, ensemble_nbest, max_models_on_disc,
                          temporary_directory, output_directory, delete_tmp_folder_after_terminate)

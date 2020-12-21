@@ -11,6 +11,7 @@ from scipy.sparse import csr_matrix
 import torch
 
 from autoPyTorch.pipeline.components.base_component import autoPyTorchComponent
+from autoPyTorch.utils.backend import Backend
 from autoPyTorch.utils.common import FitRequirement
 
 
@@ -23,6 +24,9 @@ class autoPyTorchPreprocessingComponent(autoPyTorchComponent):
         self.add_fit_requirements([
             FitRequirement('X_train',
                            (np.ndarray, pd.DataFrame, csr_matrix),
+                           user_defined=True, dataset_property=False),
+            FitRequirement('backend',
+                           (Backend, ),
                            user_defined=True, dataset_property=False)])
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
