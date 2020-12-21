@@ -91,11 +91,11 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.resampling_strategy_args = resampling_strategy_args
         self.task_type: Optional[str] = None
         self.issparse: bool = issparse(self.train_tensors[0])
-        self.input_shape: Tuple[int] = train_tensors[0][1:].shape
+        self.input_shape: Tuple[int] = train_tensors[0].shape[1:]
         if len(train_tensors) == 2 and train_tensors[1] is not None:
             self.output_type: str = type_of_target(self.train_tensors[1])
-            self.num_classes: int = len(np.unique(self.train_tensors[1]))
             self.output_shape: int = train_tensors[1].shape[1] if train_tensors[1].shape == 2 else 1
+
 
         # TODO: Look for a criteria to define small enough to preprocess
         self.is_small_preprocess = True
@@ -222,7 +222,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
 
     def create_cross_val_splits(self,
                                 cross_val_type: CrossValTypes,
-                                num_splits: int) -> List[Tuple[List[int], List[int]]]:
+                                num_splits: int) -> List[Tuple[Union[List[int], np.ndarray], Union[List[int], np.ndarray]]]:
         """
         This function creates the cross validation split for the given task.
 
@@ -247,7 +247,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self,
         holdout_val_type: HoldoutValTypes,
         val_share: float,
-    ) -> Tuple[Dataset, Dataset]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         if holdout_val_type is None:
             raise ValueError(
                 '`val_share` specified, but `holdout_val_type` not specified.'
@@ -314,6 +314,6 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                                    'issparse': self.issparse,
                                    'input_shape': self.input_shape,
                                    'output_shape': self.output_shape,
-                                   'num_classes': self.num_classes,
+                                   'num_classes': self.num_classes if hasattr(self, 'num_classes') else None,
                                    })
         return dataset_properties

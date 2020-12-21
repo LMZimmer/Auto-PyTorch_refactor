@@ -11,10 +11,12 @@ import torchvision.transforms
 from torchvision.transforms import functional as TF
 
 from autoPyTorch.constants import (
+    CLASSIFICATION_TASKS,
     CLASSIFICATION_OUTPUTS,
     IMAGE_CLASSIFICATION,
     IMAGE_REGRESSION,
     REGRESSION_OUTPUTS,
+    STRING_TO_TASK_TYPES,
     STRING_TO_OUTPUT_TYPES,
     TASK_TYPES_TO_STRING,
 )
@@ -62,6 +64,8 @@ class ImageDataset(BaseDataset):
                 raise ValueError("Output type not currently supported ")
         else:
             raise ValueError("Task type not currently supported ")
+        if STRING_TO_TASK_TYPES[self.task_type] in CLASSIFICATION_TASKS:
+            self.num_classes: int = len(np.unique(self.train_tensors[1]))
 
 
 def _calc_mean_std(train: Dataset) -> Tuple[torch.Tensor, torch.Tensor]:
