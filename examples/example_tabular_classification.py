@@ -1,20 +1,17 @@
-
 """
 ======================
 Tabular Classification
 ======================
 """
+import typing
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import typing
 
-import numpy as np
 import sklearn.datasets
 import sklearn.model_selection
 
 from autoPyTorch.api.tabular_classification import TabularClassificationTask
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
-
 
 
 # Get the training data for tabular classification
@@ -40,7 +37,6 @@ def get_data_to_train() -> typing.Tuple[typing.Any, typing.Any, typing.Any, typi
 if __name__ == '__main__':
     # Get data to train
     X_train, X_test, y_train, y_test = get_data_to_train()
-
 
     # Create a datamanager for this toy problem
     datamanager = TabularDataset(

@@ -75,7 +75,16 @@ def custom_collate_fn(batch: List) -> List[Optional[torch.tensor]]:
     return items
 
 
-def replace_string_bool_to_bool(dictionary: Dict[str, Any]):
+def replace_string_bool_to_bool(dictionary: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Utility function to replace string-type bool to
+    bool when a dict is read from json
+
+    Args:
+        dictionary (Dict[str, Any])
+    Returns:
+        Dict[str, Any]
+    """
     for key, item in dictionary.items():
         if isinstance(item, str):
             if item.lower() == "true":

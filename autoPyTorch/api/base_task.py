@@ -1,48 +1,62 @@
-from abc import abstractmethod
 import copy
-import joblib
 import json
 import multiprocessing
 import os
+import tempfile
 import time
 import typing
-from typing import Any, Callable, Dict, Optional, List, Union
-import tempfile
 import warnings
+from abc import abstractmethod
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from ConfigSpace.configuration_space import \
-    Configuration, \
     ConfigurationSpace
 
 import dask
+
+import joblib
 
 import numpy as np
 
 import pandas as pd
 
 import sklearn
-from sklearn.utils.validation import check_is_fitted
 from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.utils.validation import check_is_fitted
 
 from smac.runhistory.runhistory import RunHistory
 
+from autoPyTorch.constants import (
+    REGRESSION_TASKS,
+    STRING_TO_OUTPUT_TYPES,
+    STRING_TO_TASK_TYPES,
+)
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes
-from autoPyTorch.utils.common import FitRequirement, replace_string_bool_to_bool
-from autoPyTorch.utils.stopwatch import StopWatch
-from autoPyTorch.utils.backend import create, Backend
-from autoPyTorch.utils.pipeline import get_configuration_space, get_dataset_requirements
-from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
-from autoPyTorch.pipeline.components.training.metrics.utils import get_metrics, calculate_score
-from autoPyTorch.optimizer.smbo import AutoMLSMBO
-from autoPyTorch.utils.logging_ import setup_logger, start_log_server, get_named_client_logger, PicklableClientLogger
 from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
-from autoPyTorch.constants import STRING_TO_TASK_TYPES, STRING_TO_OUTPUT_TYPES, REGRESSION_TASKS
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
+from autoPyTorch.optimizer.smbo import AutoMLSMBO
+from autoPyTorch.pipeline.base_pipeline import BasePipeline
+from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
+from autoPyTorch.pipeline.components.training.metrics.utils import calculate_score, get_metrics
+from autoPyTorch.utils.backend import create
+from autoPyTorch.utils.common import FitRequirement, replace_string_bool_to_bool
+from autoPyTorch.utils.logging_ import (
+    PicklableClientLogger,
+    get_named_client_logger,
+    start_log_server,
+)
+from autoPyTorch.utils.pipeline import get_configuration_space, get_dataset_requirements
+from autoPyTorch.utils.stopwatch import StopWatch
 
 
-def _pipeline_predict(pipeline, X, batch_size, logger, task):
+def _pipeline_predict(pipeline: BasePipeline,
+                      X: Union[np.ndarray, pd.DataFrame],
+                      batch_size: int,
+                      logger: PicklableClientLogger,
+                      task: int) -> np.ndarray:
+    @typing.no_type_check
     def send_warnings_to_log(
             message, category, filename, lineno, file=None, line=None):
         logger.debug('%s:%s: %s:%s' % (filename, lineno, category.__name__, message))
@@ -56,11 +70,11 @@ def _pipeline_predict(pipeline, X, batch_size, logger, task):
         else:
             prediction = pipeline.predict_proba(X_, batch_size=batch_size)
             # Check that all probability values lie between 0 and 1.
-            if(
+            if (
                     (prediction >= 0).all() and (prediction <= 1).all()
             ):
                 raise ValueError("For {}, prediction probability not within [0, 1]!".format(
-                pipeline)
+                    pipeline)
                 )
 
     if len(prediction.shape) < 1 or len(X_.shape) < 1 or \
@@ -81,7 +95,7 @@ class BaseTask:
             self,
             seed: int = 1,
             n_jobs: int = 1,
-            logging_config=None,
+            logging_config: Optional[Dict] = None,
             ensemble_size: int = 1,
             ensemble_nbest: int = 1,
             max_models_on_disc: int = 1,
@@ -90,7 +104,7 @@ class BaseTask:
             delete_tmp_folder_after_terminate: bool = False,
             include_components: Optional[Dict[str, Any]] = None,
             exclude_components: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         self.seed = seed
         self.n_jobs = n_jobs
         self.ensemble_size = ensemble_size
@@ -107,7 +121,7 @@ class BaseTask:
         self._stopwatch = StopWatch()
 
         self.default_pipeline_options = replace_string_bool_to_bool(json.load(open(
-            os.path.join(os.path.dirname(__file__),'default_pipeline_options.json'))))
+            os.path.join(os.path.dirname(__file__), 'default_pipeline_options.json'))))
 
         self.search_space: Optional[ConfigurationSpace] = None
         self._dataset_requirements: Optional[List[FitRequirement]] = None
@@ -285,9 +299,8 @@ class BaseTask:
             # ):
             #     raise ValueError('No models fitted!')
 
-        elif self._disable_file_output or \
-                (isinstance(self._disable_file_output, list) and
-                 'pipeline' not in self._disable_file_output):
+        elif self._disable_file_output or (isinstance(
+                self._disable_file_output, list) and 'pipeline' not in self._disable_file_output):
             model_names = self._backend.list_all_models(self.seed)
 
             if len(model_names) == 0:

@@ -3,14 +3,13 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
-import pandas as pd
-
 import torch
 from torch import nn
 
 from autoPyTorch.constants import CLASSIFICATION_TASKS, STRING_TO_TASK_TYPES
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
 from autoPyTorch.utils.common import FitRequirement
+
 
 class BaseNetworkComponent(autoPyTorchSetupComponent):
     """

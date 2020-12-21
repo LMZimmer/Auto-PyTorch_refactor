@@ -11,13 +11,13 @@ import torchvision.transforms
 from torchvision.transforms import functional as TF
 
 from autoPyTorch.constants import (
-    CLASSIFICATION_TASKS,
     CLASSIFICATION_OUTPUTS,
+    CLASSIFICATION_TASKS,
     IMAGE_CLASSIFICATION,
     IMAGE_REGRESSION,
     REGRESSION_OUTPUTS,
-    STRING_TO_TASK_TYPES,
     STRING_TO_OUTPUT_TYPES,
+    STRING_TO_TASK_TYPES,
     TASK_TYPES_TO_STRING,
 )
 from autoPyTorch.datasets.base_dataset import BaseDataset

@@ -96,7 +96,6 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
             self.output_type: str = type_of_target(self.train_tensors[1])
             self.output_shape: int = train_tensors[1].shape[1] if train_tensors[1].shape == 2 else 1
 
-
         # TODO: Look for a criteria to define small enough to preprocess
         self.is_small_preprocess = True
 

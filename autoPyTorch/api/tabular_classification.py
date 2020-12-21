@@ -1,7 +1,10 @@
 from typing import Any, Dict
 
 from autoPyTorch.api.base_task import BaseTask
-from autoPyTorch.constants import TASK_TYPES_TO_STRING, TABULAR_CLASSIFICATION
+from autoPyTorch.constants import (
+    TABULAR_CLASSIFICATION,
+    TASK_TYPES_TO_STRING,
+)
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
 
 

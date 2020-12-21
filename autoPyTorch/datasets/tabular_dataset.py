@@ -10,11 +10,11 @@ from sklearn.utils import check_array
 import torchvision.transforms
 
 from autoPyTorch.constants import (
-    CLASSIFICATION_TASKS,
     CLASSIFICATION_OUTPUTS,
+    CLASSIFICATION_TASKS,
     REGRESSION_OUTPUTS,
-    STRING_TO_TASK_TYPES,
     STRING_TO_OUTPUT_TYPES,
+    STRING_TO_TASK_TYPES,
     TABULAR_CLASSIFICATION,
     TABULAR_REGRESSION,
     TASK_TYPES_TO_STRING,
