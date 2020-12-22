@@ -39,6 +39,7 @@ class autoPyTorchTabularPreprocessingComponent(autoPyTorchPreprocessingComponent
         info.pop('early_preprocessor', None)
         info.pop('column_transformer', None)
         info.pop('random_state', None)
+        info.pop('_fit_requirements', None)
         if len(info.keys()) != 0:
             string += " (" + str(info) + ")"
         return string
