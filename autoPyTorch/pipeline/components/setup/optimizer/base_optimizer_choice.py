@@ -133,10 +133,11 @@ class OptimizerChoice(autoPyTorchChoice):
             raise ValueError("No Optimizer found")
 
         if default is None:
-            defaults = ['SGDOptimizer',
-                        'AdamOptimizer',
-                        'AdamWOptimizer',
-                        'RMSpropOptimizer'
+            defaults = [
+                'AdamOptimizer',
+                'AdamWOptimizer',
+                'SGDOptimizer',
+                'RMSpropOptimizer'
                         ]
             for default_ in defaults:
                 if default_ in available_optimizers:

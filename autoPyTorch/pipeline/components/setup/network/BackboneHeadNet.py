@@ -22,10 +22,12 @@ class BackboneHeadNet(BaseNetworkComponent):
 
     def __init__(
             self,
+            network: Optional[BaseNetworkComponent] = None,
             random_state: Optional[np.random.RandomState] = None,
             **kwargs: Any
     ):
         super().__init__(
+            network=network,
             random_state=random_state,
         )
         self.config = kwargs
@@ -52,7 +54,18 @@ class BackboneHeadNet(BaseNetworkComponent):
             backbones = {name: backbone for name, backbone in backbones.items() if task in backbone.supported_tasks}
             heads = {name: head for name, head in heads.items() if task in head.supported_tasks}
 
-        backbone_hp = CategoricalHyperparameter("backbone", choices=backbones.keys())
+        backbone_defaults = [
+            'ShapedMLPBackbone',
+            'MLPBackbone',
+            'ConvNetImageBackbone',
+            'InceptionTimeBackbone',
+        ]
+        for default_ in backbone_defaults:
+            if default_ in backbones.keys():
+                backbone_default = default_
+                break
+
+        backbone_hp = CategoricalHyperparameter("backbone", choices=backbones.keys(), default_value=backbone_default)
         head_hp = CategoricalHyperparameter("head", choices=heads.keys())
         cs.add_hyperparameters([backbone_hp, head_hp])
 

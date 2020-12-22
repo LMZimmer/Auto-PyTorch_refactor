@@ -184,7 +184,6 @@ class Backend(object):
 
     def setup_logger(self, name: str, port: int) -> None:
         self._logger = get_named_client_logger(
-            output_dir=self.temporary_directory,
             name=name,
             port=port,
         )

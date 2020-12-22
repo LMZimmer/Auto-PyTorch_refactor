@@ -128,7 +128,7 @@ class TrainerChoice(autoPyTorchChoice):
             raise ValueError("No trainer found")
 
         if default is None:
-            defaults = ['StandartTrainer',
+            defaults = ['StandardTrainer',
                         ]
             for default_ in defaults:
                 if default_ in available_trainers:
@@ -184,7 +184,6 @@ class TrainerChoice(autoPyTorchChoice):
 
         # Setup the logger
         self.logger = get_named_client_logger(
-            output_dir=X['backend'].temporary_directory,
             name=X['job_id'],
             # Log to a user provided port else to the default logging port
             port=X['logger_port'

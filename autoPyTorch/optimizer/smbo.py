@@ -200,7 +200,7 @@ class AutoMLSMBO(object):
         else:
             self.logger_port = logger_port
         logger_name = '%s(%d):%s' % (self.__class__.__name__, self.seed, ":" + dataset_name_)
-        self.logger = get_named_client_logger(output_dir=backend.temporary_directory, name=logger_name,
+        self.logger = get_named_client_logger(name=logger_name,
                                               port=self.logger_port)
         self.logger.info("initialised {}".format(self.__class__.__name__))
 

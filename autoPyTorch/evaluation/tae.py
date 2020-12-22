@@ -238,7 +238,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             init_params.update(self.init_params)
 
         pynisher_arguments = dict(
-            logger=get_named_client_logger(self.backend.temporary_directory, "pynisher", port=self.logger_port),
+            logger=get_named_client_logger(name="pynisher", port=self.logger_port),
             wall_time_in_s=cutoff,
             mem_in_mb=self.memory_limit,
             capture_output=True,

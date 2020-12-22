@@ -136,7 +136,7 @@ class NetworkInitializerChoice(autoPyTorchChoice):
             raise ValueError("No initializers found")
 
         if default is None:
-            defaults = ['MLPNet',
+            defaults = ['XavierInit',
                         ]
             for default_ in defaults:
                 if default_ in available_initializers:

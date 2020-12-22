@@ -264,8 +264,10 @@ class AbstractEvaluator(object):
                                   self.seed)  # TODO: Add name to dataset class
         if logger_port is None:
             logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
-        self.logger = get_named_client_logger(output_dir=self.backend.temporary_directory, name=logger_name,
-                                              port=logger_port)
+        self.logger = get_named_client_logger(
+            name=logger_name,
+            port=logger_port,
+        )
         self.Y_optimization: Optional[np.ndarray] = None
         self.Y_actual_train: Optional[np.ndarray] = None
         self.pipelines: Optional[List[BaseEstimator]] = None

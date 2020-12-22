@@ -1,5 +1,6 @@
 import copy
 import json
+import logging.handlers
 import multiprocessing
 import os
 import tempfile
@@ -9,8 +10,7 @@ import warnings
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from ConfigSpace.configuration_space import \
-    ConfigurationSpace
+from ConfigSpace.configuration_space import ConfigurationSpace
 
 import dask
 
@@ -40,9 +40,10 @@ from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import calculate_score, get_metrics
-from autoPyTorch.utils.backend import create
+from autoPyTorch.utils.backend import create, Backend
 from autoPyTorch.utils.common import FitRequirement, replace_string_bool_to_bool
 from autoPyTorch.utils.logging_ import (
+    setup_logger,
     PicklableClientLogger,
     get_named_client_logger,
     start_log_server,
@@ -97,14 +98,16 @@ class BaseTask:
             seed: int = 1,
             n_jobs: int = 1,
             logging_config: Optional[Dict] = None,
-            ensemble_size: int = 1,
-            ensemble_nbest: int = 1,
-            max_models_on_disc: int = 1,
-            temporary_directory: str = './tmp/autoPyTorch_test_tmp',
-            output_directory: str = './tmp/autoPyTorch_test_out',
-            delete_tmp_folder_after_terminate: bool = False,
+            ensemble_size: int = 50,
+            ensemble_nbest: int = 50,
+            max_models_on_disc: int = 50,
+            temporary_directory: Optional[str] = None,
+            output_directory: Optional[str] = None,
+            delete_tmp_folder_after_terminate: bool = True,
+            delete_output_folder_after_terminate: bool = True,
             include_components: Optional[List[str]] = None,
             exclude_components: Optional[List[str]] = None,
+            backend: Optional[Backend] = None,
     ) -> None:
         self.seed = seed
         self.n_jobs = n_jobs
@@ -116,9 +119,15 @@ class BaseTask:
         self.exclude_components = exclude_components
         self._temporary_directory = temporary_directory
         self._output_directory = output_directory
-        self._backend = create(temporary_directory=self._temporary_directory,
-                               output_directory=self._output_directory,
-                               delete_output_folder_after_terminate=delete_tmp_folder_after_terminate)
+        if backend is not None:
+            self._backend = backend
+        else:
+            self._backend = create(
+                temporary_directory=self._temporary_directory,
+                output_directory=self._output_directory,
+                delete_tmp_folder_after_terminate=delete_tmp_folder_after_terminate,
+                delete_output_folder_after_terminate=delete_output_folder_after_terminate,
+            )
         self._stopwatch = StopWatch()
 
         self.default_pipeline_options = replace_string_bool_to_bool(json.load(open(
@@ -133,6 +142,9 @@ class BaseTask:
         self.trajectory: Optional[List] = None
         self.dataset_name: Optional[str] = None
         self.cv_models_: Optional[Dict] = None
+
+        # By default try to use the TCP logging port or get a new port
+        self._logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
 
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
@@ -183,7 +195,16 @@ class BaseTask:
     def _get_logger(self, name: str) -> PicklableClientLogger:
         logger_name = 'AutoML:%s' % name
 
-        # As AutoPyTorch works with distributed process,
+        # Setup the configuration for the logger
+        # This is gonna be honored by the server
+        # Which is created below
+        setup_logger(
+            filename='%s.log' % str(logger_name),
+            logging_config=self.logging_config,
+            output_dir=self._backend.temporary_directory,
+        )
+
+        # As Auto-sklearn works with distributed process,
         # we implement a logger server that can receive tcp
         # pickled messages. They are unpickled and processed locally
         # under the above logging configuration setting
@@ -203,7 +224,7 @@ class BaseTask:
                 port=port,
                 filename='%s.log' % str(logger_name),
                 logging_config=self.logging_config,
-                output_dir=self._temporary_directory,
+                output_dir=self._backend.temporary_directory,
             ),
         )
 
@@ -218,9 +239,11 @@ class BaseTask:
 
         self._logger_port = int(port.value)
 
-        return get_named_client_logger(output_dir=self._temporary_directory,
-                                       name=logger_name,
-                                       port=port)
+        return get_named_client_logger(
+            name=logger_name,
+            host='localhost',
+            port=self._logger_port,
+        )
 
     def _clean_logger(self) -> None:
         if not hasattr(self, 'stop_logging_server') or self.stop_logging_server is None:
@@ -337,7 +360,7 @@ class BaseTask:
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
-            memory_limit: Optional[int] = 3096,
+            memory_limit: Optional[int] = 4096,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
             all_supported_metrics: bool = True,
@@ -361,12 +384,15 @@ class BaseTask:
                 Budget to fit a single run of the pipeline. If not
                 provided, uses the default in the pipeline config
         """
-        assert self.task_type == dataset.task_type, "Incompatible dataset entered for current task," \
-                                                    "expected dataset to have task type :{} got " \
-                                                    ":{}".format(self.task_type, dataset.task_type)
+        if self.task_type != dataset.task_type:
+            raise ValueError("Incompatible dataset entered for current task,"
+                             "expected dataset to have task type :{} got "
+                             ":{}".format(self.task_type, dataset.task_type))
+
         # Initialise information needed for the experiment
         experiment_task_name = 'runSearch'
-        self._dataset_requirements = get_dataset_requirements(info=self._get_required_dataset_properties(dataset))
+        self._dataset_requirements = get_dataset_requirements(
+            info=self._get_required_dataset_properties(dataset))
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
         self._stopwatch.start_task(experiment_task_name)
         self.dataset_name = dataset.dataset_name
@@ -377,18 +403,20 @@ class BaseTask:
 
         self._backend.save_datamanager(dataset)
 
-        self._metric = get_metrics(names=[optimize_metric], dataset_properties=dataset_properties)[0]
+        self._metric = get_metrics(
+            names=[optimize_metric], dataset_properties=dataset_properties)[0]
 
         self.search_space = get_configuration_space(info=dataset_properties,
                                                     include_estimators=self.include_components,
                                                     exclude_estimators=self.exclude_components)
         budget_config: Dict[str, Union[float, str]] = {}
         if budget_type is not None:
-            assert budget is not None, "budget type was mentioned but not the budget to be used with it"
+            if budget_type is None:
+                raise ValueError(
+                    "budget was mentioned but not the budget_type to be used with it"
+                )
             budget_config['budget_type'] = budget_type
             budget_config[budget_type] = budget
-        else:
-            assert budget is None, "budget was mentioned but the budget type was not"
 
         self._create_dask_client()
         proc_ensemble = None
@@ -400,7 +428,7 @@ class BaseTask:
             self._stopwatch.start_task(ensemble_task_name)
             proc_ensemble = EnsembleBuilderManager(
                 start_time=time.time(),
-                time_left_for_ensembles=100,
+                time_left_for_ensembles=total_walltime_limit,
                 backend=copy.deepcopy(self._backend),
                 dataset_name=dataset.dataset_name,
                 output_type=STRING_TO_OUTPUT_TYPES[dataset.output_type],
@@ -411,7 +439,7 @@ class BaseTask:
                 ensemble_nbest=self.ensemble_nbest,
                 max_models_on_disc=self.max_models_on_disc,
                 seed=self.seed,
-                max_iterations=1,
+                max_iterations=None,
                 read_at_most=np.inf,
                 ensemble_memory_limit=memory_limit,
                 random_state=self.seed,
@@ -633,7 +661,8 @@ class BaseTask:
         """
         if isinstance(y_test, pd.Series):
             y_test = y_test.to_numpy(dtype=np.float)
-        return calculate_score(target=y_test, prediction=y_pred, task_type=self.task_type, metrics=[self._metric])
+        return calculate_score(target=y_test, prediction=y_pred,
+                               task_type=self.task_type, metrics=[self._metric])
 
     @typing.no_type_check
     def get_incumbent_results(
