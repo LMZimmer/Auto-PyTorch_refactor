@@ -87,7 +87,7 @@ def _get_named_client_logger(
     # We add client not only to identify that this is the client
     # communication part of the logger, but to make sure we have
     # a new singleton with the desired socket handlers
-    local_logger = _create_logger('Client-' + name)
+    local_logger = _create_logger('Client-' + str(name))
     local_logger.propagate = False
     local_logger.setLevel(logging.DEBUG)
 
