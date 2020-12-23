@@ -73,6 +73,7 @@ def _pipeline_predict(pipeline: BasePipeline,
             if (
                     (prediction >= 0).all() and (prediction <= 1).all()
             ):
+                logger.debug('proba predictions: {}, predictions:{}'.format(prediction, pipeline.predict(X_, batch_size=batch_size)))
                 raise ValueError("For {}, prediction probability not within [0, 1]!".format(
                     pipeline)
                 )
@@ -644,7 +645,8 @@ class BaseTask:
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
 
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
-                                  'backend': self._backend})
+                                  'backend': self._backend,
+                                  })
         X.update({**self.default_pipeline_options, **budget_config})
         if self.models_ is None or len(self.models_) == 0 or self.ensemble_ is None:
             self._load_models(dataset.resampling_strategy)

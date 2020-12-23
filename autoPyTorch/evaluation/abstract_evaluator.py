@@ -250,7 +250,7 @@ class AbstractEvaluator(object):
             'X_test': self.X_test,
             'y_test': self.y_test,
             'backend': self.backend,
-            'logger_port': logger_port
+            'logger_port': logger_port,
         })
         pipeline_config = pipeline_config if pipeline_config is not None\
             else self.pipeline_class.get_default_pipeline_options()
@@ -270,7 +270,7 @@ class AbstractEvaluator(object):
         self.Y_actual_train: Optional[np.ndarray] = None
         self.pipelines: Optional[List[BaseEstimator]] = None
         self.pipeline: Optional[BaseEstimator] = None
-        self.logger.debug("Fit dictionary in Abtract evaluator: {}".format(self.fit_dictionary))
+        # self.logger.debug("Fit dictionary in Abtract evaluator: {}".format(self.fit_dictionary))
 
     def _get_pipeline(self) -> BaseEstimator:
         assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"
