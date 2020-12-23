@@ -89,6 +89,28 @@ def _pipeline_predict(pipeline: BasePipeline,
 class BaseTask:
     """
     Base class for the tasks that serve as API to the pipelines.
+    Args:
+        seed (int), (default=1): seed to be used for reproducibility.
+        n_jobs (int), (default=1): number of consecutive processes to spawn.
+        logging_config (Optional[Dict]): specifies configuration
+            for logging, if None, it is loaded from the logging.yaml
+        ensemble_size (int), (default=50): Number of models added to the ensemble built by
+            Ensemble selection from libraries of models.
+            Models are drawn with replacement.
+        ensemble_nbest (int), (default=50): only consider the ensemble_nbest
+            models to build the ensemble
+        max_models_on_disc (int), (default=50): maximum number of models saved to disc.
+            Also, controls the size of the ensemble as any additional models will be deleted.
+            Must be greater than or equal to 1.
+        temporary_directory (str): folder to store configuration output and log file
+        output_directory (str): folder to store predictions for optional test set
+        delete_tmp_folder_after_terminate (bool): determines whether to delete the temporary directory,
+            when finished
+        include_components (Optional[List[str]]): If None, all possible components are used.
+            Otherwise specifies set of components to use.
+        exclude_components (Optional[List[str]]): If None, all possible components are used.
+            Otherwise specifies set of components not to use. Incompatible with include
+            components
     """
 
     def __init__(
@@ -145,7 +167,17 @@ class BaseTask:
             self,
             **pipeline_config_kwargs: Any) -> None:
         """
-        Check whether arguments are valid and then pipeline configuration.
+        Check whether arguments are valid and
+        then sets them to the current pipeline
+        configuration.
+        Args:
+            **pipeline_config_kwargs: Valid config options include "job_id",
+            "device", "budget_type", "epochs", "runtime", "torch_num_threads",
+            "early_stopping", "use_tensorboard_logger", "use_pynisher",
+            "metrics_during_training"
+
+        Returns:
+            None
         """
         unknown_keys = []
         for option, value in pipeline_config_kwargs.items():
@@ -180,6 +212,15 @@ class BaseTask:
         return self.search_space
 
     def _get_logger(self, name: str) -> PicklableClientLogger:
+        """
+        Instantiates the logger used throughout the experiment
+        Args:
+            name (str): name of the log file,
+            usually the dataset name
+
+        Returns:
+            PicklableClientLogger
+        """
         logger_name = 'AutoML:%s' % name
 
         # As AutoPyTorch works with distributed process,
@@ -222,6 +263,11 @@ class BaseTask:
                                        port=port)
 
     def _clean_logger(self) -> None:
+        """
+        cleans the logging server created
+        Returns:
+
+        """
         if not hasattr(self, 'stop_logging_server') or self.stop_logging_server is None:
             return
 
@@ -240,6 +286,12 @@ class BaseTask:
             del self.stop_logging_server
 
     def _create_dask_client(self) -> None:
+        """
+        creates the dask client that is used to parallelize
+        the training of pipelines
+        Returns:
+            None
+        """
         self._is_dask_client_internally_created = True
         dask.config.set({'distributed.worker.daemon': False})
         self._dask_client = dask.distributed.Client(
@@ -262,6 +314,11 @@ class BaseTask:
         )
 
     def _close_dask_client(self) -> None:
+        """
+        Closes the created dask client
+        Returns:
+            None
+        """
         if (
                 hasattr(self, '_is_dask_client_internally_created')
                 and self._is_dask_client_internally_created
@@ -275,6 +332,16 @@ class BaseTask:
             del self._is_dask_client_internally_created
 
     def _load_models(self, resampling_strategy: Union[CrossValTypes, HoldoutValTypes]) -> None:
+        """
+        Loads the models saved in the temporary directory
+        during the smac run and the final ensemble created
+        Args:
+            resampling_strategy (Union[CrossValTypes, HoldoutValTypes]): resampling strategy used to split the data
+                and to validate the performance of a candidate pipeline
+
+        Returns:
+            None
+        """
         self.ensemble_ = self._backend.load_ensemble(self.seed)
 
         # If no ensemble is loaded, try to get the best performing model
@@ -345,20 +412,66 @@ class BaseTask:
             load_models: bool = True,
     ):
         """
-        Search for the best pipeline configuration for the given dataset
+        Search for the best pipeline configuration for the given dataset.
+
+        Fit both optimizes the machine learning models and builds an ensemble out of them.
+        To disable ensembling, set ensemble_size==0.
         using the optimizer.
         Args:
-            dataset: (Dataset)
+            dataset (Dataset):
                 The argument that will provide the dataset splits. It is
                 a subclass of the  base dataset object which can
                 generate the splits based on different restrictions.
-            budget_type: (Optional[str])
+            optimize_metric (str): name of the metric that is used to
+                evaluate a pipeline.
+            budget_type (Optional[str]):
                 Type of budget to be used when fitting the pipeline.
                 Either 'epochs' or 'runtime'. If not provided, uses
                 the default in the pipeline config ('epochs')
-            budget: (Optional[float])
+            budget (Optional[float]):
                 Budget to fit a single run of the pipeline. If not
                 provided, uses the default in the pipeline config
+            total_walltime_limit (int), (default=100): Time limit
+                in seconds for the search of appropriate models.
+                By increasing this value, autopytorch has a higher
+                chance of finding better models.
+            func_eval_time_limit (int), (default=60): Time limit
+                for a single call to the machine learning model.
+                Model fitting will be terminated if the machine
+                learning algorithm runs over the time limit. Set
+                this value high enough so that typical machine
+                learning algorithms can be fit on the training
+                data.
+            memory_limit (Optional[int]), (default=4096): Memory
+                limit in MB for the machine learning algorithm. autopytorch
+                will stop fitting the machine learning algorithm if it tries
+                to allocate more than memory_limit MB. If None is provided,
+                no memory limit is set. In case of multi-processing, memory_limit
+                will be per job. This memory limit also applies to the ensemble
+                creation process.
+            smac_scenario_args (Optional[Dict]): Additional arguments inserted
+                into the scenario of SMAC. See the
+                [SMAC documentation] (https://automl.github.io/SMAC3/master/options.html?highlight=scenario#scenario)
+                for a list of available arguments.
+            get_smac_object_callback (Optional[Callable]): Callback function
+                to create an object of class
+                [smac.optimizer.smbo.SMBO](https://automl.github.io/SMAC3/master/apidoc/smac.optimizer.smbo.html).
+                The function must accept the arguments scenario_dict,
+                instances, num_params, runhistory, seed and ta. This is
+                an advanced feature. Use only if you are familiar with
+                [SMAC](https://automl.github.io/SMAC3/master/index.html).
+            all_supported_metrics (bool), (default=True): if True, all
+                metrics supporting current task will be calculated
+                for each pipeline and results will be available via cv_results
+            precision (int), (default=32): Numeric precision used when loading
+                ensemble data. Can be either '16', '32' or '64'.
+            disable_file_output (Union[bool, List]):
+            load_models (bool), (default=True): Whether to load the
+                models after fitting AutoPyTorch.
+
+        Returns:
+            self
+
         """
         assert self.task_type == dataset.task_type, "Incompatible dataset entered for current task," \
                                                     "expected dataset to have task type :{} got " \
@@ -504,22 +617,27 @@ class BaseTask:
     def refit(
             self,
             dataset: BaseDataset,
-            budget_config: Dict[str, Union[int, str]]
+            budget_config: Optional[Dict[str, Union[int, str]]] = None
     ):
-        """Refit a model configuration and calculate the model performance.
-        Given a model configuration, the model is trained on the joint train
-        and validation sets of the dataset. This corresponds to the refit
-        phase after finding a best hyperparameter configuration after the hpo
-        phase.
+        """
+        Refit all models found with fit to new data.
+
+        Necessary when using cross-validation. During training, autoPyTorch
+        fits each model k times on the dataset, but does not keep any trained
+        model and can therefore not be used to predict for new data points.
+        This methods fits all models found during a call to fit on the data
+        given. This method may also be used together with holdout to avoid
+        only using 66% of the training data to fit the final model.
         Args:
             dataset: (Dataset)
                 The argument that will provide the dataset splits. It can either
                 be a dictionary with the splits, or the dataset object which can
                 generate the splits based on different restrictions.
-            model_config: (Configuration)
-                The configuration of the model.
+            budget_config: (Optional[Dict[str, Union[int, str]]])
+                can contain keys from 'budget_type' and the budget
+                specified using 'epochs' or 'runtime'.
         Returns:
-            Value of the evaluation metric calculated on the test set.
+            self
         """
         self._logger = self._get_logger(self.dataset_name)
 
@@ -624,10 +742,8 @@ class BaseTask:
             The test predictions
         y_test: (np.ndarray)
             The test ground truth labels.
-        sample_weights: (np.ndarray|None)
-            The weights for each sample.
         Returns:
-            Value of the evaluation metric calculated on the test set.
+            Dict[str, float]: Value of the evaluation metric calculated on the test set.
         """
         if isinstance(y_test, pd.Series):
             y_test = y_test.to_numpy(dtype=np.float)
