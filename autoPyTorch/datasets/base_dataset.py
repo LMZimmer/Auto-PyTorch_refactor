@@ -73,9 +73,28 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         val_transforms: Optional[torchvision.transforms.Compose] = None,
     ):
         """
-        :param train_tensors: A tuple of objects that have a __len__ and a __getitem__ attribute.
-        :param val_tensors: A optional tuple of objects that have a __len__ and a __getitem__ attribute.
-        :param shuffle: Whether to shuffle the data before performing splits
+        Base class for datasets used in AutoPyTorch
+        Args:
+            train_tensors (A tuple of objects that have a __len__ and a __getitem__ attribute):
+                training data
+            dataset_name (str): name of the dataset, used as experiment name.
+            val_tensors (An optional tuple of objects that have a __len__ and a __getitem__ attribute):
+                validation data
+            test_tensors (An optional tuple of objects that have a __len__ and a __getitem__ attribute):
+                test data
+            resampling_strategy (Union[CrossValTypes, HoldoutValTypes]),
+                (default=HoldoutValTypes.holdout_validation):
+                strategy to split the training data.
+            resampling_strategy_args (Optional[Dict[str, Any]]): arguments
+                required for the chosen resampling strategy. If None, uses
+                the default values provided in DEFAULT_RESAMPLING_PARAMETERS
+                in ```datasets/resampling_strategy.py```.
+            shuffle:  Whether to shuffle the data before performing splits
+            seed (int), (default=1): seed to be used for reproducibility.
+            train_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the training data
+            val_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the validation/test data
         """
         self.dataset_name = dataset_name if dataset_name is not None else hash_array_or_matrix(train_tensors[0])
         if not hasattr(train_tensors[0], 'shape'):
@@ -190,6 +209,9 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
     def get_splits_from_resampling_strategy(self) -> List[Tuple[List[int], List[int]]]:
         """
         Creates a set of splits based on a resampling strategy provided
+
+        Returns
+            (List[Tuple[List[int], List[int]]]): splits in the [train_indices, val_indices] format
         """
         splits = []
         if isinstance(self.resampling_strategy, HoldoutValTypes):
@@ -228,6 +250,13 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         This function creates the cross validation split for the given task.
 
         It is done once per dataset to have comparable results among pipelines
+        Args:
+            cross_val_type (CrossValTypes):
+            num_splits (int): number of splits to be created
+
+        Returns:
+            (List[Tuple[Union[List[int], np.ndarray], Union[List[int], np.ndarray]]]):
+                list containing 'num_splits' splits.
         """
         # Create just the split once
         # This is gonna be called multiple times, because the current dataset
@@ -249,6 +278,17 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         holdout_val_type: HoldoutValTypes,
         val_share: float,
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        This function creates the holdout split for the given task.
+
+        It is done once per dataset to have comparable results among pipelines
+        Args:
+            holdout_val_type (HoldoutValTypes):
+            val_share (float): share of the validation data
+
+        Returns:
+            (Tuple[np.ndarray, np.ndarray]): Tuple containing (train_indices, val_indices)
+        """
         if holdout_val_type is None:
             raise ValueError(
                 '`val_share` specified, but `holdout_val_type` not specified.'
@@ -304,6 +344,16 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         return self
 
     def get_dataset_properties(self, dataset_requirements: List[FitRequirement]) -> Dict[str, Any]:
+        """
+        Gets the dataset properties required in the fit dictionary
+        Args:
+            dataset_requirements (List[FitRequirement]): List of
+                fit requirements that the dataset properties must
+                contain.
+
+        Returns:
+
+        """
         dataset_properties = dict()
         for dataset_requirement in dataset_requirements:
             dataset_properties[dataset_requirement.name] = getattr(self, dataset_requirement.name)

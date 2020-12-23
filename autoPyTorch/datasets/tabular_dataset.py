@@ -47,10 +47,32 @@ class Value2Index(object):
 
 class TabularDataset(BaseDataset):
     """
-    Support for Numpy Arrays is missing Strings.
-    """
+        Base class for datasets used in AutoPyTorch
+        Args:
+            X (Union[np.ndarray, pd.DataFrame]): input training data.
+            Y (Union[np.ndarray, pd.Series]): training data targets.
+            X_test (Optional[Union[np.ndarray, pd.DataFrame]]):  input testing data.
+            Y_test (Optional[Union[np.ndarray, pd.DataFrame]]): testing data targets
+            resampling_strategy (Union[CrossValTypes, HoldoutValTypes]),
+                (default=HoldoutValTypes.holdout_validation):
+                strategy to split the training data.
+            resampling_strategy_args (Optional[Dict[str, Any]]): arguments
+                required for the chosen resampling strategy. If None, uses
+                the default values provided in DEFAULT_RESAMPLING_PARAMETERS
+                in ```datasets/resampling_strategy.py```.
+            shuffle:  Whether to shuffle the data before performing splits
+            seed (int), (default=1): seed to be used for reproducibility.
+            train_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the training data.
+            val_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the validation/test data.
 
-    def __init__(self, X: Any, Y: Any,
+        Notes: Support for Numpy Arrays is missing Strings.
+
+        """
+
+    def __init__(self, X: Union[np.ndarray, pd.DataFrame],
+                 Y: Union[np.ndarray, pd.Series],
                  X_test: Optional[Union[np.ndarray, pd.DataFrame]] = None,
                  Y_test: Optional[Union[np.ndarray, pd.DataFrame]] = None,
                  resampling_strategy: Union[CrossValTypes, HoldoutValTypes] = HoldoutValTypes.holdout_validation,
@@ -83,7 +105,7 @@ class TabularDataset(BaseDataset):
             Y = check_array(Y, ensure_2d=False)
 
         self.categorical_columns, self.numerical_columns, self.categories, self.num_features = \
-            self.infer_dataset_properties(X, Y)
+            self.infer_dataset_properties(X)
 
         # Allow support for X_test, Y_test. They will NOT be used for optimization, but
         # rather to have a performance through time on the test data
@@ -116,7 +138,29 @@ class TabularDataset(BaseDataset):
         if STRING_TO_TASK_TYPES[self.task_type] in CLASSIFICATION_TASKS:
             self.num_classes: int = len(np.unique(self.train_tensors[1]))
 
-    def interpret_columns(self, data: Any, assert_single_column: bool = False) -> tuple:
+    def interpret_columns(self,
+                          data: Union[np.ndarray, pd.DataFrame, pd.Series],
+                          assert_single_column: bool = False
+                          ) -> Tuple[pd.DataFrame, List[DataTypes],
+                                     Union[np.ndarray, np.ndarray],
+                                     List[Optional[list]],
+                                     List[Optional[Value2Index]]]:
+        """
+        Interpret information such as data, data_types, nan_mask, itovs, vtois
+        about the columns from the given data.
+
+        Args:
+            data (Union[np.ndarray, pd.DataFrame, pd.Series]): data to be
+                interpreted.
+            assert_single_column (bool), (default=False): flag for
+                asserting that the data contains a single column
+
+        Returns:
+            Tuple[pd.DataFrame, List[DataTypes],
+                 Union[np.ndarray, np.ndarray],
+                 List[Optional[list]],
+                 List[Optional[Value2Index]]]: Tuple of information
+        """
         single_column = False
         if isinstance(data, np.ndarray):
             if len(data.shape) == 1 and ',' not in str(data.dtype):
@@ -167,9 +211,17 @@ class TabularDataset(BaseDataset):
 
         return data, data_types, nan_mask, itovs, vtois
 
-    def infer_dataset_properties(self, X: Any, y: Any) \
+    def infer_dataset_properties(self, X: Any) \
             -> Tuple[List[int], List[int], List[object], int]:
+        """
+        Infers the properties of the dataset like
+        categorical_columns, numerical_columns, categories, num_features
+        Args:
+            X: input training data
 
+        Returns:
+            (Tuple[List[int], List[int], List[object], int]):
+        """
         categorical_columns = []
         numerical_columns = []
         for i, data_type in enumerate(self.data_types):

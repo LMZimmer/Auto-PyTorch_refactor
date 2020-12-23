@@ -30,6 +30,29 @@ IMAGE_DATASET_INPUT = Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndar
 
 
 class ImageDataset(BaseDataset):
+    """
+    Dataset class for images used in AutoPyTorch
+    Args:
+        train (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            training data
+        val (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            validation data
+        test (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            testing data
+        resampling_strategy (Union[CrossValTypes, HoldoutValTypes]),
+            (default=HoldoutValTypes.holdout_validation):
+            strategy to split the training data.
+        resampling_strategy_args (Optional[Dict[str, Any]]): arguments
+            required for the chosen resampling strategy. If None, uses
+            the default values provided in DEFAULT_RESAMPLING_PARAMETERS
+            in ```datasets/resampling_strategy.py```.
+        shuffle:  Whether to shuffle the data before performing splits
+        seed (int), (default=1): seed to be used for reproducibility.
+        train_transforms (Optional[torchvision.transforms.Compose]):
+            Additional Transforms to be applied to the training data
+        val_transforms (Optional[torchvision.transforms.Compose]):
+            Additional Transforms to be applied to the validation/test data
+    """
     def __init__(self,
                  train: IMAGE_DATASET_INPUT,
                  val: Optional[IMAGE_DATASET_INPUT] = None,
@@ -69,6 +92,14 @@ class ImageDataset(BaseDataset):
 
 
 def _calc_mean_std(train: Dataset) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    calculates channel wise mean of the dataset
+    Args:
+        train (Dataset): dataset
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: (mean, std)
+    """
     mean = torch.zeros((3,), dtype=torch.float)
     var = torch.zeros((3,), dtype=torch.float)
     for i in range(len(train)):
@@ -83,6 +114,16 @@ def _calc_mean_std(train: Dataset) -> Tuple[torch.Tensor, torch.Tensor]:
 
 def _check_image_inputs(train: IMAGE_DATASET_INPUT,
                         val: Optional[IMAGE_DATASET_INPUT] = None) -> None:
+    """
+    Performs sanity checks on the given data
+    Args:
+        train (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            training data
+        val (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            validation data
+    Returns:
+        None
+    """
     if not isinstance(train, Dataset):
         if len(train[0]) != len(train[1]):
             raise ValueError(
@@ -94,6 +135,14 @@ def _check_image_inputs(train: IMAGE_DATASET_INPUT,
 
 
 def _create_image_dataset(data: IMAGE_DATASET_INPUT) -> Dataset:
+    """
+    Creates a torch.utils.data.Dataset from different types of data mentioned
+    Args:
+        data (Union[Dataset, Tuple[Union[np.ndarray, List[str]], np.ndarray]]):
+            data
+    Returns:
+        (Dataset): torch.utils.data.Dataset object of the given data
+    """
     # if user already provided a dataset, use it
     if isinstance(data, Dataset):
         return data
@@ -106,6 +155,12 @@ def _create_image_dataset(data: IMAGE_DATASET_INPUT) -> Dataset:
 
 
 class _FilePathDataset(Dataset):
+    """
+    Internal class used to handle data from file paths
+    Args:
+        file_paths (List[str]): paths of images
+        targets (np.ndarray): targets
+    """
     def __init__(self, file_paths: List[str], targets: np.ndarray):
         self.file_paths = file_paths
         self.targets = targets
