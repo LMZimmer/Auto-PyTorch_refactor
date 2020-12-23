@@ -79,7 +79,7 @@ class AdamWOptimizer(BaseOptimizerComponent):
         cs = ConfigurationSpace()
 
         # The learning rate for the model
-        lr = UniformFloatHyperparameter('lr', lower=1e-6, upper=1e-1,
+        lr = UniformFloatHyperparameter('lr', lower=1e-5, upper=1e-1,
                                         default_value=1e-2, log=True)
 
         beta1 = UniformFloatHyperparameter('beta1', lower=0.85, upper=0.999,

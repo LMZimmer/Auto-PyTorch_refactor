@@ -23,7 +23,7 @@ __all__ = [
 
 
 def create(
-        temporary_directory: str,
+        temporary_directory: Optional[str],
         output_directory: Optional[str],
         delete_tmp_folder_after_terminate: bool = True,
         delete_output_folder_after_terminate: bool = True,
@@ -71,7 +71,7 @@ def get_randomized_directory_name(temporary_directory: Optional[str] = None) -> 
 class BackendContext(object):
 
     def __init__(self,
-                 temporary_directory: str,
+                 temporary_directory: Optional[str],
                  output_directory: Optional[str],
                  delete_tmp_folder_after_terminate: bool,
                  delete_output_folder_after_terminate: bool,
@@ -184,7 +184,6 @@ class Backend(object):
 
     def setup_logger(self, name: str, port: int) -> None:
         self._logger = get_named_client_logger(
-            output_dir=self.temporary_directory,
             name=name,
             port=port,
         )

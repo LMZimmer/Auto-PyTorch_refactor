@@ -97,46 +97,21 @@ def _get_classification_dataset_requirements(info: Dict[str, Any], include: Dict
 
 
 def get_configuration_space(info: Dict[str, Any],
-                            include_estimators: Optional[List[str]] = None,
-                            exclude_estimators: Optional[List[str]] = None,
-                            include_preprocessors: Optional[List[str]] = None,
-                            exclude_preprocessors: Optional[List[str]] = None
+                            include: Optional[Dict] = None,
+                            exclude: Optional[Dict] = None,
                             ) -> ConfigurationSpace:
-    exclude = dict()
-    include = dict()
-    if include_preprocessors is not None and \
-            exclude_preprocessors is not None:
-        raise ValueError('Cannot specify include_preprocessors and '
-                         'exclude_preprocessors.')
-    elif include_preprocessors is not None:
-        include['feature_preprocessor'] = include_preprocessors
-    elif exclude_preprocessors is not None:
-        exclude['feature_preprocessor'] = exclude_preprocessors
-
     task_type: int = STRING_TO_TASK_TYPES[info['task_type']]
-    if include_estimators is not None and \
-            exclude_estimators is not None:
-        raise ValueError('Cannot specify include_estimators and '
-                         'exclude_estimators.')
-    elif include_estimators is not None:
-        if task_type in CLASSIFICATION_TASKS:
-            include['classifier'] = include_estimators
-        elif task_type in REGRESSION_TASKS:
-            include['regressor'] = include_estimators
-        else:
-            raise ValueError(info['task_type'])
-    elif exclude_estimators is not None:
-        if task_type in CLASSIFICATION_TASKS:
-            exclude['classifier'] = exclude_estimators
-        elif task_type in REGRESSION_TASKS:
-            exclude['regressor'] = exclude_estimators
-        else:
-            raise ValueError(info['task_type'])
 
     if task_type in REGRESSION_TASKS:
-        return _get_regression_configuration_space(info, include, exclude)
+        return _get_regression_configuration_space(info,
+                                                   include if include is not None else {},
+                                                   exclude if exclude is not None else {},
+                                                   )
     else:
-        return _get_classification_configuration_space(info, include, exclude)
+        return _get_classification_configuration_space(info,
+                                                       include if include is not None else {},
+                                                       exclude if exclude is not None else {},
+                                                       )
 
 
 def _get_regression_configuration_space(info: Dict[str, Any], include: Dict[str, List[str]],

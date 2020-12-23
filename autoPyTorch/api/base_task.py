@@ -1,5 +1,6 @@
 import copy
 import json
+import logging.handlers
 import multiprocessing
 import os
 import tempfile
@@ -7,10 +8,9 @@ import time
 import typing
 import warnings
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, cast
 
-from ConfigSpace.configuration_space import \
-    ConfigurationSpace
+from ConfigSpace.configuration_space import ConfigurationSpace
 
 import dask
 
@@ -34,17 +34,19 @@ from autoPyTorch.constants import (
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import CrossValTypes, HoldoutValTypes
 from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
+from autoPyTorch.ensemble.ensemble_selection import EnsembleSelection
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
 from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import calculate_score, get_metrics
-from autoPyTorch.utils.backend import create
+from autoPyTorch.utils.backend import Backend, create
 from autoPyTorch.utils.common import FitRequirement, replace_string_bool_to_bool
 from autoPyTorch.utils.logging_ import (
     PicklableClientLogger,
     get_named_client_logger,
+    setup_logger,
     start_log_server,
 )
 from autoPyTorch.utils.pipeline import get_configuration_space, get_dataset_requirements
@@ -73,7 +75,9 @@ def _pipeline_predict(pipeline: BasePipeline,
             if (
                     (prediction >= 0).all() and (prediction <= 1).all()
             ):
-                logger.debug('proba predictions: {}, predictions:{}'.format(prediction, pipeline.predict(X_, batch_size=batch_size)))
+                logger.debug(
+                    'proba predictions: {}, predictions:{}'.format(
+                        prediction, pipeline.predict(X_, batch_size=batch_size)))
                 raise ValueError("For {}, prediction probability not within [0, 1]!".format(
                     pipeline)
                 )
@@ -119,14 +123,16 @@ class BaseTask:
             seed: int = 1,
             n_jobs: int = 1,
             logging_config: Optional[Dict] = None,
-            ensemble_size: int = 1,
-            ensemble_nbest: int = 1,
-            max_models_on_disc: int = 1,
-            temporary_directory: str = './tmp/autoPyTorch_test_tmp',
-            output_directory: str = './tmp/autoPyTorch_test_out',
-            delete_tmp_folder_after_terminate: bool = False,
-            include_components: Optional[List[str]] = None,
-            exclude_components: Optional[List[str]] = None,
+            ensemble_size: int = 50,
+            ensemble_nbest: int = 50,
+            max_models_on_disc: int = 50,
+            temporary_directory: Optional[str] = None,
+            output_directory: Optional[str] = None,
+            delete_tmp_folder_after_terminate: bool = True,
+            delete_output_folder_after_terminate: bool = True,
+            include_components: Optional[Dict] = None,
+            exclude_components: Optional[Dict] = None,
+            backend: Optional[Backend] = None,
     ) -> None:
         self.seed = seed
         self.n_jobs = n_jobs
@@ -138,9 +144,15 @@ class BaseTask:
         self.exclude_components = exclude_components
         self._temporary_directory = temporary_directory
         self._output_directory = output_directory
-        self._backend = create(temporary_directory=self._temporary_directory,
-                               output_directory=self._output_directory,
-                               delete_output_folder_after_terminate=delete_tmp_folder_after_terminate)
+        if backend is not None:
+            self._backend = backend
+        else:
+            self._backend = create(
+                temporary_directory=self._temporary_directory,
+                output_directory=self._output_directory,
+                delete_tmp_folder_after_terminate=delete_tmp_folder_after_terminate,
+                delete_output_folder_after_terminate=delete_output_folder_after_terminate,
+            )
         self._stopwatch = StopWatch()
 
         self.default_pipeline_options = replace_string_bool_to_bool(json.load(open(
@@ -154,7 +166,13 @@ class BaseTask:
         self.run_history: Optional[RunHistory] = None
         self.trajectory: Optional[List] = None
         self.dataset_name: Optional[str] = None
-        self.cv_models_: Optional[Dict] = None
+        self.cv_models_: Dict = {}
+
+        # By default try to use the TCP logging port or get a new port
+        self._logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
+
+        # Store the resampling strategy from the dataset, to load models as needed
+        self.resampling_strategy = None  # type: Optional[Union[CrossValTypes, HoldoutValTypes]]
 
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
@@ -224,7 +242,16 @@ class BaseTask:
         """
         logger_name = 'AutoML:%s' % name
 
-        # As AutoPyTorch works with distributed process,
+        # Setup the configuration for the logger
+        # This is gonna be honored by the server
+        # Which is created below
+        setup_logger(
+            filename='%s.log' % str(logger_name),
+            logging_config=self.logging_config,
+            output_dir=self._backend.temporary_directory,
+        )
+
+        # As Auto-sklearn works with distributed process,
         # we implement a logger server that can receive tcp
         # pickled messages. They are unpickled and processed locally
         # under the above logging configuration setting
@@ -235,7 +262,8 @@ class BaseTask:
         port = context.Value('l')  # be safe by using a long
         port.value = -1
 
-        self.logging_server = context.Process(
+        # "BaseContext" has no attribute "Process" motivates to ignore the attr check
+        self.logging_server = context.Process(  # type: ignore [attr-defined]
             target=start_log_server,
             kwargs=dict(
                 host='localhost',
@@ -244,7 +272,7 @@ class BaseTask:
                 port=port,
                 filename='%s.log' % str(logger_name),
                 logging_config=self.logging_config,
-                output_dir=self._temporary_directory,
+                output_dir=self._backend.temporary_directory,
             ),
         )
 
@@ -259,9 +287,11 @@ class BaseTask:
 
         self._logger_port = int(port.value)
 
-        return get_named_client_logger(output_dir=self._temporary_directory,
-                                       name=logger_name,
-                                       port=port)
+        return get_named_client_logger(
+            name=logger_name,
+            host='localhost',
+            port=self._logger_port,
+        )
 
     def _clean_logger(self) -> None:
         """
@@ -332,7 +362,9 @@ class BaseTask:
             self._is_dask_client_internally_created = False
             del self._is_dask_client_internally_created
 
-    def _load_models(self, resampling_strategy: Union[CrossValTypes, HoldoutValTypes]) -> None:
+    def _load_models(self, resampling_strategy: Optional[Union[CrossValTypes, HoldoutValTypes]]
+                     ) -> bool:
+        
         """
         Loads the models saved in the temporary directory
         during the smac run and the final ensemble created
@@ -343,6 +375,8 @@ class BaseTask:
         Returns:
             None
         """
+        if resampling_strategy is None:
+            raise ValueError("Resampling strategy is needed to determine what models to load")
         self.ensemble_ = self._backend.load_ensemble(self.seed)
 
         # If no ensemble is loaded, try to get the best performing model
@@ -354,14 +388,12 @@ class BaseTask:
             self.models_ = self._backend.load_models_by_identifiers(identifiers)
             if isinstance(resampling_strategy, CrossValTypes):
                 self.cv_models_ = self._backend.load_cv_models_by_identifiers(identifiers)
-            else:
-                self.cv_models_ = None
 
-            if isinstance(resampling_strategy, CrossValTypes) and len(self.cv_models_.keys()) == 0:
-                raise ValueError('No models fitted!')
+            if isinstance(resampling_strategy, CrossValTypes):
+                if len(self.cv_models_) == 0:
+                    raise ValueError('No models fitted!')
 
-        elif self._disable_file_output or (isinstance(
-                self._disable_file_output, list) and 'pipeline' not in self._disable_file_output):
+        elif 'pipeline' not in self._disable_file_output:
             model_names = self._backend.list_all_models(self.seed)
 
             if len(model_names) == 0:
@@ -372,6 +404,8 @@ class BaseTask:
         else:
             self.models_ = {}
 
+        return True
+
     def _load_best_individual_model(self) -> SingleBest:
         """
         In case of failure during ensemble building,
@@ -381,6 +415,12 @@ class BaseTask:
         even though no ensemble was found by ensemble builder.
         """
 
+        if self._metric is None:
+            raise ValueError("Providing a metric to AutoPytorch is required to fit a model. "
+                             "A default metric could not be inferred. Please check the log "
+                             "for error messages."
+                             )
+
         # SingleBest contains the best model found by AutoML
         ensemble = SingleBest(
             metric=self._metric,
@@ -388,12 +428,21 @@ class BaseTask:
             run_history=self.run_history,
             backend=self._backend,
         )
-        self._logger.warning(
-            "No valid ensemble was created. Please check the log"
-            "file for errors. Default to the best individual estimator:{}".format(
-                ensemble.identifiers_
+        if self._logger is None:
+            warnings.warn(
+                "No valid ensemble was created. Please check the log"
+                "file for errors. Default to the best individual estimator:{}".format(
+                    ensemble.identifiers_
+                )
             )
-        )
+        else:
+            self._logger.exception(
+                "No valid ensemble was created. Please check the log"
+                "file for errors. Default to the best individual estimator:{}".format(
+                    ensemble.identifiers_
+                )
+            )
+
         return ensemble
 
     def fit(
@@ -404,14 +453,14 @@ class BaseTask:
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
-            memory_limit: Optional[int] = 3096,
+            memory_limit: Optional[int] = 4096,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
             all_supported_metrics: bool = True,
             precision: int = 32,
-            disable_file_output: Union[bool, List] = False,
+            disable_file_output: List = [],
             load_models: bool = True,
-    ):
+    ) -> 'BaseTask':
         """
         Search for the best pipeline configuration for the given dataset.
 
@@ -474,15 +523,19 @@ class BaseTask:
             self
 
         """
-        assert self.task_type == dataset.task_type, "Incompatible dataset entered for current task," \
-                                                    "expected dataset to have task type :{} got " \
-                                                    ":{}".format(self.task_type, dataset.task_type)
+        if self.task_type != dataset.task_type:
+            raise ValueError("Incompatible dataset entered for current task,"
+                             "expected dataset to have task type :{} got "
+                             ":{}".format(self.task_type, dataset.task_type))
+
         # Initialise information needed for the experiment
         experiment_task_name = 'runSearch'
-        self._dataset_requirements = get_dataset_requirements(info=self._get_required_dataset_properties(dataset))
+        self._dataset_requirements = get_dataset_requirements(
+            info=self._get_required_dataset_properties(dataset))
         dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
         self._stopwatch.start_task(experiment_task_name)
         self.dataset_name = dataset.dataset_name
+        self.resampling_strategy = dataset.resampling_strategy
         self._logger = self._get_logger(self.dataset_name)
         self._disable_file_output = disable_file_output
         # Save start time to backend
@@ -490,18 +543,23 @@ class BaseTask:
 
         self._backend.save_datamanager(dataset)
 
-        self._metric = get_metrics(names=[optimize_metric], dataset_properties=dataset_properties)[0]
+        self._metric = get_metrics(
+            names=[optimize_metric], dataset_properties=dataset_properties)[0]
 
         self.search_space = get_configuration_space(info=dataset_properties,
-                                                    include_estimators=self.include_components,
-                                                    exclude_estimators=self.exclude_components)
+                                                    include=self.include_components,
+                                                    exclude=self.exclude_components)
         budget_config: Dict[str, Union[float, str]] = {}
-        if budget_type is not None:
-            assert budget is not None, "budget type was mentioned but not the budget to be used with it"
+        if budget_type is not None and budget is not None:
             budget_config['budget_type'] = budget_type
             budget_config[budget_type] = budget
-        else:
-            assert budget is None, "budget was mentioned but the budget type was not"
+        elif budget_type is not None or budget is not None:
+            raise ValueError(
+                "budget was mentioned but not the budget_type to be used with it"
+            )
+
+        if self.task_type is None:
+            raise ValueError("Cannot interpret task type from the dataset")
 
         self._create_dask_client()
         proc_ensemble = None
@@ -513,7 +571,7 @@ class BaseTask:
             self._stopwatch.start_task(ensemble_task_name)
             proc_ensemble = EnsembleBuilderManager(
                 start_time=time.time(),
-                time_left_for_ensembles=100,
+                time_left_for_ensembles=total_walltime_limit,
                 backend=copy.deepcopy(self._backend),
                 dataset_name=dataset.dataset_name,
                 output_type=STRING_TO_OUTPUT_TYPES[dataset.output_type],
@@ -524,7 +582,7 @@ class BaseTask:
                 ensemble_nbest=self.ensemble_nbest,
                 max_models_on_disc=self.max_models_on_disc,
                 seed=self.seed,
-                max_iterations=1,
+                max_iterations=None,
                 read_at_most=np.inf,
                 ensemble_memory_limit=memory_limit,
                 random_state=self.seed,
@@ -640,9 +698,12 @@ class BaseTask:
         Returns:
             self
         """
-        self._logger = self._get_logger(self.dataset_name)
 
-        dataset_properties = dataset.get_dataset_properties(self._dataset_requirements)
+        self._logger = self._get_logger(dataset.dataset_name)
+
+        dataset_requirements = get_dataset_requirements(
+            info=self._get_required_dataset_properties(dataset))
+        dataset_properties = dataset.get_dataset_properties(dataset_requirements)
 
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
                                   'backend': self._backend,
@@ -683,9 +744,18 @@ class BaseTask:
         Returns:
             Array with estimator predictions.
         """
+
         # Parallelize predictions across models with n_jobs processes.
         # Each process computes predictions in chunks of batch_size rows.
-        self._logger = self._get_logger(self.dataset_name)
+        if self._logger is None:
+            self._logger = self._get_logger("Predict-Logger")
+
+        if self.ensemble_ is None and not self._load_models(self.resampling_strategy):
+            raise ValueError("Failed to fit an ensemble. Cannot predict")
+
+        # Mypy assert
+        assert self.ensemble_ is not None, "Load models should error out if no ensemble"
+        self.ensemble_ = cast(Union[SingleBest, EnsembleSelection], self.ensemble_)
 
         try:
             for i, tmp_model in enumerate(self.models_.values()):
@@ -717,8 +787,8 @@ class BaseTask:
             raise ValueError('Something went wrong generating the predictions. '
                              'The ensemble should consist of the following '
                              'models: %s, the following models were loaded: '
-                             '%s' % (str(list(self.ensemble_.indices_.keys())),
-                                     str(list(self.models_.keys()))))
+                             '%s' % (str(list(self.ensemble_.indices_)),
+                                     str(list(self.models_))))
 
         predictions = self.ensemble_.predict(all_predictions)
 
@@ -736,7 +806,7 @@ class BaseTask:
             self,
             y_pred: np.ndarray,
             y_test: Union[np.ndarray, pd.DataFrame]
-    ) -> float:
+    ) -> Dict[str, float]:
         """Calculate the score on the test set.
         Calculate the evaluation measure on the test set.
         Args:
@@ -749,7 +819,16 @@ class BaseTask:
         """
         if isinstance(y_test, pd.Series):
             y_test = y_test.to_numpy(dtype=np.float)
-        return calculate_score(target=y_test, prediction=y_pred, task_type=self.task_type, metrics=[self._metric])
+
+        if self._metric is None:
+            raise ValueError("AutoPytorch failed to infer a metric from the dataset "
+                             "Please check the log file for related errors. ")
+        if self.task_type is None:
+            raise ValueError("AutoPytorch failed to infer a task type from the dataset "
+                             "Please check the log file for related errors. ")
+        return calculate_score(target=y_test, prediction=y_pred,
+                               task_type=STRING_TO_TASK_TYPES[self.task_type],
+                               metrics=[self._metric])
 
     @typing.no_type_check
     def get_incumbent_results(

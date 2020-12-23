@@ -35,6 +35,7 @@ class SingleBest(AbstractEnsemble):
         self.weights_ = [1.0]
         self.run_history = run_history
         self.identifiers_ = self.get_identifiers_from_run_history()
+        self.best_performance = self.metric._worst_possible_result
 
     def get_identifiers_from_run_history(self) -> List[Tuple[int, int, float]]:
         """
@@ -81,6 +82,8 @@ class SingleBest(AbstractEnsemble):
                 " a valid model. Please check the log file for errors."
             )
 
+        self.best_performance = best_model_score
+
         return best_model_identifier
 
     def predict(self, predictions: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
@@ -116,3 +119,35 @@ class SingleBest(AbstractEnsemble):
                 output.append(identifier)
 
         return output
+
+    def fit(
+        self,
+        base_models_predictions: np.ndarray,
+        true_targets: np.ndarray,
+        model_identifiers: List[Tuple[int, int, float]],
+    ) -> 'SingleBest':
+        """Fit an ensemble given predictions of base models and targets.
+        Ensemble building maximizes performance (in contrast to
+        hyperparameter optimization)!
+
+        Args:
+            base_models_predictions (np.ndarray):
+                array of shape = [n_base_models, n_data_points, n_targets]
+                This are the predictions of the individual models found by SMAC
+            true_targets (np.ndarray) : array of shape [n_targets]
+                This is the ground truth of the above predictions
+            model_identifiers (List[Tuple[int, int, float]]): identifier for each base model.
+                Can be used for practical text output of the ensemble.
+
+        Returns:
+            self
+        """
+        return self
+
+    def get_validation_performance(self) -> float:
+        """Return validation performance of ensemble.
+
+        Returns:
+            Score
+        """
+        return self.best_performance
