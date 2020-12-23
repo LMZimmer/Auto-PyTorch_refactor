@@ -97,7 +97,7 @@ class AutoMLSMBO(object):
                  resampling_strategy_args: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  include: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  exclude: typing.Optional[typing.Dict[str, typing.Any]] = None,
-                 disable_file_output: bool = False,
+                 disable_file_output: typing.List = [],
                  smac_scenario_args: typing.Optional[typing.Dict[str, typing.Any]] = None,
                  get_smac_object_callback: typing.Optional[typing.Callable] = None,
                  all_supported_metrics: bool = True,
@@ -145,7 +145,7 @@ class AutoMLSMBO(object):
                 Optimal Configuration space modifiers
             exclude (typing.Optional[typing.Dict[str, typing.Any]] = None):
                 Optimal Configuration space modifiers
-            disable_file_output bool = False:
+            disable_file_output List:
                 Support to disable file output to disk -- to reduce space
             smac_scenario_args (typing.Optional[typing.Dict[str, typing.Any]]):
                 Additional arguments to the smac scenario

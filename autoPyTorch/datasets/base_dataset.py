@@ -219,9 +219,11 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
             raise ValueError(f"Unsupported resampling strategy={self.resampling_strategy}")
         return splits
 
-    def create_cross_val_splits(self,
-                                cross_val_type: CrossValTypes,
-                                num_splits: int) -> List[Tuple[Union[List[int], np.ndarray], Union[List[int], np.ndarray]]]:
+    def create_cross_val_splits(
+        self,
+        cross_val_type: CrossValTypes,
+        num_splits: int
+    ) -> List[Tuple[Union[List[int], np.ndarray], Union[List[int], np.ndarray]]]:
         """
         This function creates the cross validation split for the given task.
 

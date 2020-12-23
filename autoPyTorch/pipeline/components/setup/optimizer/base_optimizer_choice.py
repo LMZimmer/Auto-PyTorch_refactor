@@ -138,7 +138,7 @@ class OptimizerChoice(autoPyTorchChoice):
                 'AdamWOptimizer',
                 'SGDOptimizer',
                 'RMSpropOptimizer'
-                        ]
+            ]
             for default_ in defaults:
                 if default_ in available_optimizers:
                     default = default_
