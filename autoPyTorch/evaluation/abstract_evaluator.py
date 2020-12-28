@@ -272,7 +272,7 @@ class AbstractEvaluator(object):
         self.Y_actual_train: Optional[np.ndarray] = None
         self.pipelines: Optional[List[BaseEstimator]] = None
         self.pipeline: Optional[BaseEstimator] = None
-        # self.logger.debug("Fit dictionary in Abtract evaluator: {}".format(self.fit_dictionary))
+        self.logger.debug("Fit dictionary in Abstract evaluator: {}".format(self.fit_dictionary))
 
     def _get_pipeline(self) -> BaseEstimator:
         assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"

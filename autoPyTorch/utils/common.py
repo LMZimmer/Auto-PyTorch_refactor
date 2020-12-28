@@ -1,4 +1,11 @@
+import hashlib
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type
+
+import numpy as np
+
+import pandas as pd
+
+import scipy.sparse
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -92,3 +99,36 @@ def replace_string_bool_to_bool(dictionary: Dict[str, Any]) -> Dict[str, Any]:
             elif item.lower() == "false":
                 dictionary[key] = False
     return dictionary
+
+
+def hash_array_or_matrix(X: [np.ndarray, pd.DataFrame]) -> str:
+    """
+    Creates a hash for a given array.
+    Used for dataset name in case none is specified
+    Args:
+        X:
+
+    Returns:
+
+    """
+    m = hashlib.md5()
+
+    if hasattr(X, "iloc"):
+        X = X.to_numpy()
+
+    if scipy.sparse.issparse(X):
+        m.update(X.indices)
+        m.update(X.indptr)
+        m.update(X.data)
+        m.update(str(X.shape).encode('utf8'))
+    else:
+        if X.flags['C_CONTIGUOUS']:
+            m.update(X.data)
+            m.update(str(X.shape).encode('utf8'))
+        else:
+            X_tmp = np.ascontiguousarray(X.T)
+            m.update(X_tmp.data)
+            m.update(str(X_tmp.shape).encode('utf8'))
+
+    hash = m.hexdigest()
+    return hash

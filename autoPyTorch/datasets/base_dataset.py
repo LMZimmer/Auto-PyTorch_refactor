@@ -21,8 +21,7 @@ from autoPyTorch.datasets.resampling_strategy import (
     get_holdout_validators,
     is_stratified,
 )
-from autoPyTorch.utils.common import FitRequirement
-from autoPyTorch.utils.hash import hash_array_or_matrix
+from autoPyTorch.utils.common import FitRequirement, hash_array_or_matrix
 
 BASE_DATASET_INPUT = Union[Tuple[np.ndarray, np.ndarray], Dataset]
 

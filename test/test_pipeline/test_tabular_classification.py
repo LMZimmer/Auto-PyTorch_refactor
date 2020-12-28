@@ -243,7 +243,7 @@ class PipelineTest(unittest.TestCase):
         # Make sure that fitting a network adds a "network" to X
         self.assertIn('network', pipeline.named_steps.keys())
         fit_dictionary = {'dataset_properties': dataset_properties, 'X_train': self.X, 'y_train': self.y}
-        X = pipeline.named_steps['network'].fit(
+        X = pipeline.named_steps['network'].search(
             {'dataset_properties': dataset_properties, 'X_train': self.X, 'y_train': self.y},
             None
         ).transform(fit_dictionary)
@@ -252,20 +252,20 @@ class PipelineTest(unittest.TestCase):
         # Then fitting a optimizer should fail if no network:
         self.assertIn('optimizer', pipeline.named_steps.keys())
         with self.assertRaisesRegex(ValueError, r"To fit .+?, expected fit dictionary to have 'network' but got .*"):
-            pipeline.named_steps['optimizer'].fit({'dataset_properties': {}}, None)
+            pipeline.named_steps['optimizer'].search({'dataset_properties': {}}, None)
 
         # No error when network is passed
-        X = pipeline.named_steps['optimizer'].fit(X, None).transform(X)
+        X = pipeline.named_steps['optimizer'].search(X, None).transform(X)
         self.assertIn('optimizer', X)
 
         # Then fitting a optimizer should fail if no network:
         self.assertIn('lr_scheduler', pipeline.named_steps.keys())
         with self.assertRaisesRegex(ValueError,
                                     r"To fit .+?, expected fit dictionary to have 'optimizer' but got .*"):
-            pipeline.named_steps['lr_scheduler'].fit({'dataset_properties': {}}, None)
+            pipeline.named_steps['lr_scheduler'].search({'dataset_properties': {}}, None)
 
         # No error when network is passed
-        X = pipeline.named_steps['lr_scheduler'].fit(X, None).transform(X)
+        X = pipeline.named_steps['lr_scheduler'].search(X, None).transform(X)
         self.assertIn('optimizer', X)
 
     def test_get_fit_requirements(self):

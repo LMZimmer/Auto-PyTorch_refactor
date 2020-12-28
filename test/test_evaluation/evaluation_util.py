@@ -82,7 +82,7 @@ class BaseEvaluatorTest(unittest.TestCase):
         self.output_directories = []
 
     def _fit(self, evaluator):
-        return self.__fit(evaluator.fit)
+        return self.__fit(evaluator.search)
 
     def _partial_fit(self, evaluator, fold):
         partial_fit = functools.partial(evaluator.partial_fit, fold=fold)

@@ -1,7 +1,7 @@
 {
             "device": "cpu",
             "budget_type": "epochs",
-            "epochs": 100,
+            "epochs": 50,
             "runtime": 3600,
             "torch_num_threads": 1,
             "early_stopping": 20,

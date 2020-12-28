@@ -139,9 +139,9 @@ class BaseTask:
         self.ensemble_size = ensemble_size
         self.ensemble_nbest = ensemble_nbest
         self.max_models_on_disc = max_models_on_disc
-        self.logging_config = logging_config
-        self.include_components = include_components
-        self.exclude_components = exclude_components
+        self.logging_config: Optional[Dict] = logging_config
+        self.include_components: Optional[Dict] = include_components
+        self.exclude_components: Optional[Dict] = exclude_components
         self._temporary_directory = temporary_directory
         self._output_directory = output_directory
         if backend is not None:
@@ -155,8 +155,8 @@ class BaseTask:
             )
         self._stopwatch = StopWatch()
 
-        self.default_pipeline_options = replace_string_bool_to_bool(json.load(open(
-            os.path.join(os.path.dirname(__file__), 'default_pipeline_options.json'))))
+        self.pipeline_options = replace_string_bool_to_bool(json.load(open(
+            os.path.join(os.path.dirname(__file__), '../configs/default_pipeline_options.json'))))
 
         self.search_space: Optional[ConfigurationSpace] = None
         self._dataset_requirements: Optional[List[FitRequirement]] = None
@@ -177,8 +177,8 @@ class BaseTask:
     @abstractmethod
     def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
         """
-        using the dataset entered, this function will
-        return the required dataset properties given the task
+        given a pipeline type, this function returns the
+        dataset properties required by the dataset object
         """
         raise NotImplementedError
 
@@ -200,7 +200,7 @@ class BaseTask:
         """
         unknown_keys = []
         for option, value in pipeline_config_kwargs.items():
-            if option in self.default_pipeline_options.keys():
+            if option in self.pipeline_options.keys():
                 pass
             else:
                 unknown_keys.append(option)
@@ -208,15 +208,15 @@ class BaseTask:
         if len(unknown_keys) > 0:
             raise ValueError("Invalid configuration arguments given {},"
                              " expected arguments to be in {}".
-                             format(unknown_keys, self.default_pipeline_options.keys()))
+                             format(unknown_keys, self.pipeline_options.keys()))
 
-        self.default_pipeline_options.update(pipeline_config_kwargs)
+        self.pipeline_options.update(pipeline_config_kwargs)
 
     def get_pipeline_options(self) -> dict:
         """
         Returns the current pipeline configuration.
         """
-        return self.default_pipeline_options
+        return self.pipeline_options
 
     # def set_search_space(self, search_space: ConfigurationSpace) -> None:
     #     """
@@ -224,11 +224,18 @@ class BaseTask:
     #     """
     #     raise NotImplementedError
     #
-    def get_search_space(self) -> ConfigurationSpace:
+    def get_search_space(self, dataset=None) -> ConfigurationSpace:
         """
         Returns the current search space as ConfigurationSpace object.
         """
-        return self.search_space
+        if self.search_space is not None:
+            return self.search_space
+        elif dataset is not None:
+            return get_configuration_space(info=dataset.get_dataset_properties(self._dataset_requirements),
+                                           include=self.include_components,
+                                           exclude=self.exclude_components)
+        raise Exception("No search space initialised and no dataset passed. "
+                        "Can't create default search space without the dataset")
 
     def _get_logger(self, name: str) -> PicklableClientLogger:
         """
@@ -240,7 +247,7 @@ class BaseTask:
         Returns:
             PicklableClientLogger
         """
-        logger_name = 'AutoML:%s' % name
+        logger_name = 'AutoPyTorch:%s:%d' % (name, self.seed)
 
         # Setup the configuration for the logger
         # This is gonna be honored by the server
@@ -364,7 +371,7 @@ class BaseTask:
 
     def _load_models(self, resampling_strategy: Optional[Union[CrossValTypes, HoldoutValTypes]]
                      ) -> bool:
-        
+
         """
         Loads the models saved in the temporary directory
         during the smac run and the final ensemble created
@@ -445,7 +452,7 @@ class BaseTask:
 
         return ensemble
 
-    def fit(
+    def search(
             self,
             dataset: BaseDataset,
             optimize_metric: str,
@@ -546,16 +553,15 @@ class BaseTask:
         self._metric = get_metrics(
             names=[optimize_metric], dataset_properties=dataset_properties)[0]
 
-        self.search_space = get_configuration_space(info=dataset_properties,
-                                                    include=self.include_components,
-                                                    exclude=self.exclude_components)
+        self.search_space = self.get_search_space(dataset)
+
         budget_config: Dict[str, Union[float, str]] = {}
         if budget_type is not None and budget is not None:
             budget_config['budget_type'] = budget_type
             budget_config[budget_type] = budget
         elif budget_type is not None or budget is not None:
             raise ValueError(
-                "budget was mentioned but not the budget_type to be used with it"
+                "budget type was not specified in budget_config"
             )
 
         if self.task_type is None:
@@ -620,7 +626,7 @@ class BaseTask:
                 all_supported_metrics=all_supported_metrics,
                 smac_scenario_args=smac_scenario_args,
                 get_smac_object_callback=get_smac_object_callback,
-                pipeline_config={**self.default_pipeline_options, **budget_config},
+                pipeline_config={**self.pipeline_options, **budget_config},
                 ensemble_callback=proc_ensemble,
                 logger_port=self._logger_port
             )
@@ -708,7 +714,7 @@ class BaseTask:
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
                                   'backend': self._backend,
                                   })
-        X.update({**self.default_pipeline_options, **budget_config})
+        X.update({**self.pipeline_options, **budget_config})
         if self.models_ is None or len(self.models_) == 0 or self.ensemble_ is None:
             self._load_models(dataset.resampling_strategy)
 
@@ -751,7 +757,8 @@ class BaseTask:
             self._logger = self._get_logger("Predict-Logger")
 
         if self.ensemble_ is None and not self._load_models(self.resampling_strategy):
-            raise ValueError("Failed to fit an ensemble. Cannot predict")
+            raise ValueError("No ensemble found. Either fit has not yet "
+                             "been called or no ensemble was fitted")
 
         # Mypy assert
         assert self.ensemble_ is not None, "Load models should error out if no ensemble"
@@ -792,11 +799,16 @@ class BaseTask:
 
         predictions = self.ensemble_.predict(all_predictions)
 
-        if self.task_type not in REGRESSION_TASKS:
-            # Make sure average prediction probabilities
+        if self.task_type in REGRESSION_TASKS:
+            # Make sure prediction probabilities
             # are within a valid range
-            # Individual models are checked in _model_predict
-            predictions = np.clip(predictions, 0.0, 1.0)
+            # Individual models are checked in _pipeline_predict
+            if (
+                    (predictions >= 0).all() and (predictions <= 1).all()
+            ):
+                raise ValueError("For ensemble {}, prediction probability not within [0, 1]!".format(
+                    self.ensemble_)
+                )
 
         self._clean_logger()
 
@@ -821,8 +833,8 @@ class BaseTask:
             y_test = y_test.to_numpy(dtype=np.float)
 
         if self._metric is None:
-            raise ValueError("AutoPytorch failed to infer a metric from the dataset "
-                             "Please check the log file for related errors. ")
+            raise ValueError("No metric found. Either fit/search has not been called yet "
+                             "or AutoPyTorch failed to infer a metric from the dataset ")
         if self.task_type is None:
             raise ValueError("AutoPytorch failed to infer a task type from the dataset "
                              "Please check the log file for related errors. ")
