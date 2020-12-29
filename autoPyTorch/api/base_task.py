@@ -732,6 +732,10 @@ class BaseTask:
 
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
                                   'backend': self._backend,
+                                  'X_train': dataset.train_tensors[0],
+                                  'y_train': dataset.train_tensors[1],
+                                  'X_test': dataset.test_tensors[0],
+                                  'y_test': dataset.test_tensors[1],
                                   'train_indices': dataset.splits[split_id][0],
                                   'val_indices': dataset.splits[split_id][1],
                                   'split_id': split_id,
@@ -801,6 +805,10 @@ class BaseTask:
         # initialise fit dictionary
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
                                   'backend': self._backend,
+                                  'X_train': dataset.train_tensors[0],
+                                  'y_train': dataset.train_tensors[1],
+                                  'X_test': dataset.test_tensors[0],
+                                  'y_test': dataset.test_tensors[1],
                                   'train_indices': dataset.splits[split_id][0],
                                   'val_indices': dataset.splits[split_id][1],
                                   'split_id': split_id,

@@ -1,103 +1,12 @@
-import os
-import shutil
-import unittest
-import unittest.mock
-
 import numpy as np
 
 import pandas as pd
 
 import pytest
 
-from sklearn.datasets import make_classification
-
-from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import get_preprocess_transforms
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
-from autoPyTorch.utils.backend import create
 from autoPyTorch.utils.common import FitRequirement
-
-
-class PipelineTest(unittest.TestCase):
-
-    def setUp(self):
-        self.num_features = 4
-        self.num_classes = 2
-        self.X, self.y = make_classification(
-            n_samples=200,
-            n_features=self.num_features,
-            n_informative=3,
-            n_redundant=1,
-            n_repeated=0,
-            n_classes=self.num_classes,
-            n_clusters_per_class=2,
-            shuffle=True,
-            random_state=0
-        )
-        self.dataset_properties = {
-            'task_type': 'tabular_classification',
-            'output_type': 'binary',
-            'numerical_columns': list(range(4)),
-            'categorical_columns': [],
-            'categories': [],
-            'is_small_preprocess': False,
-            'issparse': False,
-            'input_shape': (self.num_features,),
-            'num_classes': self.num_classes,
-        }
-
-        # Create run dir
-        tmp_dir = '/tmp/autoPyTorch_ensemble_test_tmp'
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
-        output_dir = '/tmp/autoPyTorch_ensemble_test_out'
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-        self.backend = create(
-            temporary_directory=tmp_dir,
-            output_directory=output_dir,
-            delete_tmp_folder_after_terminate=False
-        )
-
-        # Create the directory structure
-        self.backend._make_internals_directory()
-
-        # Create a datamanager for this toy problem
-        datamanager = TabularDataset(
-            X=self.X, Y=self.y,
-            X_test=self.X, Y_test=self.y,
-        )
-        self.backend.save_datamanager(datamanager)
-
-        self.fit_dictionary = {
-            'num_features': self.num_features,
-            'num_classes': self.num_classes,
-            'numerical_columns': list(range(self.num_features)),
-            'categorical_columns': [],
-            'categories': [],
-            'X_train': self.X,
-            'y_train': self.y,
-            'train_indices': list(range(self.X.shape[0] // 2)),
-            'val_indices': list(range(self.X.shape[0] // 2, self.X.shape[0])),
-            'is_small_preprocess': False,
-            # Training configuration
-            'dataset_properties': self.dataset_properties,
-            'job_id': 'example_tabular_classification_1',
-            'device': 'cpu',
-            'budget_type': 'epochs',
-            'epochs': 5,
-            'torch_num_threads': 1,
-            'early_stopping': 20,
-            'working_dir': '/tmp',
-            'use_tensorboard_logger': True,
-            'use_pynisher': False,
-            'metrics_during_training': True,
-            'split_id': 0,
-            'backend': self.backend,
-        }
-
-    def tearDown(self):
-        self.backend.context.delete_directories()
 
 
 @pytest.mark.parametrize("fit_dictionary", ['fit_dictionary_numerical_only',
@@ -228,13 +137,6 @@ class TestTabularClassification:
     def test_network_optimizer_lr_handshake(self, fit_dictionary):
         """Fitting a network should put the network in the X"""
         # Create the pipeline to check. A random config should be sufficient
-        dataset_properties = {
-            'numerical_columns': [],
-            'categorical_columns': [],
-            'task_type': 'tabular_classification',
-            'input_shape': (10,),
-            'num_classes': 2,
-        }
         pipeline = TabularClassificationPipeline(
             dataset_properties=fit_dictionary['dataset_properties'])
         cs = pipeline.get_hyperparameter_search_space()
@@ -242,32 +144,36 @@ class TestTabularClassification:
         pipeline.set_hyperparameters(config)
 
         # Make sure that fitting a network adds a "network" to X
-        self.assertIn('network', pipeline.named_steps.keys())
-        fit_dictionary = {'dataset_properties': dataset_properties, 'X_train': self.X, 'y_train': self.y}
-        X = pipeline.named_steps['network'].search(
-            {'dataset_properties': dataset_properties, 'X_train': self.X, 'y_train': self.y},
+        assert 'network' in pipeline.named_steps.keys()
+        X = pipeline.named_steps['network'].fit(
+            fit_dictionary,
             None
         ).transform(fit_dictionary)
         assert 'network' in X
 
         # Then fitting a optimizer should fail if no network:
-        self.assertIn('optimizer', pipeline.named_steps.keys())
-        with self.assertRaisesRegex(ValueError, r"To fit .+?, expected fit dictionary to have 'network' but got .*"):
-            pipeline.named_steps['optimizer'].search({'dataset_properties': {}}, None)
+        assert 'optimizer' in pipeline.named_steps.keys()
+        with pytest.raises(
+            ValueError,
+            match=r"To fit .+?, expected fit dictionary to have 'network' but got .*"
+        ):
+            pipeline.named_steps['optimizer'].fit({'dataset_properties': {}}, None)
 
         # No error when network is passed
-        X = pipeline.named_steps['optimizer'].search(X, None).transform(X)
-        self.assertIn('optimizer', X)
+        X = pipeline.named_steps['optimizer'].fit(X, None).transform(X)
+        assert 'optimizer' in X
 
         # Then fitting a optimizer should fail if no network:
-        self.assertIn('lr_scheduler', pipeline.named_steps.keys())
-        with self.assertRaisesRegex(ValueError,
-                                    r"To fit .+?, expected fit dictionary to have 'optimizer' but got .*"):
-            pipeline.named_steps['lr_scheduler'].search({'dataset_properties': {}}, None)
+        assert 'lr_scheduler' in pipeline.named_steps.keys()
+        with pytest.raises(
+            ValueError,
+            match=r"To fit .+?, expected fit dictionary to have 'optimizer' but got .*"
+        ):
+            pipeline.named_steps['lr_scheduler'].fit({'dataset_properties': {}}, None)
 
         # No error when network is passed
-        X = pipeline.named_steps['lr_scheduler'].search(X, None).transform(X)
-        self.assertIn('optimizer', X)
+        X = pipeline.named_steps['lr_scheduler'].fit(X, None).transform(X)
+        assert 'optimizer' in X
 
     def test_get_fit_requirements(self, fit_dictionary):
         dataset_properties = {'numerical_columns': [], 'categorical_columns': []}
