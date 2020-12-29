@@ -5,8 +5,8 @@ from autoPyTorch.constants import (
     TABULAR_CLASSIFICATION,
     TASK_TYPES_TO_STRING,
 )
-from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.datasets.base_dataset import BaseDataset
+from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
 
 

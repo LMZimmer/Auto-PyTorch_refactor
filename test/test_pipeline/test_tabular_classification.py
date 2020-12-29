@@ -269,7 +269,6 @@ class TestTabularClassification:
         X = pipeline.named_steps['lr_scheduler'].search(X, None).transform(X)
         self.assertIn('optimizer', X)
 
-
     def test_get_fit_requirements(self, fit_dictionary):
         dataset_properties = {'numerical_columns': [], 'categorical_columns': []}
         pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
