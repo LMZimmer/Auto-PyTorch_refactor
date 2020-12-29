@@ -6,6 +6,7 @@ from autoPyTorch.constants import (
     TASK_TYPES_TO_STRING,
 )
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
+from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
 
 
@@ -66,7 +67,7 @@ class TabularClassificationTask(BaseTask):
         )
         self.task_type = TASK_TYPES_TO_STRING[TABULAR_CLASSIFICATION]
 
-    def _get_required_dataset_properties(self, dataset: TabularDataset) -> Dict[str, Any]:
+    def _get_required_dataset_properties(self, dataset: BaseDataset) -> Dict[str, Any]:
         if not isinstance(dataset, TabularDataset):
             raise ValueError("Dataset is incompatible for the given task,: {}".format(
                 type(dataset)

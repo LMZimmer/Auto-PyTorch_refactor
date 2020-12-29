@@ -1,11 +1,20 @@
+import os
+import shutil
+import unittest
+import unittest.mock
+
 import numpy as np
 
 import pandas as pd
 
 import pytest
 
+from sklearn.datasets import make_classification
+
+from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import get_preprocess_transforms
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
+from autoPyTorch.utils.backend import create
 from autoPyTorch.utils.common import FitRequirement
 
 
@@ -90,6 +99,7 @@ class PipelineTest(unittest.TestCase):
     def tearDown(self):
         self.backend.context.delete_directories()
 
+
 @pytest.mark.parametrize("fit_dictionary", ['fit_dictionary_numerical_only',
                                             'fit_dictionary_categorical_only',
                                             'fit_dictionary_num_and_categorical'], indirect=True)
@@ -131,7 +141,7 @@ class TestTabularClassification:
         prediction = pipeline.predict(
             pd.DataFrame(X_train).infer_objects().convert_dtypes())
         assert isinstance(prediction, np.ndarray)
-        assert prediction.shape == (200, 200)
+        assert prediction.shape == (200, 2)
 
     def test_pipeline_predict_proba(self, fit_dictionary):
         """This test makes sure that the pipeline is able to fit
@@ -218,7 +228,13 @@ class TestTabularClassification:
     def test_network_optimizer_lr_handshake(self, fit_dictionary):
         """Fitting a network should put the network in the X"""
         # Create the pipeline to check. A random config should be sufficient
-
+        dataset_properties = {
+            'numerical_columns': [],
+            'categorical_columns': [],
+            'task_type': 'tabular_classification',
+            'input_shape': (10,),
+            'num_classes': 2,
+        }
         pipeline = TabularClassificationPipeline(
             dataset_properties=fit_dictionary['dataset_properties'])
         cs = pipeline.get_hyperparameter_search_space()
