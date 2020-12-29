@@ -133,8 +133,8 @@ class TabularDataset(BaseDataset):
     def interpret_columns(self,
                           data: Union[np.ndarray, pd.DataFrame, pd.Series],
                           assert_single_column: bool = False
-                          ) -> Tuple[pd.DataFrame, List[DataTypes],
-                                     Union[np.ndarray, np.ndarray],
+                          ) -> Tuple[Union[pd.DataFrame, Any], List[DataTypes],
+                                     Union[np.ndarray],
                                      List[Optional[list]],
                                      List[Optional[Value2Index]]]:
         """
@@ -149,7 +149,7 @@ class TabularDataset(BaseDataset):
 
         Returns:
             Tuple[pd.DataFrame, List[DataTypes],
-                 Union[np.ndarray, np.ndarray],
+                 Union[np.ndarray],
                  List[Optional[list]],
                  List[Optional[Value2Index]]]: Tuple of information
         """
@@ -199,7 +199,7 @@ class TabularDataset(BaseDataset):
                 vtois.append(None)
 
         if single_column:
-            return data.iloc[:, 0], data_types[0], nan_mask[0], itovs[0], vtois[0]
+            return data.iloc[:, 0], data_types, nan_mask, itovs, vtois
 
         return data, data_types, nan_mask, itovs, vtois
 

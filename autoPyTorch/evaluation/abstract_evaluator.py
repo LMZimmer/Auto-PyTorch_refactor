@@ -524,7 +524,7 @@ class AbstractEvaluator(object):
 
     def _ensure_prediction_array_sizes(self, prediction: np.ndarray,
                                        Y_train: np.ndarray) -> np.ndarray:
-        assert hasattr(self.datamanager, 'num_classes'), "Called function on wrong task"
+        assert self.datamanager.num_classes is not None, "Called function on wrong task"
         num_classes: int = self.datamanager.num_classes
 
         if self.output_type == MULTICLASS and \

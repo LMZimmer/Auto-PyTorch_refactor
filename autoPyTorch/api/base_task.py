@@ -111,9 +111,9 @@ class BaseTask:
         output_directory (str): folder to store predictions for optional test set
         delete_tmp_folder_after_terminate (bool): determines whether to delete the temporary directory,
             when finished
-        include_components (Optional[List[str]]): If None, all possible components are used.
+        include_components (Optional[Dict]): If None, all possible components are used.
             Otherwise specifies set of components to use.
-        exclude_components (Optional[List[str]]): If None, all possible components are used.
+        exclude_components (Optional[Dict]): If None, all possible components are used.
             Otherwise specifies set of components not to use. Incompatible with include
             components
     """
@@ -130,8 +130,8 @@ class BaseTask:
             output_directory: Optional[str] = None,
             delete_tmp_folder_after_terminate: bool = True,
             delete_output_folder_after_terminate: bool = True,
-            include_components: Optional[List[str]] = None,
-            exclude_components: Optional[List[str]] = None,
+            include_components: Optional[Dict] = None,
+            exclude_components: Optional[Dict] = None,
             backend: Optional[Backend] = None,
     ) -> None:
         self.seed = seed
@@ -734,8 +734,8 @@ class BaseTask:
                                   'backend': self._backend,
                                   'X_train': dataset.train_tensors[0],
                                   'y_train': dataset.train_tensors[1],
-                                  'X_test': dataset.test_tensors[0],
-                                  'y_test': dataset.test_tensors[1],
+                                  'X_test': dataset.test_tensors[0] if dataset.test_tensors is not None else None,
+                                  'y_test': dataset.test_tensors[1] if dataset.test_tensors is not None else None,
                                   'train_indices': dataset.splits[split_id][0],
                                   'val_indices': dataset.splits[split_id][1],
                                   'split_id': split_id,
@@ -807,8 +807,8 @@ class BaseTask:
                                   'backend': self._backend,
                                   'X_train': dataset.train_tensors[0],
                                   'y_train': dataset.train_tensors[1],
-                                  'X_test': dataset.test_tensors[0],
-                                  'y_test': dataset.test_tensors[1],
+                                  'X_test': dataset.test_tensors[0] if dataset.test_tensors is not None else None,
+                                  'y_test': dataset.test_tensors[1] if dataset.test_tensors is not None else None,
                                   'train_indices': dataset.splits[split_id][0],
                                   'val_indices': dataset.splits[split_id][1],
                                   'split_id': split_id,

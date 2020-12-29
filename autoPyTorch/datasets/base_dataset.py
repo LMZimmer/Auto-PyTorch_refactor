@@ -110,6 +110,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.task_type: Optional[str] = None
         self.issparse: bool = issparse(self.train_tensors[0])
         self.input_shape: Tuple[int] = train_tensors[0].shape[1:]
+        self.num_classes: Optional[int] = None
         if len(train_tensors) == 2 and train_tensors[1] is not None:
             self.output_type: str = type_of_target(self.train_tensors[1])
             self.output_shape: int = train_tensors[1].shape[1] if train_tensors[1].shape == 2 else 1
@@ -364,6 +365,6 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                                    'issparse': self.issparse,
                                    'input_shape': self.input_shape,
                                    'output_shape': self.output_shape,
-                                   'num_classes': self.num_classes if hasattr(self, 'num_classes') else None,
+                                   'num_classes': self.num_classes,
                                    })
         return dataset_properties

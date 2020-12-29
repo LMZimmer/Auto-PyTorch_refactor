@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from autoPyTorch.api.base_task import BaseTask
 from autoPyTorch.constants import (
@@ -30,9 +30,9 @@ class TabularClassificationTask(BaseTask):
         output_directory (str): folder to store predictions for optional test set
         delete_tmp_folder_after_terminate (bool): determines whether to delete the temporary directory,
             when finished
-        include_components (Optional[List[str]]): If None, all possible components are used.
+        include_components (Optional[Dict]): If None, all possible components are used.
             Otherwise specifies set of components to use.
-        exclude_components (Optional[List[str]]): If None, all possible components are used.
+        exclude_components (Optional[Dict]): If None, all possible components are used.
             Otherwise specifies set of components not to use. Incompatible with include
             components
     """
@@ -48,8 +48,8 @@ class TabularClassificationTask(BaseTask):
         output_directory: Optional[str] = None,
         delete_tmp_folder_after_terminate: bool = True,
         delete_output_folder_after_terminate: bool = True,
-        include_components: Optional[List[str]] = None,
-        exclude_components: Optional[List[str]] = None,
+        include_components: Optional[Dict] = None,
+        exclude_components: Optional[Dict] = None,
     ):
         super().__init__(
             seed=seed,

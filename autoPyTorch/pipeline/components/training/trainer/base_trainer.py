@@ -164,6 +164,7 @@ class BaseTrainerComponent(autoPyTorchTrainingComponent):
 
     def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None) -> None:
         super().__init__()
+        self.random_state = random_state
 
     def prepare(
         self,

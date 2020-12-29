@@ -38,6 +38,7 @@ class TabularPreprocessingTest(unittest.TestCase):
             'input_shape': (15,),
             'num_classes': 2,
             'categories': [],
+            'issparse': False
         }
         X = dict(X_train=np.random.random((10, 15)),
                  y_train=np.random.random(10),
@@ -73,6 +74,7 @@ class TabularPreprocessingTest(unittest.TestCase):
             'input_shape': (15,),
             'num_classes': 2,
             'categories': [],
+            'issparse': False
         }
         X = dict(X_train=np.random.random((10, 15)),
                  y_train=np.random.random(10),
