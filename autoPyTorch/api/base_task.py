@@ -130,8 +130,8 @@ class BaseTask:
             output_directory: Optional[str] = None,
             delete_tmp_folder_after_terminate: bool = True,
             delete_output_folder_after_terminate: bool = True,
-            include_components: Optional[Dict] = None,
-            exclude_components: Optional[Dict] = None,
+            include_components: Optional[List[str]] = None,
+            exclude_components: Optional[List[str]] = None,
             backend: Optional[Backend] = None,
     ) -> None:
         self.seed = seed
@@ -237,14 +237,16 @@ class BaseTask:
     #     """
     #     raise NotImplementedError
     #
-    def get_search_space(self, dataset=None) -> ConfigurationSpace:
+    def get_search_space(self, dataset: BaseDataset = None) -> ConfigurationSpace:
         """
         Returns the current search space as ConfigurationSpace object.
         """
         if self.search_space is not None:
             return self.search_space
         elif dataset is not None:
-            return get_configuration_space(info=dataset.get_dataset_properties(self._dataset_requirements),
+            dataset_requirements = get_dataset_requirements(
+                info=self._get_required_dataset_properties(dataset))
+            return get_configuration_space(info=dataset.get_dataset_properties(dataset_requirements),
                                            include=self.include_components,
                                            exclude=self.exclude_components)
         raise Exception("No search space initialised and no dataset passed. "
@@ -697,7 +699,7 @@ class BaseTask:
             dataset: BaseDataset,
             budget_config: Dict[str, Union[int, str]] = {},
             split_id: int = 0
-    ):
+    ) -> "BaseTask":
         """
         Refit all models found with fit to new data.
 

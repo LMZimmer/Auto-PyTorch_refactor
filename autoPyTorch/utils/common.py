@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type, Union
 
 import numpy as np
 
@@ -101,15 +101,16 @@ def replace_string_bool_to_bool(dictionary: Dict[str, Any]) -> Dict[str, Any]:
     return dictionary
 
 
-def hash_array_or_matrix(X: [np.ndarray, pd.DataFrame]) -> str:
+def hash_array_or_matrix(X: Union[np.ndarray, pd.DataFrame]) -> str:
     """
     Creates a hash for a given array.
     Used for dataset name in case none is specified
     Args:
-        X:
+        X: (Union[np.ndarray, pd.DataFrame])
+            data
 
     Returns:
-
+        (str): hash of the data as string
     """
     m = hashlib.md5()
 
