@@ -83,14 +83,6 @@ class TabularDataset(BaseDataset):
                  val_transforms: Optional[torchvision.transforms.Compose] = None,
                  ):
 
-        # TODO: Remove. Here for debug. If still here, it means
-        # that I forgot to clean this, but we need to discuss about
-        # standard scaling due to exploding gradient
-        from sklearn.preprocessing import StandardScaler
-        scaler = StandardScaler()
-        X = scaler.fit_transform(X)
-        X_test = scaler.fit_transform(X_test)
-
         X, self.data_types, self.nan_mask, self.itovs, self.vtois = self.interpret_columns(X)
 
         if Y is not None:

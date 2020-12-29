@@ -6,6 +6,7 @@ from autoPyTorch.constants import (
     TASK_TYPES_TO_STRING,
 )
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
+from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
 
 
 class TabularClassificationTask(BaseTask):
@@ -75,3 +76,6 @@ class TabularClassificationTask(BaseTask):
                 'issparse': dataset.issparse,
                 'numerical_columns': dataset.numerical_columns,
                 'categorical_columns': dataset.categorical_columns}
+
+    def build_pipeline(self, dataset_properties: Dict[str, Any]) -> TabularClassificationPipeline:
+        return TabularClassificationPipeline(dataset_properties=dataset_properties)

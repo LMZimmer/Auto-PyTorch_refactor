@@ -10,7 +10,7 @@ import warnings
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union, cast
 
-from ConfigSpace.configuration_space import ConfigurationSpace
+from ConfigSpace.configuration_space import Configuration, ConfigurationSpace
 
 import dask
 
@@ -179,6 +179,19 @@ class BaseTask:
         """
         given a pipeline type, this function returns the
         dataset properties required by the dataset object
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def build_pipeline(self, dataset_properties: Dict[str, Any]) -> BasePipeline:
+        """
+        Build pipeline according to current task
+        and for the passed dataset properties
+        Args:
+            dataset_properties (Dict[str,Any]):
+
+        Returns:
+
         """
         raise NotImplementedError
 
@@ -682,7 +695,8 @@ class BaseTask:
     def refit(
             self,
             dataset: BaseDataset,
-            budget_config: Optional[Dict[str, Union[int, str]]] = None
+            budget_config: Dict[str, Union[int, str]] = {},
+            split_id: int = 0
     ):
         """
         Refit all models found with fit to new data.
@@ -701,6 +715,8 @@ class BaseTask:
             budget_config: (Optional[Dict[str, Union[int, str]]])
                 can contain keys from 'budget_type' and the budget
                 specified using 'epochs' or 'runtime'.
+            split_id: (int)
+                split id to fit on.
         Returns:
             self
         """
@@ -710,9 +726,14 @@ class BaseTask:
         dataset_requirements = get_dataset_requirements(
             info=self._get_required_dataset_properties(dataset))
         dataset_properties = dataset.get_dataset_properties(dataset_requirements)
+        self._backend.save_datamanager(dataset)
 
         X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
                                   'backend': self._backend,
+                                  'train_indices': dataset.splits[split_id][0],
+                                  'val_indices': dataset.splits[split_id][1],
+                                  'split_id': split_id,
+                                  'job_id': 0
                                   })
         X.update({**self.pipeline_options, **budget_config})
         if self.models_ is None or len(self.models_) == 0 or self.ensemble_ is None:
@@ -735,6 +756,60 @@ class BaseTask:
         self._clean_logger()
 
         return self
+
+    def fit(self,
+            dataset: BaseDataset,
+            budget_config: Dict[str, Union[int, str]] = {},
+            pipeline_config: Optional[Configuration] = None,
+            split_id: int = 0) -> BasePipeline:
+        """
+        Fit a pipeline on the given task for the budget.
+        A pipeline configuration can be specified if None,
+        uses default
+        Args:
+            dataset: (Dataset)
+                The argument that will provide the dataset splits. It can either
+                be a dictionary with the splits, or the dataset object which can
+                generate the splits based on different restrictions.
+            budget_config: (Optional[Dict[str, Union[int, str]]])
+                can contain keys from 'budget_type' and the budget
+                specified using 'epochs' or 'runtime'.
+            split_id: (int) (default=0)
+                split id to fit on.
+            pipeline_config: (Optional[Configuration])
+                configuration to fit the pipeline with. If None,
+                uses default
+
+        Returns:
+            (BasePipeline): fitted pipeline
+        """
+        self._logger = self._get_logger(dataset.dataset_name)
+
+        # get dataset properties
+        dataset_requirements = get_dataset_requirements(
+            info=self._get_required_dataset_properties(dataset))
+        dataset_properties = dataset.get_dataset_properties(dataset_requirements)
+        self._backend.save_datamanager(dataset)
+
+        # build pipeline
+        pipeline = self.build_pipeline(dataset_properties)
+        if pipeline_config is not None:
+            pipeline.set_hyperparameters(pipeline_config)
+
+        # initialise fit dictionary
+        X: Dict[str, Any] = dict({'dataset_properties': dataset_properties,
+                                  'backend': self._backend,
+                                  'train_indices': dataset.splits[split_id][0],
+                                  'val_indices': dataset.splits[split_id][1],
+                                  'split_id': split_id,
+                                  'job_id': 0
+                                  })
+        X.update({**self.pipeline_options, **budget_config})
+
+        fit_and_suppress_warnings(self._logger, pipeline, X, y=None)
+
+        self._clean_logger()
+        return pipeline
 
     def predict(
             self,
