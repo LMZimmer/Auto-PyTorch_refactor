@@ -70,7 +70,7 @@ def get_metrics(dataset_properties: Dict[str, Any],
     if STRING_TO_TASK_TYPES[dataset_properties['task_type']] not in TASK_TYPES:
         raise NotImplementedError(dataset_properties['task_type'])
 
-    default_metrics = dict(classification=dict({'multi-class': 'accuracy',
+    default_metrics = dict(classification=dict({'multiclass': 'accuracy',
                                                 'binary': 'accuracy',
                                                 'multiclass-multioutput': 'f1'}),
                            regression=dict({'continuous': 'r2',

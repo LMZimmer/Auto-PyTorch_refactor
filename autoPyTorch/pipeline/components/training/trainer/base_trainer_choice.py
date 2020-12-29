@@ -66,6 +66,7 @@ class TrainerChoice(autoPyTorchChoice):
         self.writer = None  # type: Optional[SummaryWriter]
         self._fit_requirements: Optional[List[FitRequirement]] = [
             FitRequirement("lr_scheduler", (_LRScheduler,), user_defined=False, dataset_property=False),
+            FitRequirement("job_id", (str,), user_defined=False, dataset_property=False),
             FitRequirement("network", (torch.nn.Sequential,), user_defined=False, dataset_property=False),
             FitRequirement(
                 "optimizer", (Optimizer,), user_defined=False, dataset_property=False),
@@ -419,7 +420,7 @@ class TrainerChoice(autoPyTorchChoice):
 
         # For resource allocation, we need to know if pynisher is enabled
         if 'use_pynisher' not in X:
-            raise ValueError('Missing use_pynisher in the fit dictionary')
+            raise ValueError('To fit a Trainer, expected fit dictionary to have use_pynisher')
 
         # Whether we should evaluate metrics during training or no
         if 'metrics_during_training' not in X:
@@ -458,11 +459,11 @@ class TrainerChoice(autoPyTorchChoice):
                 ))
 
         if 'job_id' not in X:
-            raise ValueError('Need a job identifier to be able to isolate jobs')
+            raise ValueError('To fit a trainer, expected fit dictionary to have a job_id')
 
         for config_option in ["torch_num_threads", 'device']:
             if config_option not in X:
-                raise ValueError("Missing config option {} in config".format(
+                raise ValueError("To fit a trainer, expected fit dictionary to have a {}".format(
                     config_option
                 ))
 

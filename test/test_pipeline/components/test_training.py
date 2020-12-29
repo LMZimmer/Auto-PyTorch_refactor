@@ -63,8 +63,10 @@ class BaseDataLoaderTest(unittest.TestCase):
         # Make sure we catch all possible errors in check requirements
 
         # No input in fit dictionary
-        with self.assertRaisesRegex(ValueError,
-                                    'split_id is needed to select the respampled dataset. Curren'):
+        with self.assertRaisesRegex(
+            ValueError,
+            'To fit a data loader, expected fit dictionary to have split_id.'
+        ):
             loader.fit(fit_dictionary)
 
         # Backend Missing

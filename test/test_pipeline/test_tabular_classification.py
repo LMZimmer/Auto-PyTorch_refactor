@@ -1,18 +1,11 @@
-import os
-import shutil
-import unittest
-import unittest.mock
-
 import numpy as np
 
 import pandas as pd
 
-from sklearn.datasets import make_classification
+import pytest
 
-from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import get_preprocess_transforms
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
-from autoPyTorch.utils.backend import create
 from autoPyTorch.utils.common import FitRequirement
 
 
@@ -97,40 +90,72 @@ class PipelineTest(unittest.TestCase):
     def tearDown(self):
         self.backend.context.delete_directories()
 
-    def test_pipeline_fit(self):
+@pytest.mark.parametrize("fit_dictionary", ['fit_dictionary_numerical_only',
+                                            'fit_dictionary_categorical_only',
+                                            'fit_dictionary_num_and_categorical'], indirect=True)
+class TestTabularClassification:
+    def test_pipeline_fit(self, fit_dictionary):
         """This test makes sure that the pipeline is able to fit
         given random combinations of hyperparameters across the pipeline"""
 
-        pipeline = TabularClassificationPipeline(dataset_properties=self.dataset_properties)
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
         cs = pipeline.get_hyperparameter_search_space()
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
-        pipeline.fit(
-            self.fit_dictionary
-        )
+        pipeline.fit(fit_dictionary)
 
         # To make sure we fitted the model, there should be a
         # run summary object with accuracy
-        self.assertIsNotNone(pipeline.named_steps['trainer'].run_summary)
+        run_summary = pipeline.named_steps['trainer'].run_summary
+        assert run_summary is not None
 
-    def test_pipeline_predict(self):
+        # Make sure that performance was properly captured
+        assert run_summary.performance_tracker['train_loss'][1] > 0
+        assert run_summary.total_parameter_count > 0
+        assert 'accuracy' in run_summary.performance_tracker['train_metrics'][1]
+
+    def test_pipeline_predict(self, fit_dictionary):
         """This test makes sure that the pipeline is able to fit
         given random combinations of hyperparameters across the pipeline"""
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
 
-        pipeline = TabularClassificationPipeline(dataset_properties=self.dataset_properties)
         cs = pipeline.get_hyperparameter_search_space()
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
 
-        pipeline.fit(
-            self.fit_dictionary
-        )
+        X_train = np.copy(fit_dictionary['X_train'])
+        pipeline.fit(fit_dictionary)
 
-        prediction = pipeline.predict(pd.DataFrame(self.X).infer_objects().convert_dtypes())
-        self.assertIsInstance(prediction, np.ndarray)
-        self.assertEqual(prediction.shape, (200, 2))
+        prediction = pipeline.predict(
+            pd.DataFrame(X_train).infer_objects().convert_dtypes())
+        assert isinstance(prediction, np.ndarray)
+        assert prediction.shape == (200, 200)
 
-    def test_pipeline_transform(self):
+    def test_pipeline_predict_proba(self, fit_dictionary):
+        """This test makes sure that the pipeline is able to fit
+        given random combinations of hyperparameters across the pipeline
+        And then predict using predict probability
+        """
+        if len(fit_dictionary['dataset_properties']['categorical_columns']) <= 0:
+            pytest.skip("Numerical only predict probabilities is not yet supported")
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
+
+        cs = pipeline.get_hyperparameter_search_space()
+        config = cs.sample_configuration()
+        pipeline.set_hyperparameters(config)
+
+        X_train = np.copy(fit_dictionary['X_train'])
+        pipeline.fit(fit_dictionary)
+
+        prediction = pipeline.predict_proba(
+            pd.DataFrame(X_train).infer_objects().convert_dtypes())
+        assert isinstance(prediction, np.ndarray)
+        assert prediction.shape == (200, 2)
+
+    def test_pipeline_transform(self, fit_dictionary):
         """
         In the context of autopytorch, transform expands a fit dictionary with
         components that where previously fit. We can use this as a nice way to make sure
@@ -138,104 +163,64 @@ class PipelineTest(unittest.TestCase):
         This code is added in light of components not properly added to the fit dicitonary
         """
 
-        pipeline = TabularClassificationPipeline(dataset_properties=self.dataset_properties)
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
         cs = pipeline.get_hyperparameter_search_space()
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
 
-        pipeline.fit(
-            self.fit_dictionary
-        )
+        pipeline.fit(fit_dictionary)
 
-        transformed_fit_dictionary = pipeline.transform(self.fit_dictionary)
+        # We do not want to make the same early preprocessing operation to the fit dictionary
+        if 'X_train' in fit_dictionary:
+            fit_dictionary.pop('X_train')
+
+        transformed_fit_dictionary = pipeline.transform(fit_dictionary)
 
         # First, we do not lose anyone! (We use a fancy subset containment check)
-        self.assertTrue(self.fit_dictionary.items() <= transformed_fit_dictionary.items())
+        assert fit_dictionary.items() <= transformed_fit_dictionary.items()
 
         # Then the pipeline should have added the following keys
         expected_keys = {'imputer', 'encoder', 'scaler', 'tabular_transformer',
                          'preprocess_transforms', 'network', 'optimizer', 'lr_scheduler',
                          'train_data_loader', 'val_data_loader', 'run_summary'}
-        self.assertTrue(expected_keys.issubset(set(transformed_fit_dictionary.keys())))
+        assert expected_keys.issubset(set(transformed_fit_dictionary.keys()))
 
         # Then we need to have transformations being created.
-        self.assertTrue(len(get_preprocess_transforms(transformed_fit_dictionary)) > 0)
+        assert len(get_preprocess_transforms(transformed_fit_dictionary)) > 0
 
         # We expect the transformations to be in the pipeline at anytime for inference
-        self.assertIn('preprocess_transforms', transformed_fit_dictionary.keys())
+        assert 'preprocess_transforms' in transformed_fit_dictionary.keys()
 
-    def test_default_configuration(self):
+    @pytest.mark.parametrize("is_small_preprocess", [True, False])
+    def test_default_configuration(self, fit_dictionary, is_small_preprocess):
         """Makes sure that when no config is set, we can trust the
         default configuration from the space"""
-        pipeline = TabularClassificationPipeline(dataset_properties=self.dataset_properties)
 
-        pipeline.fit(
-            {'X_train': self.X,
-             'y_train': self.y,
-             'train_indices': list(range(self.X.shape[0] // 2)),
-             'val_indices': list(range(self.X.shape[0] // 2, self.X.shape[0])),
-             # Training configuration
-             'dataset_properties': self.dataset_properties,
-             'job_id': 'example_tabular_classification_1',
-             'device': 'cpu',
-             'budget_type': 'epochs',
-             'epochs': 5,
-             'torch_num_threads': 1,
-             'early_stopping': 20,
-             'working_dir': '/tmp',
-             'use_tensorboard_logger': True,
-             'use_pynisher': False,
-             'metrics_during_training': True,
-             'split_id': 0,
-             'backend': self.backend,
-             }
-        )
+        fit_dictionary['is_small_preprocess'] = is_small_preprocess
 
-    def test_remove_key_check_requirements(self):
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
+
+        pipeline.fit(fit_dictionary)
+
+    def test_remove_key_check_requirements(self, fit_dictionary):
         """Makes sure that when a key is removed from X, correct error is outputted"""
-        pipeline = TabularClassificationPipeline(dataset_properties=self.dataset_properties)
-        X = {'X_train': self.X,
-             'y_train': self.y,
-             'train_indices': list(range(self.X.shape[0] // 2)),
-             'val_indices': list(range(self.X.shape[0] // 2, self.X.shape[0])),
-             # Training configuration
-             'dataset_properties': self.dataset_properties,
-             'job_id': 'example_tabular_classification_1',
-             'device': 'cpu',
-             'budget_type': 'epochs',
-             'epochs': 5,
-             'torch_num_threads': 1,
-             'early_stopping': 20,
-             'working_dir': '/tmp',
-             'use_tensorboard_logger': True,
-             'use_pynisher': False,
-             'metrics_during_training': True,
-             'split_id': 0,
-             'backend': self.backend,
-             }
-        for key in X.keys():
-            # skip tests for data loader requirements as data loader has different check_requirements
-            if key == 'y_train' or 'val_indices':
-                continue
-            X_copy = X.copy()
-            X_copy.pop(key)
-            try:
-                pipeline.fit(X_copy)
-            except ValueError as msg:
-                self.assertRegex(str(msg), r"To fit .+?, expected fit dictionary to have .+? but got .*")
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
+        for key in ['job_id', 'device', 'split_id', 'use_pynisher', 'torch_num_threads',
+                    'dataset_properties', ]:
+            fit_dictionary_copy = fit_dictionary.copy()
+            fit_dictionary_copy.pop(key)
+            with pytest.raises(ValueError, match=r"To fit .+?, expected fit dictionary to have"):
+                pipeline.fit(fit_dictionary_copy)
 
-    def test_network_optimizer_lr_handshake(self):
+    def test_network_optimizer_lr_handshake(self, fit_dictionary):
         """Fitting a network should put the network in the X"""
-
         # Create the pipeline to check. A random config should be sufficient
-        dataset_properties = {
-            'numerical_columns': [],
-            'categorical_columns': [],
-            'task_type': 'tabular_classification',
-            'input_shape': (10,),
-            'num_classes': 2,
-        }
-        pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
+
+        pipeline = TabularClassificationPipeline(
+            dataset_properties=fit_dictionary['dataset_properties'])
         cs = pipeline.get_hyperparameter_search_space()
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
@@ -247,7 +232,7 @@ class PipelineTest(unittest.TestCase):
             {'dataset_properties': dataset_properties, 'X_train': self.X, 'y_train': self.y},
             None
         ).transform(fit_dictionary)
-        self.assertIn('network', X)
+        assert 'network' in X
 
         # Then fitting a optimizer should fail if no network:
         self.assertIn('optimizer', pipeline.named_steps.keys())
@@ -268,16 +253,13 @@ class PipelineTest(unittest.TestCase):
         X = pipeline.named_steps['lr_scheduler'].search(X, None).transform(X)
         self.assertIn('optimizer', X)
 
-    def test_get_fit_requirements(self):
+
+    def test_get_fit_requirements(self, fit_dictionary):
         dataset_properties = {'numerical_columns': [], 'categorical_columns': []}
         pipeline = TabularClassificationPipeline(dataset_properties=dataset_properties)
         fit_requirements = pipeline.get_fit_requirements()
 
         # check if fit requirements is a list of FitRequirement named tuples
-        self.assertIsInstance(fit_requirements, list)
+        assert isinstance(fit_requirements, list)
         for requirement in fit_requirements:
-            self.assertIsInstance(requirement, FitRequirement)
-
-
-if __name__ == '__main__':
-    unittest.main()
+            assert isinstance(requirement, FitRequirement)

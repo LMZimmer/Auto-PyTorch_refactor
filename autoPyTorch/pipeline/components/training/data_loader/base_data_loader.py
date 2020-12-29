@@ -200,7 +200,7 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         # We allow reading data from a user provided dataset
         # or from X, Y pairs
         if 'split_id' not in X:
-            raise ValueError("split_id is needed to select the respampled dataset. "
+            raise ValueError("To fit a data loader, expected fit dictionary to have split_id. "
                              "Currently X={}.".format(
                                  X
                              )

@@ -224,7 +224,9 @@ class autoPyTorchComponent(BaseEstimator):
 
         if y is not None:
             warnings.warn("Provided y argument, yet only X is required")
-        assert 'dataset_properties' in X.keys(), "Fit dictionary must contain dataset_properties"
+        if 'dataset_properties' not in X:
+            raise ValueError(
+                "To fit a pipeline, expected fit dictionary to have a dataset_properties key")
 
         for requirement in self._fit_requirements:
             check_dict = X['dataset_properties'] if requirement.dataset_property else X
