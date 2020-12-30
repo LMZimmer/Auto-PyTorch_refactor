@@ -52,7 +52,7 @@ setuptools.setup(
             "matplotlib",
             "jupyter",
             "notebook",
-            "seaborn",
+            # "seaborn",
         ],
         "docs": ["sphinx", "sphinx-gallery", "sphinx_bootstrap_theme", "numpydoc"],
     },
