@@ -42,8 +42,7 @@ class MLPBackbone(BaseBackbone):
     def build_backbone(self, input_shape: Tuple[int, ...]) -> nn.Module:
         layers = list()  # type: List[nn.Module]
         in_features = input_shape[0]
-        print("in backbone, input_shape : {}, ".format(input_shape))
-        print("for layer 1, in_features: {}, out_features: {}".format(in_features, self.config['num_units_1']))
+
         self._add_layer(layers, in_features, self.config['num_units_1'], 1)
 
         for i in range(2, self.config['num_groups'] + 1):
