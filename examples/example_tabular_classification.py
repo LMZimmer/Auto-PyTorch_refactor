@@ -24,7 +24,7 @@ def get_data_to_train() -> typing.Tuple[typing.Any, typing.Any, typing.Any, typi
 
     # Get the training data for tabular classification
     # Move to Australian to showcase numerical vs categorical
-    X, y = sklearn.datasets.fetch_openml(data_id=13, return_X_y=True, as_frame=True)
+    X, y = sklearn.datasets.fetch_openml(data_id=40981, return_X_y=True, as_frame=True)
     X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
         X,
         y,
