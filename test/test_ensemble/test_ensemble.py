@@ -555,6 +555,7 @@ def testLimit(ensemble_backend):
     with unittest.mock.patch('logging.getLogger') as get_logger_mock, \
             unittest.mock.patch('logging.config.dictConfig') as _:
         logger_mock = unittest.mock.Mock()
+        logger_mock.handlers = []
         get_logger_mock.return_value = logger_mock
 
         ensbuilder.run(time_left=1000, iteration=0)
