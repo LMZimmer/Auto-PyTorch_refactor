@@ -17,7 +17,6 @@ smac
 dask
 distributed>=2.2.0
 
-autopytorch
 pytest
 sklearn
 setuptools
