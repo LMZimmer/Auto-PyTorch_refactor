@@ -1,7 +1,5 @@
 import numpy as np
 
-import pandas as pd
-
 import pytest
 
 from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import get_preprocess_transforms
@@ -44,11 +42,10 @@ class TestTabularClassification:
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
 
-        X_train = np.copy(fit_dictionary['X_train'])
         pipeline.fit(fit_dictionary)
 
         prediction = pipeline.predict(
-            pd.DataFrame(X_train).infer_objects().convert_dtypes())
+            fit_dictionary['backend'].load_datamanager().test_tensors[0])
         assert isinstance(prediction, np.ndarray)
         assert prediction.shape == (200, 2)
 
@@ -66,11 +63,10 @@ class TestTabularClassification:
         config = cs.sample_configuration()
         pipeline.set_hyperparameters(config)
 
-        X_train = np.copy(fit_dictionary['X_train'])
         pipeline.fit(fit_dictionary)
 
         prediction = pipeline.predict_proba(
-            pd.DataFrame(X_train).infer_objects().convert_dtypes())
+            fit_dictionary['backend'].load_datamanager().test_tensors[0])
         assert isinstance(prediction, np.ndarray)
         assert prediction.shape == (200, 2)
 
