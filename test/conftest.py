@@ -155,18 +155,18 @@ def fit_dictionary_numerical_only(backend):
         shuffle=True,
         random_state=0
     )
-    dataset_properties = {
-        'task_type': 'tabular_classification',
-        'output_type': 'binary',
-        'issparse': False,
-        'input_shape': X.shape[1:],
-        'output_shape': y.shape[1] if len(y.shape) == 2 else 1,
-        'num_classes': 2,
-        'numerical_columns': list(range(4)),
-        'categorical_columns': [],
-        'categories': [],
-        'is_small_preprocess': True,
-    }
+    datamanager = TabularDataset(
+        X=X, Y=y,
+        X_test=X, Y_test=y,
+    )
+
+    info = {'task_type': datamanager.task_type,
+            'output_type': datamanager.output_type,
+            'issparse': datamanager.issparse,
+            'numerical_columns': datamanager.numerical_columns,
+            'categorical_columns': datamanager.categorical_columns}
+
+    dataset_properties = datamanager.get_dataset_properties(get_dataset_requirements(info))
     fit_dictionary = {
         'X_train': X,
         'y_train': y,
@@ -184,10 +184,6 @@ def fit_dictionary_numerical_only(backend):
         'split_id': 0,
         'backend': backend,
     }
-    datamanager = TabularDataset(
-        X=X, Y=y,
-        X_test=X, Y_test=y,
-    )
     backend.save_datamanager(datamanager)
     return fit_dictionary
 

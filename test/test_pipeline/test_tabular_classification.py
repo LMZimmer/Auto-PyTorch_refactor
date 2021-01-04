@@ -54,8 +54,6 @@ class TestTabularClassification:
         given random combinations of hyperparameters across the pipeline
         And then predict using predict probability
         """
-        if len(fit_dictionary['dataset_properties']['categorical_columns']) <= 0:
-            pytest.skip("Numerical only predict probabilities is not yet supported")
         pipeline = TabularClassificationPipeline(
             dataset_properties=fit_dictionary['dataset_properties'])
 
