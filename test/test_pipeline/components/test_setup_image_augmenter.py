@@ -14,7 +14,8 @@ class TestImageAugmenter(unittest.TestCase):
         #  has use_augmenter set to True
         configuration = image_augmenter.get_hyperparameter_search_space().get_default_configuration()
         image_augmenter = image_augmenter.set_hyperparameters(configuration=configuration)
-        X = dict(X_train=np.random.randint(0, 255, (8, 3, 16, 16), dtype=np.uint8), image_height=16, image_width=16)
+        X = dict(X_train=np.random.randint(0, 255, (8, 3, 16, 16), dtype=np.uint8),
+                 dataset_properties=dict(image_height=16, image_width=16))
         for name, augmenter in image_augmenter.available_augmenters.items():
             augmenter = augmenter.fit(X)
             # check if augmenter in the component has correct name
@@ -29,7 +30,8 @@ class TestImageAugmenter(unittest.TestCase):
             self.assertIsNot(train_aug, X['X_train'])
 
     def test_get_set_config_space(self):
-        X = dict(X_train=np.random.randint(0, 255, (8, 3, 16, 16), dtype=np.uint8), image_height=16, image_width=16)
+        X = dict(X_train=np.random.randint(0, 255, (8, 3, 16, 16), dtype=np.uint8),
+                 dataset_properties=dict(image_height=16, image_width=16))
         image_augmenter = ImageAugmenter()
         configuration = image_augmenter.get_hyperparameter_search_space().sample_configuration()
         image_augmenter = image_augmenter.set_hyperparameters(configuration=configuration)

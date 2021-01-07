@@ -3,7 +3,12 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
 
-from autoPyTorch.constants import CLASSIFICATION_TASKS, REGRESSION_TASKS, STRING_TO_TASK_TYPES, TASK_TYPES
+from autoPyTorch.constants import (
+    CLASSIFICATION_TASKS,
+    REGRESSION_TASKS,
+    STRING_TO_TASK_TYPES,
+    TASK_TYPES,
+)
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.metrics import CLASSIFICATION_METRICS, REGRESSION_METRICS
 
@@ -25,7 +30,6 @@ def sanitize_array(array: np.ndarray) -> np.ndarray:
 
 
 def get_supported_metrics(dataset_properties: Dict[str, Any]) -> Dict[str, autoPyTorchMetric]:
-
     task_type = dataset_properties['task_type']
 
     if STRING_TO_TASK_TYPES[task_type] in REGRESSION_TASKS:
@@ -58,14 +62,19 @@ def get_metrics(dataset_properties: Dict[str, Any],
     """
     assert 'task_type' in dataset_properties, \
         "Expected dataset_properties to have task_type got {}".format(dataset_properties.keys())
+    assert 'output_type' in dataset_properties, \
+        "Expected dataset_properties to have output_type got {}".format(dataset_properties.keys())
     if all_supported_metrics:
         assert names is None, "Can't pass names when all_supported_metrics are true"
 
     if STRING_TO_TASK_TYPES[dataset_properties['task_type']] not in TASK_TYPES:
         raise NotImplementedError(dataset_properties['task_type'])
 
-    default_metrics = dict(classification='accuracy',
-                           regression='root_mean_squared_error')
+    default_metrics = dict(classification=dict({'multiclass': 'accuracy',
+                                                'binary': 'accuracy',
+                                                'multiclass-multioutput': 'f1'}),
+                           regression=dict({'continuous': 'r2',
+                                            'continuous-multioutput': 'r2'}))
 
     supported_metrics = get_supported_metrics(dataset_properties)
     metrics = list()  # type: List[autoPyTorchMetric]
@@ -83,26 +92,25 @@ def get_metrics(dataset_properties: Dict[str, Any],
             metrics.extend(list(supported_metrics.values()))
         else:
             if STRING_TO_TASK_TYPES[dataset_properties['task_type']] in CLASSIFICATION_TASKS:
-                metrics.append(supported_metrics[default_metrics['classification']])
+                metrics.append(supported_metrics[default_metrics['classification'][dataset_properties['output_type']]])
             if STRING_TO_TASK_TYPES[dataset_properties['task_type']] in REGRESSION_TASKS:
-                metrics.append(supported_metrics[default_metrics['regression']])
+                metrics.append(supported_metrics[default_metrics['regression'][dataset_properties['output_type']]])
 
     return metrics
 
 
 def calculate_score(
-    solution: np.ndarray,
-    prediction: np.ndarray,
-    task_type: int,
-    metrics: Iterable[autoPyTorchMetric],
+        target: np.ndarray,
+        prediction: np.ndarray,
+        task_type: int,
+        metrics: Iterable[autoPyTorchMetric],
 ) -> Dict[str, float]:
-
     score_dict = dict()
     if task_type in REGRESSION_TASKS:
         cprediction = sanitize_array(prediction)
         for metric_ in metrics:
             try:
-                score_dict[metric_.name] = metric_(solution, cprediction)
+                score_dict[metric_.name] = metric_(target, cprediction)
             except ValueError as e:
                 warnings.warn(f"{e} {e.args[0]}")
                 if e.args[0] == "Mean Squared Logarithmic Error cannot be used when " \
@@ -114,16 +122,16 @@ def calculate_score(
     else:
         for metric_ in metrics:
             try:
-                score_dict[metric_.name] = metric_(solution, prediction)
+                score_dict[metric_.name] = metric_(target, prediction)
             except ValueError as e:
                 if e.args[0] == 'multiclass format is not supported':
                     continue
-                elif e.args[0] == "Samplewise metrics are not available "\
-                        "outside of multilabel classification.":
+                elif e.args[0] == "Samplewise metrics are not available " \
+                                  "outside of multilabel classification.":
                     continue
-                elif e.args[0] == "Target is multiclass but "\
-                        "average='binary'. Please choose another average "\
-                        "setting, one of [None, 'micro', 'macro', 'weighted'].":
+                elif e.args[0] == "Target is multiclass but " \
+                                  "average='binary'. Please choose another average " \
+                                  "setting, one of [None, 'micro', 'macro', 'weighted'].":
                     continue
                 elif e.args[0] == "The labels array needs to contain at " \
                                   "least two labels for log_loss, got [0].":

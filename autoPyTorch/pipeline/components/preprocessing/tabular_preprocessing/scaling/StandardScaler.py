@@ -2,11 +2,10 @@ from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
-from scipy.sparse import issparse
-
 from sklearn.preprocessing import StandardScaler as SklearnStandardScaler
 
 from autoPyTorch.pipeline.components.preprocessing.tabular_preprocessing.scaling.base_scaler import BaseScaler
+from autoPyTorch.utils.common import FitRequirement
 
 
 class StandardScaler(BaseScaler):
@@ -18,12 +17,15 @@ class StandardScaler(BaseScaler):
                  ):
         super().__init__()
         self.random_state = random_state
+        self.add_fit_requirements([
+            FitRequirement('issparse', (bool,), user_defined=True, dataset_property=True)
+        ])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseScaler:
 
         self.check_requirements(X, y)
 
-        with_mean, with_std = (False, False) if issparse(X['X_train']) else (True, True)
+        with_mean, with_std = (False, False) if X['dataset_properties']['issparse'] else (True, True)
         self.preprocessor['numerical'] = SklearnStandardScaler(with_mean=with_mean, with_std=with_std, copy=False)
         return self
 

@@ -30,31 +30,14 @@ class ZeroPadAndCrop(BaseImageAugmenter):
     def fit(self, X: Dict[str, Any], y: Any = None) -> BaseImageAugmenter:
         self.check_requirements(X, y)
         self.pad_augmenter = iaa.Pad(percent=self.percent, keep_size=False)
-        self.crop_augmenter = iaa.CropToFixedSize(height=X['image_height'], width=X['image_width'])
+        self.crop_augmenter = iaa.CropToFixedSize(height=X['dataset_properties']['image_height'],
+                                                  width=X['dataset_properties']['image_width'])
         self.augmenter: Augmenter = iaa.Sequential([
             self.pad_augmenter,
             self.crop_augmenter
         ], name=self.get_properties()['name'])
 
         return self
-
-    def check_requirements(self, X: Dict[str, Any], y: Any = None) -> None:
-        """
-        A mechanism in code to ensure the correctness of the fit dictionary
-        It recursively makes sure that the children and parent level requirements
-        are honored before fit.
-
-        Args:
-            X (Dict[str, Any]): Dictionary with fitted parameters. It is a message passing
-                mechanism, in which during a transform, a components adds relevant information
-                so that further stages can be properly fitted
-        """
-        super().check_requirements(X, y)
-        if 'image_height' not in X.keys():
-            raise ValueError("Image height (image_height) not found in fit dictionary ")
-
-        if 'image_width' not in X.keys():
-            raise ValueError("Image width (image_width) not found in fit dictionary ")
 
     @staticmethod
     def get_hyperparameter_search_space(

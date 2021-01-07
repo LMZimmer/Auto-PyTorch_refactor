@@ -47,10 +47,13 @@ class TestSimpleImputer(unittest.TestCase):
         categorical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
-        X = {
-            'X_train': data[train_indices],
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         imputer_component = SimpleImputer(numerical_strategy='mean')
 
@@ -65,8 +68,10 @@ class TestSimpleImputer(unittest.TestCase):
         self.assertIsInstance(numerical_imputer, BaseEstimator)
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((categorical_imputer, X['categorical_columns']),
-                                                     (numerical_imputer, X['numerical_columns']),
+        column_transformer = make_column_transformer((categorical_imputer,
+                                                      X['dataset_properties']['categorical_columns']),
+                                                     (numerical_imputer,
+                                                      X['dataset_properties']['numerical_columns']),
                                                      remainder='passthrough')
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
@@ -86,10 +91,13 @@ class TestSimpleImputer(unittest.TestCase):
         categorical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
-        X = {
-            'X_train': data[train_indices],
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         imputer_component = SimpleImputer(numerical_strategy='median')
 
@@ -104,9 +112,11 @@ class TestSimpleImputer(unittest.TestCase):
         self.assertIsInstance(numerical_imputer, BaseEstimator)
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((categorical_imputer, X['categorical_columns']),
-                                                     (numerical_imputer, X['numerical_columns']),
-                                                     remainder='passthrough')
+        column_transformer = make_column_transformer(
+            (categorical_imputer, X['dataset_properties']['categorical_columns']),
+            (numerical_imputer, X['dataset_properties']['numerical_columns']),
+            remainder='passthrough'
+        )
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
 
@@ -125,10 +135,13 @@ class TestSimpleImputer(unittest.TestCase):
         categorical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
-        X = {
-            'X_train': data[train_indices],
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         imputer_component = SimpleImputer(numerical_strategy='most_frequent',
                                           categorical_strategy='most_frequent')
@@ -144,9 +157,11 @@ class TestSimpleImputer(unittest.TestCase):
         self.assertIsInstance(numerical_imputer, BaseEstimator)
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((categorical_imputer, X['categorical_columns']),
-                                                     (numerical_imputer, X['numerical_columns']),
-                                                     remainder='passthrough')
+        column_transformer = make_column_transformer(
+            (categorical_imputer, X['dataset_properties']['categorical_columns']),
+            (numerical_imputer, X['dataset_properties']['numerical_columns']),
+            remainder='passthrough'
+        )
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
 
@@ -165,10 +180,13 @@ class TestSimpleImputer(unittest.TestCase):
         categorical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4, 5])
-        X = {
-            'X_train': data[train_indices],
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         imputer_component = SimpleImputer(numerical_strategy='constant_zero',
                                           categorical_strategy='constant_!missing!')
@@ -184,9 +202,11 @@ class TestSimpleImputer(unittest.TestCase):
         self.assertIsInstance(numerical_imputer, BaseEstimator)
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((categorical_imputer, X['categorical_columns']),
-                                                     (numerical_imputer, X['numerical_columns']),
-                                                     remainder='passthrough')
+        column_transformer = make_column_transformer(
+            (categorical_imputer, X['dataset_properties']['categorical_columns']),
+            (numerical_imputer, X['dataset_properties']['numerical_columns']),
+            remainder='passthrough'
+        )
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
         assert_array_equal(transformed.astype(str), np.array([['!missing!', 8, 9],

@@ -224,18 +224,29 @@ class autoPyTorchComponent(BaseEstimator):
 
         if y is not None:
             warnings.warn("Provided y argument, yet only X is required")
+        if 'dataset_properties' not in X:
+            raise ValueError(
+                "To fit a pipeline, expected fit dictionary to have a dataset_properties key")
 
         for requirement in self._fit_requirements:
-            if requirement.name not in X.keys():
-                raise ValueError("To fit {}, expected fit dictionary to have '{}'"
-                                 " but got \n {}".format(self.__class__.__name__, requirement.name, list(X.keys())))
+            check_dict = X['dataset_properties'] if requirement.dataset_property else X
+            if requirement.name not in check_dict.keys():
+                if requirement.name in ['X_train', 'backend']:
+                    if 'X_train' in check_dict.keys() or 'backend' in check_dict.keys():
+                        continue
+                else:
+                    raise ValueError(
+                        "To fit {}, expected fit dictionary to have '{}'"
+                        " but got \n {}".format(
+                            self.__class__.__name__,
+                            requirement.name, list(check_dict.keys())))
             else:
-                TYPE_SUPPORTED = isinstance(X[requirement.name], tuple(requirement.supported_types))
+                TYPE_SUPPORTED = isinstance(check_dict[requirement.name], tuple(requirement.supported_types))
                 if not TYPE_SUPPORTED:
                     raise TypeError("Expected {} to be instance of {} got {}"
                                     .format(requirement.name,
                                             requirement.supported_types,
-                                            type(X[requirement.name])))
+                                            type(check_dict[requirement.name])))
 
     def __str__(self) -> str:
         """Representation of the current Component"""

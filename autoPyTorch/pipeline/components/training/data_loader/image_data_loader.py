@@ -13,21 +13,24 @@ class ImageDataLoader(BaseDataLoaderComponent):
 
     """
 
-    def build_transform(self, X: Dict[str, Any], train: bool = True) -> torchvision.transforms.Compose:
+    def build_transform(self, X: Dict[str, Any], mode: str) -> torchvision.transforms.Compose:
         """
         Method to build a transformation that can pre-process input data
 
         Args:
             X (X: Dict[str, Any]): Dependencies needed by current component to perform fit
-            train (bool): whether transformation to be built are for training of test mode
+            mode (str): train/val/test
 
         Returns:
             A composition of transformations
         """
 
+        if mode not in ['train', 'val', 'test']:
+            raise ValueError("Unsupported mode provided {}. ".format(mode))
+
         transformations = []
 
-        if train:
+        if 'train' in mode:
             transformations.append(X['image_augmenter'])
         # In the case of image data, the options currently available
         # for preprocessors are:
@@ -38,7 +41,7 @@ class ImageDataLoader(BaseDataLoaderComponent):
         # check if data set is small enough to be preprocessed.
         # If it is, then no need to add preprocess_transforms to
         # the data loader as the data is already preprocessed
-        if not X['is_small_preprocess']:
+        if 'test' in mode or not X['dataset_properties']['is_small_preprocess']:
             transformations.append(X['preprocess_transforms'])
 
         # Transform to tensor
@@ -60,5 +63,5 @@ class ImageDataLoader(BaseDataLoaderComponent):
         if not X['image_augmenter'] and 'image_augmenter' not in X:
             raise ValueError("Cannot find the image_augmenter in the fit dictionary")
 
-        if not X['is_small_preprocess'] and 'preprocess_transforms' not in X:
+        if not X['dataset_properties']['is_small_preprocess'] and 'preprocess_transforms' not in X:
             raise ValueError("Cannot find the preprocess_transforms in the fit dictionary")

@@ -24,11 +24,15 @@ class TestEncoders(unittest.TestCase):
         numerical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4])
-        X = {
-            'X_train': data[train_indices],
+
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
             'categories': [['female', 'male']]
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         encoder_component = OneHotEncoder()
         encoder_component.fit(X)
@@ -41,7 +45,8 @@ class TestEncoders(unittest.TestCase):
         self.assertIsNone(X['encoder']['numerical'])
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((encoder, X['categorical_columns']), remainder='passthrough')
+        column_transformer = make_column_transformer((encoder, X['dataset_properties']['categorical_columns']),
+                                                     remainder='passthrough')
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
 
@@ -60,11 +65,15 @@ class TestEncoders(unittest.TestCase):
         numerical_columns = [0]
         train_indices = np.array([0, 2, 3])
         test_indices = np.array([1, 4])
-        X = {
-            'X_train': data[train_indices],
+
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
-            'categories': [['female', 'male']]
+            'categories': [['female', 'male', 'unknown']]
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         encoder_component = OrdinalEncoder()
         encoder_component.fit(X)
@@ -78,7 +87,8 @@ class TestEncoders(unittest.TestCase):
         self.assertIsNone(X['encoder']['numerical'])
 
         # make column transformer with returned encoder to fit on data
-        column_transformer = make_column_transformer((encoder, X['categorical_columns']), remainder='passthrough')
+        column_transformer = make_column_transformer((encoder, X['dataset_properties']['categorical_columns']),
+                                                     remainder='passthrough')
         column_transformer = column_transformer.fit(X['X_train'])
         transformed = column_transformer.transform(data[test_indices])
 
@@ -96,11 +106,15 @@ class TestEncoders(unittest.TestCase):
         categorical_columns = [1]
         numerical_columns = [0]
         train_indices = np.array([0, 2, 3])
-        X = {
-            'X_train': data[train_indices],
+
+        dataset_properties = {
             'categorical_columns': categorical_columns,
             'numerical_columns': numerical_columns,
             'categories': [['female', 'male', 'unknown']]
+        }
+        X = {
+            'X_train': data[train_indices],
+            'dataset_properties': dataset_properties
         }
         encoder_component = NoEncoder()
         encoder_component.fit(X)

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import ConfigurationSpace
 
@@ -21,8 +21,7 @@ class EarlyPreprocessing(autoPyTorchSetupComponent):
         self.add_fit_requirements([
             FitRequirement('is_small_preprocess', (bool,), user_defined=True, dataset_property=True),
             FitRequirement('X_train', (np.ndarray, pd.DataFrame, csr_matrix), user_defined=True,
-                           dataset_property=False),
-            FitRequirement('train_indices', (List,), user_defined=True, dataset_property=False)])
+                           dataset_property=False)])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> "EarlyPreprocessing":
         self.check_requirements(X, y)
@@ -33,13 +32,17 @@ class EarlyPreprocessing(autoPyTorchSetupComponent):
 
         transforms = get_preprocess_transforms(X)
 
-        if X['is_small_preprocess']:
-            X['X_train'] = preprocess(dataset=X['X_train'], transforms=transforms,
-                                      indices=X['train_indices'])
-            if 'X_test' in X:
-                X['X_test'] = preprocess(dataset=X['X_test'], transforms=transforms)
-        else:
-            X.update({'preprocess_transforms': transforms})
+        if X['dataset_properties']['is_small_preprocess']:
+            if 'X_train' in X:
+                X_train = X['X_train']
+            else:
+                # Incorporate the transform to the dataset
+                X_train = X['backend'].load_datamanager().train_tensors[0]
+
+            X['X_train'] = preprocess(dataset=X_train, transforms=transforms)
+
+        # We need to also save the preprocess transforms for inference
+        X.update({'preprocess_transforms': transforms})
         return X
 
     @staticmethod

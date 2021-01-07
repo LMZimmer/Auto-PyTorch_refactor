@@ -48,15 +48,17 @@ class TabularPipeline(TabularClassificationPipeline):
 class TabularTransformerTest(unittest.TestCase):
 
     def test_tabular_preprocess_only_numerical(self):
+        dataset_properties = dict(numerical_columns=list(range(15)),
+                                  categorical_columns=[],
+                                  categories=[],
+                                  num_features=15,
+                                  num_classes=2,
+                                  issparse=False)
         X = dict(X_train=np.random.random((10, 15)),
                  is_small_preprocess=True,
-                 numerical_columns=list(range(15)),
-                 categorical_columns=[],
-                 categories=[],
-                 num_features=15,
-                 num_classes=2
+                 dataset_properties=dataset_properties
                  )
-        dataset_properties = dict(numerical_columns=list(range(15)), categorical_columns=[], issparse=False)
+
         pipeline = TabularPipeline(dataset_properties=dataset_properties)
         pipeline = pipeline.fit(X)
         X = pipeline.transform(X)
@@ -65,23 +67,25 @@ class TabularTransformerTest(unittest.TestCase):
         # check if transformer was added to fit dictionary
         self.assertIn('tabular_transformer', X.keys())
         # check if transformer is of expected type
-        self.assertIsInstance(column_transformer, ColumnTransformer)
+        # In this case we expect the tabular transformer not the actual column transformer
+        # as the later is not callable and runs into error in the compose transform
+        self.assertIsInstance(column_transformer, TabularColumnTransformer)
 
-        data = column_transformer.fit_transform(X['X_train'])
+        data = column_transformer.preprocessor.fit_transform(X['X_train'])
         self.assertIsInstance(data, np.ndarray)
 
     def test_tabular_preprocess_only_categorical(self):
+        dataset_properties = dict(numerical_columns=[],
+                                  categorical_columns=list(range(2)),
+                                  categories=[['male', 'female'], ['germany']],
+                                  num_features=15,
+                                  num_classes=2,
+                                  issparse=False)
         X = dict(X_train=np.array([['male', 'germany'],
                                    ['female', 'germany'],
                                    ['male', 'germany']], dtype=object),
-                 is_small_preprocess=True,
-                 numerical_columns=[],
-                 categorical_columns=list(range(2)),
-                 categories=[['male', 'female'], ['germany']],
-                 num_features=15,
-                 num_classes=2
+                 dataset_properties=dataset_properties
                  )
-        dataset_properties = dict(numerical_columns=[], categorical_columns=list(range(2)), issparse=False)
         pipeline = TabularPipeline(dataset_properties=dataset_properties)
         pipeline = pipeline.fit(X)
         X = pipeline.transform(X)
@@ -90,9 +94,9 @@ class TabularTransformerTest(unittest.TestCase):
         # check if transformer was added to fit dictionary
         self.assertIn('tabular_transformer', X.keys())
         # check if transformer is of expected type
-        self.assertIsInstance(column_transformer, ColumnTransformer)
+        self.assertIsInstance(column_transformer, TabularColumnTransformer)
 
-        data = column_transformer.fit_transform(X['X_train'])
+        data = column_transformer.preprocessor.fit_transform(X['X_train'])
         self.assertIsInstance(data, np.ndarray)
 
     def test_sparse_data(self):
@@ -101,14 +105,14 @@ class TabularTransformerTest(unittest.TestCase):
         numerical_columns = list(range(2000))
         categorical_columns = []
         train_indices = np.array(range(50))
+        dataset_properties = dict(numerical_columns=numerical_columns, categorical_columns=categorical_columns,
+                                  categories=[],
+                                  issparse=True)
         X = {
             'X_train': sparse_X[train_indices],
-            'categorical_columns': categorical_columns,
-            'numerical_columns': numerical_columns,
-            'categories': []
+            'dataset_properties': dataset_properties
         }
-        dataset_properties = dict(numerical_columns=numerical_columns, categorical_columns=categorical_columns,
-                                  issparse=True)
+
         pipeline = TabularPipeline(dataset_properties=dataset_properties)
 
         pipeline = pipeline.fit(X)
@@ -118,9 +122,9 @@ class TabularTransformerTest(unittest.TestCase):
         # check if transformer was added to fit dictionary
         self.assertIn('tabular_transformer', X.keys())
         # check if transformer is of expected type
-        self.assertIsInstance(column_transformer, ColumnTransformer)
+        self.assertIsInstance(column_transformer.preprocessor, ColumnTransformer)
 
-        data = column_transformer.fit_transform(X['X_train'])
+        data = column_transformer.preprocessor.fit_transform(X['X_train'])
         self.assertIsInstance(data, csr_matrix)
 
 

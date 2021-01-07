@@ -165,7 +165,6 @@ class EnsembleBuilderManager(IncorporateRunResultCallback):
         logger = get_named_client_logger(
             name='EnsembleBuilder',
             port=self.logger_port,
-            output_dir=self.backend.temporary_directory,
         )
 
         # First test for termination conditions
@@ -468,7 +467,6 @@ class EnsembleBuilder(object):
         self.logger = get_named_client_logger(
             name='EnsembleBuilder',
             port=self.logger_port,
-            output_dir=self.backend.temporary_directory,
         )
 
         if ensemble_nbest == 1:
@@ -610,7 +608,6 @@ class EnsembleBuilder(object):
         self.logger = get_named_client_logger(
             name='EnsembleBuilder',
             port=self.logger_port,
-            output_dir=self.backend.temporary_directory,
         )
 
         process_start_time = time.time()
@@ -730,7 +727,6 @@ class EnsembleBuilder(object):
         self.logger = get_named_client_logger(
             name='EnsembleBuilder',
             port=self.logger_port,
-            output_dir=self.backend.temporary_directory,
         )
 
         self.start_time = time.time()
@@ -936,7 +932,7 @@ class EnsembleBuilder(object):
             y_ensemble = self._read_np_fn(y_ens_fn)
             scores = calculate_score(
                 metrics=self.metrics,
-                solution=self.y_true_ensemble,
+                target=self.y_true_ensemble,
                 prediction=y_ensemble,
                 task_type=self.task_type,
             )
@@ -944,7 +940,7 @@ class EnsembleBuilder(object):
                 y_ensemble = self._read_np_fn(y_ens_fn)
                 scores = calculate_score(
                     metrics=self.metrics,
-                    solution=self.y_true_ensemble,
+                    target=self.y_true_ensemble,
                     prediction=y_ensemble,
                     task_type=self.task_type,
                 )
@@ -1368,7 +1364,7 @@ class EnsembleBuilder(object):
 
         train_scores = calculate_score(
             metrics=self.metrics,
-            solution=self.y_true_ensemble,
+            target=self.y_true_ensemble,
             prediction=train_pred,
             task_type=self.task_type,
         )
@@ -1376,7 +1372,7 @@ class EnsembleBuilder(object):
         if self.y_test is not None:
             test_scores = calculate_score(
                 metrics=self.metrics,
-                solution=self.y_test,
+                target=self.y_test,
                 prediction=test_pred,
                 task_type=self.task_type,
             )

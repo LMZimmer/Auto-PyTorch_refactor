@@ -3,12 +3,12 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
-import pandas as pd
-
 import torch
 from torch import nn
 
+from autoPyTorch.constants import CLASSIFICATION_TASKS, STRING_TO_TASK_TYPES
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
+from autoPyTorch.utils.common import FitRequirement
 
 
 class BaseNetworkComponent(autoPyTorchSetupComponent):
@@ -19,13 +19,17 @@ class BaseNetworkComponent(autoPyTorchSetupComponent):
 
     def __init__(
             self,
+            network: Optional[torch.nn.Module] = None,
             random_state: Optional[np.random.RandomState] = None,
             device: Optional[torch.device] = None
     ) -> None:
         super(BaseNetworkComponent, self).__init__()
-        self.network = None
+        self.network = network
         self.random_state = random_state
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
+        self.add_fit_requirements([FitRequirement('task_type', (str,), user_defined=True, dataset_property=True),
+                                   FitRequirement('input_shape', (tuple,), user_defined=True, dataset_property=True),
+                                   ])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchSetupComponent:
         """
@@ -42,11 +46,10 @@ class BaseNetworkComponent(autoPyTorchSetupComponent):
         # information to fit this stage
         self.check_requirements(X, y)
 
+        output_shape = (X['dataset_properties']['num_classes'],) if \
+            STRING_TO_TASK_TYPES[X['dataset_properties']['task_type']] in \
+            CLASSIFICATION_TASKS else X['dataset_properties']['output_shape']
         input_shape = X['X_train'].shape[1:]
-        if isinstance(X['y_train'], pd.core.series.Series):
-            X['y_train'] = X['y_train'].to_numpy()
-        output_shape = X['y_train'].shape
-
         self.network = self.build_network(input_shape=input_shape,
                                           output_shape=output_shape)
 

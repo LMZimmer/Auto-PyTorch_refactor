@@ -56,15 +56,17 @@ class BaseDataLoaderTest(unittest.TestCase):
         """ Makes sure that we catch the proper requirements for the
         data loader"""
 
-        fit_dictionary = {}
+        fit_dictionary = {'dataset_properties': {}}
 
         loader = BaseDataLoaderComponent()
 
         # Make sure we catch all possible errors in check requirements
 
         # No input in fit dictionary
-        with self.assertRaisesRegex(ValueError,
-                                    'split_id is needed to select the respampled dataset. Curren'):
+        with self.assertRaisesRegex(
+            ValueError,
+            'To fit a data loader, expected fit dictionary to have split_id.'
+        ):
             loader.fit(fit_dictionary)
 
         # Backend Missing
@@ -87,7 +89,7 @@ class BaseDataLoaderTest(unittest.TestCase):
             'y_train': np.array([0, 1, 0]),
             'train_indices': [0, 1],
             'val_indices': [2],
-            'is_small_preprocess': True,
+            'dataset_properties': {'is_small_preprocess': True},
             'working_dir': '/tmp',
             'split_id': 0,
             'backend': backend,

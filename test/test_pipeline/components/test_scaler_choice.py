@@ -9,7 +9,9 @@ class TestRescalerChoice(unittest.TestCase):
     def test_get_set_config_space(self):
         """Make sure that we can setup a valid choice in the encoder
         choice"""
-        dataset_properties = {'categorical_columns': list(range(4)), 'numerical_columns': [5]}
+        dataset_properties = {'categorical_columns': list(range(4)),
+                              'numerical_columns': [5],
+                              'issparse': False}
         rescaler_choice = ScalerChoice(dataset_properties)
         cs = rescaler_choice.get_hyperparameter_search_space()
 

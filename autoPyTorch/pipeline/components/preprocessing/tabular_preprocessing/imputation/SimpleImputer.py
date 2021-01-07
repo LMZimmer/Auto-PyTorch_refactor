@@ -38,7 +38,7 @@ class SimpleImputer(BaseImputer):
             instance of self
         """
         self.check_requirements(X, y)
-        if len(X['categorical_columns']) != 0:
+        if len(X['dataset_properties']['categorical_columns']) != 0:
             if self.categorical_strategy == 'constant_!missing!':
                 self.preprocessor['categorical'] = SklearnSimpleImputer(strategy='constant',
                                                                         fill_value='!missing!',
@@ -46,7 +46,7 @@ class SimpleImputer(BaseImputer):
             else:
                 self.preprocessor['categorical'] = SklearnSimpleImputer(strategy=self.categorical_strategy,
                                                                         copy=False)
-        if len(X['numerical_columns']) != 0:
+        if len(X['dataset_properties']['numerical_columns']) != 0:
             if self.numerical_strategy == 'constant_zero':
                 self.preprocessor['numerical'] = SklearnSimpleImputer(strategy='constant',
                                                                       fill_value=0,
@@ -61,13 +61,13 @@ class SimpleImputer(BaseImputer):
         cs = ConfigurationSpace()
         assert dataset_properties is not None, "To create hyperparameter search space" \
                                                ", dataset_properties should not be None"
-        if len(dataset_properties['numerical_columns']):
+        if len(dataset_properties['numerical_columns']) != 0:
             numerical_strategy = CategoricalHyperparameter("numerical_strategy",
                                                            ["mean", "median", "most_frequent", "constant_zero"],
                                                            default_value="mean")
             cs.add_hyperparameter(numerical_strategy)
 
-        if len(dataset_properties['categorical_columns']):
+        if len(dataset_properties['categorical_columns']) != 0:
             categorical_strategy = CategoricalHyperparameter("categorical_strategy",
                                                              ["most_frequent", "constant_!missing!"],
                                                              default_value="most_frequent")

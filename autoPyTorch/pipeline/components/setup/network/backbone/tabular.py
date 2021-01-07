@@ -104,14 +104,14 @@ class MLPBackbone(BaseBackbone):
         # better generalization
         if dropout:
             use_dropout = CategoricalHyperparameter(
-                "use_dropout", choices=[True, False])
+                "use_dropout", choices=[True, False], default_value=False)
             cs.add_hyperparameters([use_dropout])
 
         for i in range(1, max_mlp_layers + 1):
             n_units_hp = UniformIntegerHyperparameter("num_units_%d" % i,
                                                       lower=min_num_units,
                                                       upper=max_num_units,
-                                                      default_value=20)
+                                                      default_value=200)
             cs.add_hyperparameter(n_units_hp)
 
             if i > min_mlp_layers:
@@ -225,6 +225,7 @@ class ShapedMLPBackbone(BaseBackbone):
             "max_units",
             lower=min_num_units,
             upper=max_num_units,
+            default_value=200,
         )
 
         output_dim = UniformIntegerHyperparameter(

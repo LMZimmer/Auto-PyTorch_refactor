@@ -1,10 +1,33 @@
-from typing import Any, Dict
+from typing import Any, Callable, Dict, List
+
+import numpy as np
+
+from sklearn.utils import check_array
 
 import torch
 
 import torchvision
 
 from autoPyTorch.pipeline.components.training.data_loader.base_data_loader import BaseDataLoaderComponent
+
+
+class ContractTransform(object):
+    """Reverses the effect of ExpandTransform"""
+    def __call__(self, data: np.ndarray) -> np.ndarray:
+        # We make sure that the data is converted from
+        # Object regardless of the configuration space
+        # (normally the CS will convert a pd.DataFrame->np.array,
+        # but the current config might be no preprocessing)
+        # Also, Batch normalization expect a flattened input, so
+        # we have to squeeze sklearn output which is normally (N, 1)
+        data = check_array(
+            data,
+            force_all_finite=False,
+            accept_sparse='csr',
+            ensure_2d=False,
+            allow_nd=True,
+        )
+        return np.squeeze(data)
 
 
 class FeatureDataLoader(BaseDataLoaderComponent):
@@ -15,17 +38,20 @@ class FeatureDataLoader(BaseDataLoaderComponent):
 
     """
 
-    def build_transform(self, X: Dict[str, Any], train: bool = True) -> torchvision.transforms.Compose:
+    def build_transform(self, X: Dict[str, Any], mode: str) -> torchvision.transforms.Compose:
         """
         Method to build a transformation that can pre-process input data
 
         Args:
             X (X: Dict[str, Any]): Dependencies needed by current component to perform fit
-            train (bool): whether transformation to be built are for training of test mode
+            mode (str): train/val/test
 
         Returns:
             A composition of transformations
         """
+
+        if mode not in ['train', 'val', 'test']:
+            raise ValueError("Unsupported mode provided {}. ".format(mode))
 
         # In the case of feature data, the options currently available
         # for transformations are:
@@ -34,14 +60,16 @@ class FeatureDataLoader(BaseDataLoaderComponent):
         #   + scaler
         # This transformations apply for both train/val/test, so no
         # distinction is performed
-        transformations = []
-        if not X['is_small_preprocess']:
-            transformations.append(X['preprocess_transforms'])
+        candidate_transformations = []  # type: List[Callable]
+
+        if 'test' in mode or not X['dataset_properties']['is_small_preprocess']:
+            candidate_transformations.extend(X['preprocess_transforms'])
+            candidate_transformations.append((ContractTransform()))
 
         # Transform to tensor
-        transformations.append(torch.from_numpy)
+        candidate_transformations.append(torch.from_numpy)
 
-        return torchvision.transforms.Compose(transformations)
+        return torchvision.transforms.Compose(candidate_transformations)
 
     def _check_transform_requirements(self, X: Dict[str, Any], y: Any = None) -> None:
         """
@@ -54,5 +82,5 @@ class FeatureDataLoader(BaseDataLoaderComponent):
                 mechanism, in which during a transform, a components adds relevant information
                 so that further stages can be properly fitted
         """
-        if not X['is_small_preprocess'] and 'preprocess_transforms' not in X:
+        if not X['dataset_properties']['is_small_preprocess'] and 'preprocess_transforms' not in X:
             raise ValueError("Cannot find the preprocess_transforms in the fit dictionary")

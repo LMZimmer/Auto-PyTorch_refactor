@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -7,13 +7,22 @@ import pandas as pd
 
 from sklearn.utils import check_array
 
-from autoPyTorch.constants import TABULAR_CLASSIFICATION
+import torchvision.transforms
+
+from autoPyTorch.constants import (
+    CLASSIFICATION_OUTPUTS,
+    CLASSIFICATION_TASKS,
+    REGRESSION_OUTPUTS,
+    STRING_TO_OUTPUT_TYPES,
+    STRING_TO_TASK_TYPES,
+    TABULAR_CLASSIFICATION,
+    TABULAR_REGRESSION,
+    TASK_TYPES_TO_STRING,
+)
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import (
     CrossValTypes,
     HoldoutValTypes,
-    get_cross_validators,
-    get_holdout_validators
 )
 
 
@@ -38,12 +47,42 @@ class Value2Index(object):
 
 class TabularDataset(BaseDataset):
     """
-    Support for Numpy Arrays is missing Strings.
-    """
+        Base class for datasets used in AutoPyTorch
+        Args:
+            X (Union[np.ndarray, pd.DataFrame]): input training data.
+            Y (Union[np.ndarray, pd.Series]): training data targets.
+            X_test (Optional[Union[np.ndarray, pd.DataFrame]]):  input testing data.
+            Y_test (Optional[Union[np.ndarray, pd.DataFrame]]): testing data targets
+            resampling_strategy (Union[CrossValTypes, HoldoutValTypes]),
+                (default=HoldoutValTypes.holdout_validation):
+                strategy to split the training data.
+            resampling_strategy_args (Optional[Dict[str, Any]]): arguments
+                required for the chosen resampling strategy. If None, uses
+                the default values provided in DEFAULT_RESAMPLING_PARAMETERS
+                in ```datasets/resampling_strategy.py```.
+            shuffle:  Whether to shuffle the data before performing splits
+            seed (int), (default=1): seed to be used for reproducibility.
+            train_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the training data.
+            val_transforms (Optional[torchvision.transforms.Compose]):
+                Additional Transforms to be applied to the validation/test data.
 
-    def __init__(self, X: Any, Y: Any,
+        Notes: Support for Numpy Arrays is missing Strings.
+
+        """
+
+    def __init__(self, X: Union[np.ndarray, pd.DataFrame],
+                 Y: Union[np.ndarray, pd.Series],
                  X_test: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-                 Y_test: Optional[Union[np.ndarray, pd.DataFrame]] = None):
+                 Y_test: Optional[Union[np.ndarray, pd.DataFrame]] = None,
+                 resampling_strategy: Union[CrossValTypes, HoldoutValTypes] = HoldoutValTypes.holdout_validation,
+                 resampling_strategy_args: Optional[Dict[str, Any]] = None,
+                 shuffle: Optional[bool] = True,
+                 seed: Optional[int] = 42,
+                 train_transforms: Optional[torchvision.transforms.Compose] = None,
+                 val_transforms: Optional[torchvision.transforms.Compose] = None,
+                 ):
+
         X, self.data_types, self.nan_mask, self.itovs, self.vtois = self.interpret_columns(X)
 
         if Y is not None:
@@ -57,8 +96,8 @@ class TabularDataset(BaseDataset):
             # the below function will simply return Pandas DataFrame.
             Y = check_array(Y, ensure_2d=False)
 
-        self.categorical_columns, self.numerical_columns, self.categories, self.num_features, self.num_classes = \
-            self.infer_dataset_properties(X, Y)
+        self.categorical_columns, self.numerical_columns, self.categories, self.num_features = \
+            self.infer_dataset_properties(X)
 
         # Allow support for X_test, Y_test. They will NOT be used for optimization, but
         # rather to have a performance through time on the test data
@@ -74,20 +113,46 @@ class TabularDataset(BaseDataset):
                     Y_test, assert_single_column=True)
                 Y_test = check_array(Y_test, ensure_2d=False)
 
-        super().__init__(train_tensors=(X, Y), test_tensors=(X_test, Y_test), shuffle=True)
-        self.task_type = TABULAR_CLASSIFICATION
-        self.cross_validators = get_cross_validators(
-            CrossValTypes.stratified_k_fold_cross_validation,
-            CrossValTypes.k_fold_cross_validation,
-            CrossValTypes.shuffle_split_cross_validation,
-            CrossValTypes.stratified_shuffle_split_cross_validation
-        )
-        self.holdout_validators = get_holdout_validators(
-            HoldoutValTypes.holdout_validation,
-            HoldoutValTypes.stratified_holdout_validation
-        )
+        super().__init__(train_tensors=(X, Y), test_tensors=(X_test, Y_test), shuffle=shuffle,
+                         resampling_strategy=resampling_strategy,
+                         resampling_strategy_args=resampling_strategy_args,
+                         seed=seed, train_transforms=train_transforms,
+                         val_transforms=val_transforms)
+        if self.output_type is not None:
+            if STRING_TO_OUTPUT_TYPES[self.output_type] in CLASSIFICATION_OUTPUTS:
+                self.task_type = TASK_TYPES_TO_STRING[TABULAR_CLASSIFICATION]
+            elif STRING_TO_OUTPUT_TYPES[self.output_type] in REGRESSION_OUTPUTS:
+                self.task_type = TASK_TYPES_TO_STRING[TABULAR_REGRESSION]
+            else:
+                raise ValueError("Output type not currently supported ")
+        else:
+            raise ValueError("Task type not currently supported ")
+        if STRING_TO_TASK_TYPES[self.task_type] in CLASSIFICATION_TASKS:
+            self.num_classes: int = len(np.unique(self.train_tensors[1]))
 
-    def interpret_columns(self, data: Any, assert_single_column: bool = False) -> tuple:
+    def interpret_columns(self,
+                          data: Union[np.ndarray, pd.DataFrame, pd.Series],
+                          assert_single_column: bool = False
+                          ) -> Tuple[Union[pd.DataFrame, Any], List[DataTypes],
+                                     Union[np.ndarray],
+                                     List[Optional[list]],
+                                     List[Optional[Value2Index]]]:
+        """
+        Interpret information such as data, data_types, nan_mask, itovs, vtois
+        about the columns from the given data.
+
+        Args:
+            data (Union[np.ndarray, pd.DataFrame, pd.Series]): data to be
+                interpreted.
+            assert_single_column (bool), (default=False): flag for
+                asserting that the data contains a single column
+
+        Returns:
+            Tuple[pd.DataFrame, List[DataTypes],
+                 Union[np.ndarray],
+                 List[Optional[list]],
+                 List[Optional[Value2Index]]]: Tuple of information
+        """
         single_column = False
         if isinstance(data, np.ndarray):
             if len(data.shape) == 1 and ',' not in str(data.dtype):
@@ -134,13 +199,21 @@ class TabularDataset(BaseDataset):
                 vtois.append(None)
 
         if single_column:
-            return data.iloc[:, 0], data_types[0], nan_mask[0], itovs[0], vtois[0]
+            return data.iloc[:, 0], data_types, nan_mask, itovs, vtois
 
         return data, data_types, nan_mask, itovs, vtois
 
-    def infer_dataset_properties(self, X: Any, y: Any) \
-            -> Tuple[List[int], List[int], List[object], int, Optional[int]]:
+    def infer_dataset_properties(self, X: Any) \
+            -> Tuple[List[int], List[int], List[object], int]:
+        """
+        Infers the properties of the dataset like
+        categorical_columns, numerical_columns, categories, num_features
+        Args:
+            X: input training data
 
+        Returns:
+            (Tuple[List[int], List[int], List[object], int]):
+        """
         categorical_columns = []
         numerical_columns = []
         for i, data_type in enumerate(self.data_types):
@@ -150,8 +223,5 @@ class TabularDataset(BaseDataset):
                 numerical_columns.append(i)
         categories = [np.unique(X.iloc[:, a]).tolist() for a in categorical_columns]
         num_features = X.shape[1]
-        num_classes = None
-        if y is not None:
-            num_classes = len(np.unique(y))
 
-        return categorical_columns, numerical_columns, categories, num_features, num_classes
+        return categorical_columns, numerical_columns, categories, num_features

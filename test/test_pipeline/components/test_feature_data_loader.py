@@ -15,11 +15,11 @@ class TestFeatureDataLoader(unittest.TestCase):
         """
         loader = FeatureDataLoader()
 
-        fit_dictionary = {'is_small_preprocess': True}
+        fit_dictionary = {'dataset_properties': {'is_small_preprocess': True}}
         for thing in ['imputer', 'scaler', 'encoder']:
-            fit_dictionary[thing] = unittest.mock.Mock()
+            fit_dictionary[thing] = [unittest.mock.Mock()]
 
-        compose = loader.build_transform(fit_dictionary)
+        compose = loader.build_transform(fit_dictionary, mode='train')
 
         self.assertIsInstance(compose, torchvision.transforms.Compose)
 
@@ -32,12 +32,12 @@ class TestFeatureDataLoader(unittest.TestCase):
         """
         loader = FeatureDataLoader()
 
-        fit_dictionary = {'is_small_preprocess': False}
-        fit_dictionary['preprocess_transforms'] = unittest.mock.Mock()
+        fit_dictionary = {'dataset_properties': {'is_small_preprocess': False},
+                          'preprocess_transforms': [unittest.mock.Mock()]}
 
-        compose = loader.build_transform(fit_dictionary)
+        compose = loader.build_transform(fit_dictionary, mode='train')
 
         self.assertIsInstance(compose, torchvision.transforms.Compose)
 
-        # We expect the to tensor and the preproces transforms
-        self.assertEqual(len(compose.transforms), 2)
+        # We expect the to tensor, the preproces transforms and the check_array
+        self.assertEqual(len(compose.transforms), 3)

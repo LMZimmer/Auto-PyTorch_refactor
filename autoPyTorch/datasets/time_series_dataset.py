@@ -1,6 +1,8 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+
+import torchvision.transforms
 
 from autoPyTorch.datasets.base_dataset import BaseDataset
 from autoPyTorch.datasets.resampling_strategy import (
@@ -21,7 +23,14 @@ class TimeSeriesForecastingDataset(BaseDataset):
                  sequence_length: int,
                  n_steps: int,
                  train: TIME_SERIES_FORECASTING_INPUT,
-                 val: Optional[TIME_SERIES_FORECASTING_INPUT] = None):
+                 val: Optional[TIME_SERIES_FORECASTING_INPUT] = None,
+                 resampling_strategy: Union[CrossValTypes, HoldoutValTypes] = HoldoutValTypes.holdout_validation,
+                 resampling_strategy_args: Optional[Dict[str, Any]] = None,
+                 shuffle: Optional[bool] = False,
+                 seed: Optional[int] = 42,
+                 train_transforms: Optional[torchvision.transforms.Compose] = None,
+                 val_transforms: Optional[torchvision.transforms.Compose] = None,
+                 ):
         """
 
         :param target_variables: The indices of the variables you want to forecast
@@ -45,7 +54,12 @@ class TimeSeriesForecastingDataset(BaseDataset):
                                                           target_variables=target_variables,
                                                           sequence_length=sequence_length,
                                                           n_steps=n_steps)
-        super().__init__(train_tensors=train, val_tensors=val, shuffle=False)
+        super().__init__(train_tensors=train, val_tensors=val, shuffle=shuffle,
+                         resampling_strategy=resampling_strategy, resampling_strategy_args=resampling_strategy_args,
+                         seed=seed,
+                         train_transforms=train_transforms,
+                         val_transforms=val_transforms,
+                         )
         self.cross_validators = get_cross_validators(CrossValTypes.time_series_cross_validation)
         self.holdout_validators = get_holdout_validators(HoldoutValTypes.holdout_validation)
 

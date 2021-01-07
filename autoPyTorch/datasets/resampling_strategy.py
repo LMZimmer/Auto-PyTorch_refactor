@@ -43,6 +43,8 @@ class HoldoutValTypes(IntEnum):
     stratified_holdout_validation = 7
 
 
+RESAMPLING_STRATEGIES = [CrossValTypes, HoldoutValTypes]
+
 DEFAULT_RESAMPLING_PARAMETERS = {
     HoldoutValTypes.holdout_validation: {
         'val_share': 0.33,

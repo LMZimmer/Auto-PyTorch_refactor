@@ -24,7 +24,6 @@ import numpy as np
 import sklearn.datasets
 import sklearn.model_selection
 from sklearn.metrics import accuracy_score
-from sklearn.utils.multiclass import type_of_target
 
 from autoPyTorch.constants import MULTICLASS, TABULAR_CLASSIFICATION
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
@@ -32,9 +31,10 @@ from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.pipeline.components.training.metrics.metrics import accuracy
 from autoPyTorch.pipeline.tabular_classification import TabularClassificationPipeline
 from autoPyTorch.utils.backend import Backend, create
+from autoPyTorch.utils.pipeline import get_dataset_requirements
 
 
-def get_data_to_train() -> typing.Tuple[typing.Dict[str, typing.Any]]:
+def get_data_to_train(backend: Backend) -> typing.Tuple[typing.Dict[str, typing.Any]]:
     """
     This function returns a fit dictionary that within itself, contains all
     the information to fit a pipeline
@@ -56,28 +56,22 @@ def get_data_to_train() -> typing.Tuple[typing.Dict[str, typing.Any]]:
         test_size=0.25,
     )
 
-    output_type = type_of_target(y)
+    # Create a datamanager for this toy problem
+    datamanager = TabularDataset(
+        X=X_train, Y=y_train,
+        X_test=X_test, Y_test=y_test,
+    )
+    backend.save_datamanager(datamanager)
 
-    # Mock the categories
-    categorical_columns = ['A1', 'A4', 'A5', 'A6', 'A8', 'A9', 'A11', 'A12']
-    numerical_columns = ['A2', 'A3', 'A7', 'A10', 'A13', 'A14']
-    categories = [np.unique(X[a]).tolist() for a in categorical_columns]
+    info = {'task_type': datamanager.task_type,
+            'output_type': datamanager.output_type,
+            'issparse': datamanager.issparse,
+            'numerical_columns': datamanager.numerical_columns,
+            'categorical_columns': datamanager.categorical_columns}
+    dataset_properties = datamanager.get_dataset_properties(get_dataset_requirements(info))
 
-    # Create a proof of concept pipeline!
-    dataset_properties = {
-        'task_type': 'tabular_classification',
-        'categorical_columns': categorical_columns,
-        'numerical_columns': numerical_columns,
-        'output_type': output_type,
-    }
     # Fit the pipeline
     fit_dictionary = {
-        'categorical_columns': categorical_columns,
-        'numerical_columns': numerical_columns,
-        'num_features': X.shape[1],
-        'num_classes': len(np.unique(y)),
-        'is_small_preprocess': True,
-        'categories': categories,
         'X_train': X_train,
         'y_train': y_train,
         'train_indices': train_indices,
@@ -100,6 +94,7 @@ def get_data_to_train() -> typing.Tuple[typing.Dict[str, typing.Any]]:
         'budget_type': 'epochs',
         'epochs': 10.0,
         'split_id': 0,
+        'backend': backend,
     }
 
     return fit_dictionary
@@ -138,7 +133,8 @@ def random_search_and_save(fit_dictionary: typing.Dict[str, typing.Any], backend
 
         # Predict using the fit model
         ensemble_predictions = pipeline.predict(
-            np.take(X_train, fit_dictionary['val_indices'], axis=0))
+            X_train.iloc[fit_dictionary['val_indices']]
+        )
         test_predictions = pipeline.predict(X_test)
 
         backend.save_numrun_to_dir(
@@ -160,24 +156,16 @@ def random_search_and_save(fit_dictionary: typing.Dict[str, typing.Any], backend
 
 if __name__ == "__main__":
 
-    # Get data to train
-    fit_dictionary = get_data_to_train()
-
     # Build a repository with random fitted models
     backend = create(temporary_directory='./tmp/autoPyTorch_ensemble_test_tmp',
                      output_directory='./tmp/autoPyTorch_ensemble_test_out',
                      delete_tmp_folder_after_terminate=False)
-    fit_dictionary['backend'] = backend
 
     # Create the directory structure
     backend._make_internals_directory()
 
-    # Create a datamanager for this toy problem
-    datamanager = TabularDataset(
-        X=fit_dictionary['X_train'], Y=fit_dictionary['y_train'],
-        X_test=fit_dictionary['X_test'], Y_test=fit_dictionary['y_test'],
-    )
-    backend.save_datamanager(datamanager)
+    # Get data to train
+    fit_dictionary = get_data_to_train(backend)
 
     # Create some random models for the ensemble
     random_search_and_save(fit_dictionary, backend, num_models=1)

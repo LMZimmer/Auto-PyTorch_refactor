@@ -19,7 +19,7 @@ class TabularColumnTransformer(autoPyTorchTabularPreprocessingComponent):
     def __init__(self, random_state: Optional[Union[np.random.RandomState, int]] = None):
         super().__init__()
         self.random_state = random_state
-        self.column_transformer: Optional[ColumnTransformer] = None
+        self.preprocessor: Optional[ColumnTransformer] = None
         self.add_fit_requirements([
             FitRequirement('numerical_columns', (List,), user_defined=True, dataset_property=True),
             FitRequirement('categorical_columns', (List,), user_defined=True, dataset_property=True)])
@@ -32,10 +32,10 @@ class TabularColumnTransformer(autoPyTorchTabularPreprocessingComponent):
         Returns:
             BaseEstimator: Fitted sklearn column transformer
         """
-        if self.column_transformer is None:
+        if self.preprocessor is None:
             raise AttributeError("{} can't return column transformer before transform is called"
                                  .format(self.__class__.__name__))
-        return self.column_transformer
+        return self.preprocessor
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> "TabularColumnTransformer":
         """
@@ -53,15 +53,24 @@ class TabularColumnTransformer(autoPyTorchTabularPreprocessingComponent):
         categorical_pipeline = 'drop'
 
         preprocessors = get_tabular_preprocessers(X)
-        if len(X['numerical_columns']):
+        if len(X['dataset_properties']['numerical_columns']):
             numerical_pipeline = make_pipeline(*preprocessors['numerical'])
-        if len(X['categorical_columns']):
+        if len(X['dataset_properties']['categorical_columns']):
             categorical_pipeline = make_pipeline(*preprocessors['categorical'])
 
-        self.column_transformer = make_column_transformer((numerical_pipeline, X['numerical_columns']),
-                                                          (categorical_pipeline, X['categorical_columns']),
-                                                          remainder='passthrough')
-        self.column_transformer.fit(X['X_train'])
+        self.preprocessor = make_column_transformer(
+            (numerical_pipeline, X['dataset_properties']['numerical_columns']),
+            (categorical_pipeline, X['dataset_properties']['categorical_columns']),
+            remainder='passthrough'
+        )
+
+        # Where to get the data -- Prioritize X_train if any else
+        # get from backend
+        if 'X_train' in X:
+            X_train = X['X_train']
+        else:
+            X_train = X['backend'].load_datamanager().train_tensors[0]
+        self.preprocessor.fit(X_train)
 
         return self
 
@@ -74,16 +83,12 @@ class TabularColumnTransformer(autoPyTorchTabularPreprocessingComponent):
         Returns:
             X (Dict[str, Any]): updated fit dictionary
         """
-        X.update({'tabular_transformer': self.column_transformer})
+        X.update({'tabular_transformer': self})
         return X
 
     def __call__(self, X: Union[np.ndarray, torch.tensor]) -> Union[np.ndarray, torch.tensor]:
 
-        if self.column_transformer is None:
+        if self.preprocessor is None:
             raise ValueError("cant call {} without fitting the column transformer first."
                              .format(self.__class__.__name__))
-        try:
-            X = self.column_transformer.transform(X)
-        except ValueError as msg:
-            raise ValueError('{} in {}'.format(msg, self.__class__))
-        return X
+        return self.preprocessor.transform(X)

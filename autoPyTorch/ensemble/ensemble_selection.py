@@ -115,7 +115,7 @@ class EnsembleSelection(AbstractEnsemble):
                 # when all_scoring_functions=False, we know it will be a float
                 score = calculate_score(
                     metrics=[self.metric],
-                    solution=labels,
+                    target=labels,
                     prediction=fant_ensemble_prediction,
                     task_type=self.task_type,
                 )

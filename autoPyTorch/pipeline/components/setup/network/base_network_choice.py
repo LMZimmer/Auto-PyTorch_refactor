@@ -72,8 +72,11 @@ class NetworkChoice(autoPyTorchChoice):
         if include is not None:
             for incl in include:
                 if incl not in available_comp:
-                    raise ValueError("Trying to include unknown component: "
-                                     "%s" % incl)
+                    raise ValueError(
+                        "Trying to include unknown component: {} from {}".format(
+                            incl,
+                            available_comp,
+                        ))
 
         components_dict = OrderedDict()
         for name in available_comp:

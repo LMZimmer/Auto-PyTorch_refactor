@@ -33,7 +33,7 @@ class BaseNormalizer(autoPyTorchImagePreprocessingComponent):
         """
         super().check_requirements(X, y)
 
-        if 0 in X['std']:
+        if 0 in X['dataset_properties']['std']:
             raise ZeroDivisionError("Can't normalise when std is zero")
 
     def __str__(self) -> str:

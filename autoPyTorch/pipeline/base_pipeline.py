@@ -117,7 +117,7 @@ class BasePipeline(Pipeline):
 
     def predict(self, X: np.ndarray, batch_size: Optional[int] = None
                 ) -> np.ndarray:
-        """Predict the classes using the selected model.
+        """Predict the output using the selected model.
 
         Args:
             X (np.ndarray): input data to the array
@@ -408,7 +408,7 @@ class BasePipeline(Pipeline):
             'job_id': '1',
             'device': 'cpu',
             'budget_type': 'epochs',
-            'epochs': 20,
+            'epochs': 5,
             'runtime': 3600,
             'torch_num_threads': 1,
             'early_stopping': 10,

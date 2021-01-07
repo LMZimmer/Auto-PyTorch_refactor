@@ -76,7 +76,7 @@ class SGDOptimizer(BaseOptimizerComponent):
         cs = ConfigurationSpace()
 
         # The learning rate for the model
-        lr = UniformFloatHyperparameter('lr', lower=1e-6, upper=1e-1,
+        lr = UniformFloatHyperparameter('lr', lower=1e-5, upper=1e-1,
                                         default_value=1e-2, log=True)
 
         weight_decay = UniformFloatHyperparameter('weight_decay', lower=0.0, upper=0.1,

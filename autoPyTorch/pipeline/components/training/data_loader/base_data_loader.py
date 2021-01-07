@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ConfigSpace.configuration_space import ConfigurationSpace
 from ConfigSpace.hyperparameters import (
@@ -6,8 +6,6 @@ from ConfigSpace.hyperparameters import (
 )
 
 import numpy as np
-
-from sklearn.utils import check_array
 
 import torch
 
@@ -41,12 +39,17 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
 
         # Save the transformations for reuse
         self.train_transform = None  # type: Optional[torchvision.transforms.Compose]
+
+        # The only reason we have val/test transform separated is to speed up
+        # prediction during training. Namely, if is_small_preprocess is set to true
+        # X_train data will be pre-processed, so we do no need preprocessing in the transform
+        # Regardless, test/inference always need this transformation
         self.val_transform = None  # type: Optional[torchvision.transforms.Compose]
+        self.test_transform = None  # type: Optional[torchvision.transforms.Compose]
 
         # Define fit requirements
         self.add_fit_requirements([
             FitRequirement("split_id", (int,), user_defined=True, dataset_property=False),
-            FitRequirement("train_indices", (List,), user_defined=True, dataset_property=False),
             FitRequirement("Backend", (Backend,), user_defined=True, dataset_property=False),
             FitRequirement("is_small_preprocess", (bool,), user_defined=True, dataset_property=True)])
 
@@ -79,15 +82,25 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         # Make sure there is an optimizer
         self.check_requirements(X, y)
 
-        self.train_transform = self.build_transform(X, train=True)
-        self.val_transform = self.build_transform(X, train=False)
-
+        # Incorporate the transform to the dataset
         datamanager = X['backend'].load_datamanager()
-        if X["is_small_preprocess"]:
+        self.train_transform = self.build_transform(X, mode='train')
+        self.val_transform = self.build_transform(X, mode='val')
+        self.test_transform = self.build_transform(X, mode='test')
+        datamanager.update_transform(
+            self.train_transform,
+            train=True,
+        )
+        datamanager.update_transform(
+            self.val_transform,
+            train=False,
+        )
+        if X['dataset_properties']["is_small_preprocess"]:
             # This parameter indicates that the data has been pre-processed for speed
             # Overwrite the datamanager with the pre-processes data
             datamanager.replace_data(X['X_train'], X['X_test'] if 'X_test' in X else None)
         train_dataset, val_dataset = datamanager.get_dataset_for_training(split_id=X['split_id'])
+
         self.train_data_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=min(self.batch_size, len(train_dataset)),
@@ -117,14 +130,11 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         applying the transformations meant to validation objects
         """
 
-        # We need the proper dtype on the data
-        # This has to be changed according to
-        X = check_array(X)
-        if y:
-            y = check_array(y, ensure_2d=False)
         dataset = BaseDataset(
             train_tensors=(X, y),
-            transforms=self.val_transform
+            # This dataset is used for loading test data in a batched format
+            train_transforms=self.test_transform,
+            val_transforms=self.test_transform,
         )
         return torch.utils.data.DataLoader(
             dataset,
@@ -133,13 +143,13 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
             collate_fn=custom_collate_fn,
         )
 
-    def build_transform(self, X: Dict[str, Any], train: bool = True) -> torchvision.transforms.Compose:
+    def build_transform(self, X: Dict[str, Any], mode: str) -> torchvision.transforms.Compose:
         """
         Method to build a transformation that can pre-process input data
 
         Args:
             X (X: Dict[str, Any]): Dependencies needed by current component to perform fit
-            train (bool)" whether transformation to be built are for training of test mode"
+            mode (str): train/val/test
 
         Returns:
             A composition of transformations
@@ -164,6 +174,14 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         assert self.val_data_loader is not None, "No val data loader fitted"
         return self.val_data_loader
 
+    def get_test_data_loader(self) -> torch.utils.data.DataLoader:
+        """Returns a data loader object for the test data
+
+        Returns:
+            torch.utils.data.DataLoader: A validation data loader
+        """
+        return self.test_data_loader
+
     def check_requirements(self, X: Dict[str, Any], y: Any = None) -> None:
         """
         A mechanism in code to ensure the correctness of the fit dictionary
@@ -182,7 +200,7 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         # We allow reading data from a user provided dataset
         # or from X, Y pairs
         if 'split_id' not in X:
-            raise ValueError("split_id is needed to select the respampled dataset. "
+            raise ValueError("To fit a data loader, expected fit dictionary to have split_id. "
                              "Currently X={}.".format(
                                  X
                              )
@@ -190,7 +208,7 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         if 'backend' not in X:
             raise ValueError("backend is needed to load the data from disk")
 
-        if 'is_small_preprocess' not in X:
+        if 'is_small_preprocess' not in X['dataset_properties']:
             raise ValueError("is_small_pre-process is required to know if the data was preprocessed"
                              " or if the data-loader should transform it while loading a batch")
 
@@ -245,6 +263,7 @@ class BaseDataLoaderComponent(autoPyTorchTrainingComponent):
         # Remove unwanted info
         info.pop('train_data_loader', None)
         info.pop('val_data_loader', None)
+        info.pop('test_data_loader', None)
         info.pop('vision_datasets', None)
         info.pop('random_state', None)
         string += " (" + str(info) + ")"

@@ -1,3 +1,4 @@
+import copy
 from typing import Any, Dict, List
 
 import numpy as np
@@ -10,25 +11,29 @@ from autoPyTorch.pipeline.components.preprocessing.base_preprocessing import aut
 
 
 def get_preprocess_transforms(X: Dict[str, Any]) -> torchvision.transforms.Compose:
-    transforms = list()  # type: List[autoPyTorchPreprocessingComponent]
+    candidate_transforms = list()  # type: List[autoPyTorchPreprocessingComponent]
     for key, value in X.items():
         if isinstance(value, autoPyTorchPreprocessingComponent):
-            transforms.append(value)
+            candidate_transforms.append(copy.deepcopy(value))
 
-    return torchvision.transforms.Compose(transforms)
+    return candidate_transforms
 
 
 def preprocess(dataset: np.ndarray, transforms: torchvision.transforms.Compose,
                indices: List[int] = None) -> np.ndarray:
 
-    # In case of pandas dataframe, make sure we comply with sklearn API,
-    # also, we require numpy for the next transformations
-    # We use the same query for iloc as sklearn uses in its estimators
-    if hasattr(dataset, 'iloc'):
-        dataset = check_array(dataset)
-
+    composite_transforms = torchvision.transforms.Compose(transforms)
     if indices is None:
-        dataset = transforms(dataset)
+        dataset = composite_transforms(dataset)
     else:
-        dataset[indices, :] = transforms(np.take(dataset, indices, axis=0))
-    return dataset
+        dataset[indices, :] = composite_transforms(np.take(dataset, indices, axis=0))
+    # In case the configuration space is so that no
+    # sklearn transformation is proposed, we perform
+    # check array to convert object to float
+    return check_array(
+        dataset,
+        force_all_finite=False,
+        accept_sparse='csr',
+        ensure_2d=False,
+        allow_nd=True,
+    )

@@ -1,4 +1,11 @@
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type
+import hashlib
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type, Union
+
+import numpy as np
+
+import pandas as pd
+
+import scipy.sparse
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -73,3 +80,56 @@ def custom_collate_fn(batch: List) -> List[Optional[torch.tensor]]:
     else:
         items[1] = default_collate(items[1])
     return items
+
+
+def replace_string_bool_to_bool(dictionary: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Utility function to replace string-type bool to
+    bool when a dict is read from json
+
+    Args:
+        dictionary (Dict[str, Any])
+    Returns:
+        Dict[str, Any]
+    """
+    for key, item in dictionary.items():
+        if isinstance(item, str):
+            if item.lower() == "true":
+                dictionary[key] = True
+            elif item.lower() == "false":
+                dictionary[key] = False
+    return dictionary
+
+
+def hash_array_or_matrix(X: Union[np.ndarray, pd.DataFrame]) -> str:
+    """
+    Creates a hash for a given array.
+    Used for dataset name in case none is specified
+    Args:
+        X: (Union[np.ndarray, pd.DataFrame])
+            data
+
+    Returns:
+        (str): hash of the data as string
+    """
+    m = hashlib.md5()
+
+    if hasattr(X, "iloc"):
+        X = X.to_numpy()
+
+    if scipy.sparse.issparse(X):
+        m.update(X.indices)
+        m.update(X.indptr)
+        m.update(X.data)
+        m.update(str(X.shape).encode('utf8'))
+    else:
+        if X.flags['C_CONTIGUOUS']:
+            m.update(X.data)
+            m.update(str(X.shape).encode('utf8'))
+        else:
+            X_tmp = np.ascontiguousarray(X.T)
+            m.update(X_tmp.data)
+            m.update(str(X_tmp.shape).encode('utf8'))
+
+    hash = m.hexdigest()
+    return hash
