@@ -79,7 +79,7 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         return self
 
     @abstractmethod
-    def build_model(self, input_shape: Tuple[int, ...], output_shape: Tuple[int, ...]) -> torch.nn.Module:
+    def build_model(self, input_shape: Tuple[int, ...], output_shape: Tuple[int, ...]) -> BaseClassifier:
         """
         This method returns a pytorch model, that is dynamically built using
         a self.config that is model specific, and contains the additional
@@ -88,11 +88,13 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         raise NotImplementedError()
 
     def predict(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
+        assert self.model is not None, "Cant predict without fitting first"
         if self.preprocess_transforms is not None:
             X_test = preprocess(X_test, transforms=self.preprocess_transforms)
         return self.model.predict(X_test=X_test)
 
     def predict_proba(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
+        assert self.model is not None, "Cant predict without fitting first"
         if self.preprocess_transforms is not None:
             X_test = preprocess(X_test, transforms=self.preprocess_transforms)
         return self.model.predict(X_test, predict_proba=True)
