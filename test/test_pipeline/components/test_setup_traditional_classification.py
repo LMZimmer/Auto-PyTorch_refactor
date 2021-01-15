@@ -1,10 +1,9 @@
 import copy
 import os
+import shutil
 import sys
 
 import numpy as np
-
-import shutil
 
 import pytest
 

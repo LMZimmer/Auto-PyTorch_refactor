@@ -1,3 +1,5 @@
+import os
+import sys
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -13,6 +15,16 @@ from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupCom
 from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import preprocess
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 from autoPyTorch.utils.common import FitRequirement
+
+
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 
 class BaseModelComponent(autoPyTorchSetupComponent):
@@ -67,8 +79,10 @@ class BaseModelComponent(autoPyTorchSetupComponent):
                                       output_shape=output_shape)
 
         # train model
+        blockPrint()
         self.fit_output = self.model.fit(X['X_train'][X['train_indices']], X['y_train'][X['train_indices']],
                                          X['X_train'][X['val_indices']], X['y_train'][X['val_indices']])
+        enablePrint()
 
         self.preprocess_transforms = X['preprocess_transforms']  # storing for predicting on test set later
         # infer
