@@ -1,4 +1,6 @@
 import copy
+import os
+import sys
 
 import numpy as np
 
@@ -6,15 +8,13 @@ import pytest
 
 from autoPyTorch.pipeline.components.setup.traditional_ml.base_model_choice import ModelChoice
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.classifiers import (
-    LGBModel,
     CatboostModel,
-    SVMModel,
-    RFModel,
     ExtraTreesModel,
-    KNNModel
+    KNNModel,
+    LGBModel,
+    RFModel,
+    SVMModel
 )
-
-import sys, os
 
 
 # Disable

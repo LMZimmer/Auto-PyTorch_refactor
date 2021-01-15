@@ -3,10 +3,7 @@
 Tabular Classification
 ======================
 """
-import os
 import typing
-
-import numpy as np
 
 import sklearn.datasets
 import sklearn.model_selection
