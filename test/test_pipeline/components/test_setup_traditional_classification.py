@@ -37,9 +37,11 @@ def classifier(request):
 def dataset_properties(request):
     return request.getfixturevalue(request.param)
 
+
 @pytest.fixture
 def dataset_properties_num_only():
     return {'numerical_columns': list(range(5))}
+
 
 @pytest.fixture
 def dataset_properties_categorical_only():

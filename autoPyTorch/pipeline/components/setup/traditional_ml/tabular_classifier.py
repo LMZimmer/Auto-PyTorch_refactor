@@ -66,4 +66,4 @@ class TabularClassifier(BaseModelComponent):
         info.pop('random_state', None)
         info.pop('fit_output', None)
         info.pop('config', None)
-        return f"TabularClassifier: {self.model.name} ({str(info)})"
+        return f"TabularClassifier: {self.model.name if self.model is not None else None} ({str(info)})"

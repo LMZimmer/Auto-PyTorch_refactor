@@ -11,7 +11,6 @@ import numpy as np
 import pytest
 
 from sklearn.datasets import fetch_openml, make_classification
-import sklearn.model_selection
 
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.utils.backend import create
