@@ -2,11 +2,12 @@ import json
 import logging
 import os as os
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
 from autoPyTorch.metrics import accuracy
+
 
 class BaseClassifier():
     """
@@ -73,7 +74,7 @@ class BaseClassifier():
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> float:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
         """
         predict the model performance on a test set.
         """

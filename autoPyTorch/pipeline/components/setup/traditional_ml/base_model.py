@@ -1,12 +1,11 @@
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 import pandas as pd
 
 import torch
-from torch import nn
 
 import torchvision.transforms
 
@@ -88,12 +87,12 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         """
         raise NotImplementedError()
 
-    def predict(self, X_test):
+    def predict(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
         if self.preprocess_transforms is not None:
             X_test = preprocess(X_test, transforms=self.preprocess_transforms)
         return self.model.predict(X_test=X_test)
 
-    def predict_proba(self, X_test):
+    def predict_proba(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
         if self.preprocess_transforms is not None:
             X_test = preprocess(X_test, transforms=self.preprocess_transforms)
         return self.model.predict(X_test, predict_proba=True)
@@ -106,7 +105,7 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         X.update({'results': self.fit_output})
         return X
 
-    def get_model(self) -> nn.Module:
+    def get_model(self) -> BaseClassifier:
         """
         Return the underlying model object.
         Returns:
