@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -8,7 +8,11 @@ import pandas as pd
 import torch
 from torch import nn
 
+import torchvision.transforms
+
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
+from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import preprocess
+from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 from autoPyTorch.utils.common import FitRequirement
 
 
@@ -21,17 +25,22 @@ class BaseModelComponent(autoPyTorchSetupComponent):
     def __init__(
             self,
             random_state: Optional[np.random.RandomState] = None,
+            model: Optional[BaseClassifier] = None,
+            preprocess_transforms: Optional[torchvision.transforms.Compose] = None,
             device: Optional[torch.device] = None
     ) -> None:
         super(BaseModelComponent, self).__init__()
         self.random_state = random_state
         self.fit_output: Dict[str, Any] = dict()
 
+        self.preprocess_transforms: Optional[torchvision.transforms.Compose] = preprocess_transforms
+        self.model: Optional[BaseClassifier] = model
+
         self.add_fit_requirements([
             FitRequirement('X_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
             FitRequirement('y_train', (np.ndarray, list, pd.Series,), user_defined=False, dataset_property=False),
-            FitRequirement('X_val', (np.ndarray, list,), user_defined=False, dataset_property=False),
-            FitRequirement('y_val', (np.ndarray, list, pd.Series,), user_defined=False, dataset_property=False)])
+            FitRequirement('train_indices', (np.ndarray, list), user_defined=False, dataset_property=False),
+            FitRequirement('val_indices', (np.ndarray, list), user_defined=False, dataset_property=False)])
 
     def fit(self, X: Dict[str, Any], y: Any = None) -> autoPyTorchSetupComponent:
         """
@@ -50,8 +59,6 @@ class BaseModelComponent(autoPyTorchSetupComponent):
 
         if isinstance(X['y_train'], pd.core.series.Series):
             X['y_train'] = X['y_train'].to_numpy()
-        if isinstance(X['y_val'], pd.core.series.Series):
-            X['y_val'] = X['y_val'].to_numpy()
 
         input_shape = X['X_train'].shape[1:]
         output_shape = X['y_train'].shape
@@ -61,11 +68,14 @@ class BaseModelComponent(autoPyTorchSetupComponent):
                                       output_shape=output_shape)
 
         # train model
-        self.fit_output = self.model.fit(X['X_train'], X['y_train'], X['X_val'], X['y_val'])
+        self.fit_output = self.model.fit(X['X_train'][X['train_indices']], X['y_train'][X['train_indices']],
+                                         X['X_train'][X['val_indices']], X['y_train'][X['val_indices']])
 
+        self.preprocess_transforms = X['preprocess_transforms']  # storing for predicting on test set later
         # infer
         if 'X_test' in X.keys() and X['X_test'] is not None:
-            test_preds = self.model.predict(X_test=X['X_test'], predict_proba=True)
+            X_test = preprocess(X['X_test'], transforms=X['preprocess_transforms'])
+            test_preds = self.model.predict(X_test=X_test, predict_proba=True)
             self.fit_output["test_preds"] = test_preds
         return self
 
@@ -77,6 +87,16 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         configuration hyperparameters to build a domain specific model
         """
         raise NotImplementedError()
+
+    def predict(self, X_test):
+        if self.preprocess_transforms is not None:
+            X_test = preprocess(X_test, transforms=self.preprocess_transforms)
+        return self.model.predict(X_test=X_test)
+
+    def predict_proba(self, X_test):
+        if self.preprocess_transforms is not None:
+            X_test = preprocess(X_test, transforms=self.preprocess_transforms)
+        return self.model.predict(X_test, predict_proba=True)
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -112,5 +132,6 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         # Remove unwanted info
         info.pop('model', None)
         info.pop('random_state', None)
+        info.pop('fit_output', None)
         string += " (" + str(info) + ")"
         return string

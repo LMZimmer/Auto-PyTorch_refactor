@@ -92,6 +92,8 @@ class ModelChoice(autoPyTorchChoice):
             # target_type = dataset_properties['target_type']
             # Apply some automatic filtering here based on dataset
 
+            if len(dataset_properties['numerical_columns']) == 0 and name == 'knn_classifier':
+                continue
             components_dict[name] = entry
 
         return components_dict
@@ -157,3 +159,7 @@ class ModelChoice(autoPyTorchChoice):
     def transform(self, X: np.ndarray) -> np.ndarray:
         assert self.choice is not None, "Cannot call transform before the object is initialized"
         return self.choice.transform(X)
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        assert self.choice is not None, "Cannot call predict before the object is initialized"
+        return self.choice.predict_proba(X)

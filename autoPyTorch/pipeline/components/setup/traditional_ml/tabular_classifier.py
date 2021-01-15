@@ -63,6 +63,7 @@ class TabularClassifier(BaseModelComponent):
         """ Allow a nice understanding of what components where used """
         info = vars(self)
         # Remove unwanted info
-        info.pop('model', None)
         info.pop('random_state', None)
-        return f"TabularClassifier: {self.config['classifier']} ({str(info)})"
+        info.pop('fit_output', None)
+        info.pop('config', None)
+        return f"TabularClassifier: {self.model.name} ({str(info)})"

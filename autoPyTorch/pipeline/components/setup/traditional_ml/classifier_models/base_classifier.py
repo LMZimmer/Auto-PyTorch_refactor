@@ -6,8 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from sklearn import metrics
-
+from autoPyTorch.metrics import accuracy
 
 class BaseClassifier():
     """
@@ -26,7 +25,7 @@ class BaseClassifier():
         self.encode_dicts: List = []
         self.num_classes: Optional[int] = None
 
-        self.metric = metrics.accuracy_score
+        self.metric = accuracy
 
     def configure_logging(self) -> None:
         """
@@ -70,5 +69,12 @@ class BaseClassifier():
     def score(self, X_test: np.ndarray, y_test: np.ndarray) -> float:
         """
         Score the model performance on a test set.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> float:
+        """
+        predict the model performance on a test set.
         """
         raise NotImplementedError
