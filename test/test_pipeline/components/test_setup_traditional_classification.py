@@ -6,6 +6,8 @@ import numpy as np
 
 import pytest
 
+import shutil
+
 from autoPyTorch.pipeline.components.setup.traditional_ml.base_model_choice import ModelChoice
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.classifiers import (
     CatboostModel,
@@ -121,3 +123,7 @@ class TestTraditionalClassifiers:
         # the result is same as in results
         score = classifier.score(X, y)
         assert score == results['val_score']
+
+        # delete folder created by catboost
+        if isinstance(classifier, CatboostModel):
+            shutil.rmtree('./catboost_info')
