@@ -6,11 +6,8 @@ import numpy as np
 
 import pytest
 
-<<<<<<< HEAD
 import shutil
 
-=======
->>>>>>> b8042d953c817bbdd4fe56ec17a9ab4fd7f4025c
 from autoPyTorch.pipeline.components.setup.traditional_ml.base_model_choice import ModelChoice
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.classifiers import (
     CatboostModel,
