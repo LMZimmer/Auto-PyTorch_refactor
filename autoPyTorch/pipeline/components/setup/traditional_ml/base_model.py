@@ -18,12 +18,12 @@ from autoPyTorch.utils.common import FitRequirement
 
 
 # Disable
-def blockPrint():
+def blockPrint() -> None:
     sys.stdout = open(os.devnull, 'w')
 
 
 # Restore
-def enablePrint():
+def enablePrint() -> None:
     sys.stdout = sys.__stdout__
 
 
