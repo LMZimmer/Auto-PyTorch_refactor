@@ -5,9 +5,12 @@ import time
 import dask
 import dask.distributed
 
+import numpy as np
+
 import pytest
 
 from sklearn.datasets import fetch_openml, make_classification
+import sklearn.model_selection
 
 from autoPyTorch.datasets.tabular_dataset import TabularDataset
 from autoPyTorch.utils.backend import create
@@ -267,3 +270,41 @@ def fit_dictionary_num_and_categorical(backend):
     }
     backend.save_datamanager(datamanager)
     return fit_dictionary
+
+
+@pytest.fixture
+def dataset(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def dataset_traditional_classifier_num_only():
+    X, y = make_classification(
+        n_samples=200,
+        n_features=4,
+        n_informative=3,
+        n_redundant=1,
+        n_repeated=0,
+        n_classes=2,
+        n_clusters_per_class=2,
+        shuffle=True,
+        random_state=0
+    )
+    return X, y
+
+
+@pytest.fixture
+def dataset_traditional_classifier_categorical_only():
+    X, y = fetch_openml(data_id=40981, return_X_y=True, as_frame=True)
+    categorical_columns = [column for column in X.columns if X[column].dtype.name == 'category']
+    X = X[categorical_columns]
+    X, y = X[:200].to_numpy(), y[:200].to_numpy().astype(np.int)
+    return X, y
+
+
+@pytest.fixture
+def dataset_traditional_classifier_num_categorical():
+    X, y = fetch_openml(data_id=40981, return_X_y=True, as_frame=True)
+    y = y.astype(np.int)
+    X, y = X[:200].to_numpy(), y[:200].to_numpy().astype(np.int)
+    return X, y
