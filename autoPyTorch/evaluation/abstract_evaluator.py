@@ -265,7 +265,7 @@ class AbstractEvaluator(object):
         self.num_run = 0 if num_run is None else num_run
 
         logger_name = '%s(%d)' % (self.__class__.__name__.split('.')[-1],
-                                  self.seed)  # TODO: Add name to dataset class
+                                  self.seed)
         if logger_port is None:
             logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
         self.logger = get_named_client_logger(
