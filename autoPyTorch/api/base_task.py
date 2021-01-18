@@ -470,7 +470,69 @@ class BaseTask:
 
         return ensemble
 
-    def _do_dummy_prediction(self, datamanager, num_run):
+    def _do_dummy_prediction(self, num_run):
+
+        self._logger.info("Starting to create dummy predictions.")
+
+        memory_limit = self._memory_limit
+        if memory_limit is not None:
+            memory_limit = int(math.ceil(memory_limit))
+
+        scenario_mock = unittest.mock.Mock()
+        scenario_mock.wallclock_limit = self._time_for_task
+        # This stats object is a hack - maybe the SMAC stats object should
+        # already be generated here!
+        stats = Stats(scenario_mock)
+        stats.start_timing()
+        ta = ExecuteTaFuncWithQueue(
+            backend=self._backend,
+            seed=self.seed,
+            metric=self._metric,
+            logger=self._logger,
+            cost_for_crash=get_cost_of_crash(self._metric),
+            abort_on_first_run_crash=False,
+            initial_num_run=num_run,
+            stats=stats,
+            memory_limit=memory_limit,
+            disable_file_output=True if len(self._disable_file_output) > 0 else False,
+            all_supported_metrics=self._all_supported_metrics
+        )
+
+        status, cost, runtime, additional_info = ta.run(num_run, cutoff=self._time_for_task)
+        if status == StatusType.SUCCESS:
+            self._logger.info("Finished creating dummy predictions.")
+        else:
+            if additional_info.get('exitcode') == -6:
+                self._logger.error(
+                    "Dummy prediction failed with run state %s. "
+                    "The error suggests that the provided memory limits were too tight. Please "
+                    "increase the 'ml_memory_limit' and try again. If this does not solve your "
+                    "problem, please open an issue and paste the additional output. "
+                    "Additional output: %s.",
+                    str(status), str(additional_info),
+                )
+                # Fail if dummy prediction fails.
+                raise ValueError(
+                    "Dummy prediction failed with run state %s. "
+                    "The error suggests that the provided memory limits were too tight. Please "
+                    "increase the 'ml_memory_limit' and try again. If this does not solve your "
+                    "problem, please open an issue and paste the additional output. "
+                    "Additional output: %s." %
+                    (str(status), str(additional_info)),
+                )
+
+            else:
+                self._logger.error(
+                    "Dummy prediction failed with run state %s and additional output: %s.",
+                    str(status), str(additional_info),
+                )
+                # Fail if dummy prediction fails.
+                raise ValueError(
+                    "Dummy prediction failed with run state %s and additional output: %s."
+                    % (str(status), str(additional_info))
+                )
+
+    def _do_traditional_prediction(self, num_run):
 
         self._logger.info("Starting to create dummy predictions.")
 
@@ -653,6 +715,12 @@ class BaseTask:
 
         self._create_dask_client()
 
+        # ============> Run dummy predictions
+        num_run = 1
+        self._do_dummy_prediction(num_run=num_run)
+
+        # ============> Run traditional ml
+
         # ============> Starting ensemble
         elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
         time_left_for_ensembles = max(0, total_walltime_limit - elapsed_time)
@@ -660,7 +728,7 @@ class BaseTask:
         if time_left_for_ensembles <= 0:
             # Fit only raises error when ensemble_size is not zero but
             # time_left_for_ensembles is zero.
-            if self._ensemble_size > 0:
+            if self.ensemble_size > 0:
                 raise ValueError("Not starting ensemble builder because there "
                                  "is no time left. Try increasing the value "
                                  "of time_left_for_this_task.")
