@@ -103,7 +103,8 @@ class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
             else:
                 # Probe for the target array dimensions
                 target = self.predict(X[0:2].copy())
-
+                if (target.shape) == 1:
+                    target = target.reshape((-1, 1))
                 y = np.zeros((X.shape[0], target.shape[1]),
                              dtype=np.float32)
 

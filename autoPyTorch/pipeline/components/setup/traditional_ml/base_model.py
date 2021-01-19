@@ -105,7 +105,7 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         assert self.model is not None, "Cant predict without fitting first"
         if self.preprocess_transforms is not None:
             X_test = preprocess(X_test, transforms=self.preprocess_transforms)
-        return self.model.predict(X_test=X_test)
+        return self.model.predict(X_test=X_test).reshape((-1, 1))
 
     def predict_proba(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
         assert self.model is not None, "Cant predict without fitting first"

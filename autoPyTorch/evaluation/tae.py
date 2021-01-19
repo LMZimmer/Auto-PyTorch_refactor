@@ -244,7 +244,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
             capture_output=True,
         )
 
-        if isinstance(config, int):
+        if isinstance(config, (int, str)):
             num_run = self.initial_num_run
         else:
             num_run = config.config_id + self.initial_num_run
@@ -406,6 +406,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         if isinstance(config, int):
             origin = 'DUMMY'
+        elif isinstance(config, str):
+            origin = 'traditional'
         else:
             origin = getattr(config, 'origin', 'UNKNOWN')
         additional_run_info['configuration_origin'] = origin

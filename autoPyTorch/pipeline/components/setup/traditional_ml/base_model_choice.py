@@ -91,9 +91,6 @@ class ModelChoice(autoPyTorchChoice):
 
             # target_type = dataset_properties['target_type']
             # Apply some automatic filtering here based on dataset
-
-            if len(dataset_properties['numerical_columns']) == 0 and name == 'knn_classifier':
-                continue
             components_dict[name] = entry
 
         return components_dict
