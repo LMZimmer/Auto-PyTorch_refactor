@@ -542,10 +542,11 @@ class BaseTask:
             memory_limit = int(math.ceil(memory_limit))
         available_classifiers = get_available_classifiers()
         dask_futures = list()
-        time_for_traditional_classifier = time_for_traditional/len(available_classifiers)
+        time_for_traditional_classifier_sec = int(time_for_traditional/len(available_classifiers))
         for num_run, classifier in enumerate(available_classifiers, start=self._num_run+1):
+            start_time = time.time()
             scenario_mock = unittest.mock.Mock()
-            scenario_mock.wallclock_limit = time_for_traditional_classifier
+            scenario_mock.wallclock_limit = time_for_traditional_classifier_sec
             # This stats object is a hack - maybe the SMAC stats object should
             # already be generated here!
             stats = Stats(scenario_mock)
@@ -564,7 +565,11 @@ class BaseTask:
                 all_supported_metrics=self._all_supported_metrics
             )
             dask_futures.append((classifier, self._dask_client.submit(ta.run, config=classifier,
-                                                                      cutoff=time_for_traditional_classifier)))
+                                                                      cutoff=time_for_traditional_classifier_sec)))
+
+            # In the case of a serial execution, calling submit halts the run for a resource
+            # dynamically adjust time in this case
+            time_for_traditional_classifier_sec -= int(time.time() - start_time)
 
         self._num_run = num_run
 
