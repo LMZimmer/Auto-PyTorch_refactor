@@ -541,9 +541,11 @@ class BaseTask:
         if memory_limit is not None:
             memory_limit = int(math.ceil(memory_limit))
         available_classifiers = get_available_classifiers()
+        dask_futures = list()
+        time_for_traditional_classifier = time_for_traditional/len(available_classifiers)
         for num_run, classifier in enumerate(available_classifiers, start=self._num_run+1):
             scenario_mock = unittest.mock.Mock()
-            scenario_mock.wallclock_limit = time_for_traditional/len(available_classifiers)
+            scenario_mock.wallclock_limit = time_for_traditional_classifier
             # This stats object is a hack - maybe the SMAC stats object should
             # already be generated here!
             stats = Stats(scenario_mock)
@@ -561,42 +563,45 @@ class BaseTask:
                 disable_file_output=True if len(self._disable_file_output) > 0 else False,
                 all_supported_metrics=self._all_supported_metrics
             )
+            dask_futures.append((classifier, self._dask_client.submit(ta.run, config=classifier,
+                                                                      cutoff=time_for_traditional_classifier)))
 
-            status, cost, runtime, additional_info = ta.run(classifier, cutoff=self._time_for_task)
+        self._num_run = num_run
+
+        for (classifier, future) in dask_futures:
+            status, cost, runtime, additional_info = future.result()
             if status == StatusType.SUCCESS:
                 self._logger.info("Finished creating predictions for {}".format(classifier))
             else:
                 if additional_info.get('exitcode') == -6:
                     self._logger.error(
-                        "Dummy prediction failed with run state %s. "
+                        "Traditional prediction for %s failed with run state %s. "
                         "The error suggests that the provided memory limits were too tight. Please "
                         "increase the 'ml_memory_limit' and try again. If this does not solve your "
                         "problem, please open an issue and paste the additional output. "
                         "Additional output: %s.",
-                        str(status), str(additional_info),
+                        classifier, str(status), str(additional_info),
                     )
                     # Fail if dummy prediction fails.
                     raise ValueError(
-                        "Dummy prediction failed with run state %s. "
+                        "Traditional prediction for %s failed with run state %s. "
                         "The error suggests that the provided memory limits were too tight. Please "
                         "increase the 'ml_memory_limit' and try again. If this does not solve your "
                         "problem, please open an issue and paste the additional output. "
                         "Additional output: %s." %
-                        (str(status), str(additional_info)),
+                        (classifier, str(status), str(additional_info)),
                     )
 
                 else:
                     self._logger.error(
-                        "Dummy prediction failed with run state %s and additional output: %s.",
-                        str(status), str(additional_info),
+                        "Traditional prediction for %s failed with run state %s and additional output: %s.",
+                        classifier, str(status), str(additional_info),
                     )
                     # Fail if dummy prediction fails.
                     raise ValueError(
-                        "Dummy prediction failed with run state %s and additional output: %s."
-                        % (str(status), str(additional_info))
+                        "Traditional prediction for %s failed with run state %s and additional output: %s."
+                        % (classifier, str(status), str(additional_info))
                     )
-        self._num_run = num_run
-
 
     def search(
             self,
