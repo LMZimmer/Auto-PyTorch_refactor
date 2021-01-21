@@ -169,6 +169,7 @@ class BaseTask:
         self.trajectory: Optional[List] = None
         self.dataset_name: Optional[str] = None
         self.cv_models_: Dict = {}
+        self._num_run: Optional[int] = None
 
         # By default try to use the TCP logging port or get a new port
         self._logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
@@ -471,7 +472,10 @@ class BaseTask:
 
         return ensemble
 
-    def _do_dummy_prediction(self):
+    def _do_dummy_prediction(self) -> None:
+
+        assert self._metric is not None
+        assert self._logger is not None
 
         self._logger.info("Starting to create dummy predictions.")
 
@@ -492,7 +496,7 @@ class BaseTask:
             logger=self._logger,
             cost_for_crash=get_cost_of_crash(self._metric),
             abort_on_first_run_crash=False,
-            initial_num_run=self._num_run,
+            initial_num_run=self._num_run if self._num_run is not None else 1,
             stats=stats,
             memory_limit=memory_limit,
             disable_file_output=True if len(self._disable_file_output) > 0 else False,
@@ -533,7 +537,10 @@ class BaseTask:
                     % (str(status), str(additional_info))
                 )
 
-    def _do_traditional_prediction(self, time_for_traditional):
+    def _do_traditional_prediction(self, time_for_traditional: int) -> None:
+
+        assert self._metric is not None
+        assert self._logger is not None
 
         self._logger.info("Starting to create dummy predictions.")
 
@@ -542,8 +549,9 @@ class BaseTask:
             memory_limit = int(math.ceil(memory_limit))
         available_classifiers = get_available_classifiers()
         dask_futures = list()
-        time_for_traditional_classifier_sec = int(time_for_traditional/len(available_classifiers))
-        for num_run, classifier in enumerate(available_classifiers, start=self._num_run+1):
+        time_for_traditional_classifier_sec = int(time_for_traditional / len(available_classifiers))
+        for num_run, classifier in enumerate(available_classifiers,
+                                             start=self._num_run + 1 if self._num_run is not None else 1):
             start_time = time.time()
             scenario_mock = unittest.mock.Mock()
             scenario_mock.wallclock_limit = time_for_traditional_classifier_sec
@@ -729,7 +737,7 @@ class BaseTask:
         # ============> Run traditional ml
 
         elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
-        time_for_traditional = int(traditional_per_total_budget* max(0, (self._time_for_task - elapsed_time)))
+        time_for_traditional = int(traditional_per_total_budget * max(0, (self._time_for_task - elapsed_time)))
         if time_for_traditional <= 0:
             if traditional_per_total_budget > 0:
                 raise ValueError("Not enough time allocated to run traditional algorithms")
@@ -1080,7 +1088,7 @@ class BaseTask:
     def __getstate__(self) -> Dict[str, Any]:
         # Cannot serialize a client!
         self._dask_client = None
-        self.logging_server = None
+        self.logging_server = None  # type: ignore [assignment]
         self.stop_logging_server = None
         return self.__dict__
 

@@ -240,7 +240,7 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
         pynisher_arguments = dict(
             logger=get_named_client_logger(name="pynisher", port=self.logger_port),
             # Pynisher expects seconds as a time indicator
-            wall_time_in_s=int(cutoff),
+            wall_time_in_s=int(cutoff) if cutoff is not None else None,
             mem_in_mb=self.memory_limit,
             capture_output=True,
         )

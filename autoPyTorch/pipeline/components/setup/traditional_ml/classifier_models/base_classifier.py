@@ -2,7 +2,7 @@ import json
 import logging
 import os as os
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -74,7 +74,7 @@ class BaseClassifier():
         raise NotImplementedError
 
     @abstractmethod
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         """
         predict the model performance on a test set.
         """

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from catboost import CatBoostClassifier, Pool
 
@@ -10,13 +10,15 @@ import pandas as pd
 
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import OrdinalEncoder
 from sklearn.svm import SVC
 
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 
 
-def encode_categoricals(X_train, X_val=None, encode_dicts=None):
+def encode_categoricals(X_train: np.ndarray,
+                        X_val: Optional[np.ndarray] = None,
+                        encode_dicts: Optional[List] = None
+                        ) -> Union[np.ndarray, Optional[np.ndarray], Optional[List]]:
     if encode_dicts is None:
         encode_dicts = []
         got_encoded_dicts = False
@@ -91,7 +93,7 @@ class LGBModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         if predict_proba:
             y_pred_proba = self.model.predict_proba(X_test)
             if self.num_classes == 2:
@@ -153,7 +155,7 @@ class CatboostModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -210,7 +212,7 @@ class RFModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -267,7 +269,7 @@ class ExtraTreesModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -317,7 +319,7 @@ class KNNModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         X_test = X_test[:, ~self.categoricals] if self.categoricals is not None else X_test
         if predict_proba:
             return self.model.predict_proba(X_test)
@@ -363,7 +365,7 @@ class SVMModel(BaseClassifier):
         y_pred = self.predict(X_test)
         return self.metric(y_test, y_pred)
 
-    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> Union[np.ndarray, List]:
+    def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
