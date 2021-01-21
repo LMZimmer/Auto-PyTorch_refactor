@@ -56,9 +56,8 @@ class MyTraditionalTabularClassificationPipeline(BaseEstimator):
                  dataset_properties: Dict[str, Any],
                  random_state: Optional[Union[int, np.random.RandomState]] = None,
                  init_params: Optional[Dict] = None):
-        self.pipeline = autoPyTorch.pipeline.traditional_tabular_classification.TraditionalTabularClassificationPipeline(
-            dataset_properties=dataset_properties
-        )
+        self.pipeline = autoPyTorch.pipeline.traditional_tabular_classification.\
+            TraditionalTabularClassificationPipeline(dataset_properties=dataset_properties)
         configuration_space = self.pipeline.get_hyperparameter_search_space()
         default_configuration = configuration_space.get_default_configuration().get_dictionary()
         default_configuration['model_trainer:tabular_classifier:classifier'] = config
@@ -85,7 +84,7 @@ class MyTraditionalTabularClassificationPipeline(BaseEstimator):
 
     @staticmethod
     def get_default_pipeline_options() -> Dict[str, Any]:
-        return autoPyTorch.pipeline.traditional_tabular_classification.\
+        return autoPyTorch.pipeline.traditional_tabular_classification. \
             TraditionalTabularClassificationPipeline.get_default_pipeline_options()
 
 
@@ -299,7 +298,8 @@ class AbstractEvaluator(object):
             'backend': self.backend,
             'logger_port': logger_port,
         })
-        pipeline_config = pipeline_config if pipeline_config is not None\
+        assert self.pipeline_class is not None, "Could not infer pipeline class"
+        pipeline_config = pipeline_config if pipeline_config is not None \
             else self.pipeline_class.get_default_pipeline_options()
         self.budget_type = pipeline_config['budget_type'] if budget_type is None else budget_type
         self.budget = pipeline_config[self.budget_type] if budget == 0 else budget

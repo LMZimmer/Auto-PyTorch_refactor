@@ -1,7 +1,7 @@
 import os
 import sys
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 
@@ -9,10 +9,7 @@ import pandas as pd
 
 import torch
 
-import torchvision.transforms
-
 from autoPyTorch.pipeline.components.setup.base_setup import autoPyTorchSetupComponent
-from autoPyTorch.pipeline.components.setup.early_preprocessor.utils import preprocess
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
 from autoPyTorch.utils.common import FitRequirement
 
@@ -102,13 +99,13 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         """
         raise NotImplementedError()
 
-    def predict(self, X_test: Union[pd.DataFrame, np.ndarray]) -> Union[np.ndarray, List]:
+    def predict(self, X_test: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
         assert self.model is not None, "Cant predict without fitting first"
         if isinstance(X_test, pd.DataFrame):
             X_test = X_test.to_numpy()
         return self.model.predict(X_test=X_test).reshape((-1, 1))
 
-    def predict_proba(self, X_test: Union[pd.DataFrame, np.ndarray]) -> Union[np.ndarray, List]:
+    def predict_proba(self, X_test: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
         assert self.model is not None, "Cant predict without fitting first"
         if isinstance(X_test, pd.DataFrame):
             X_test = X_test.to_numpy()
