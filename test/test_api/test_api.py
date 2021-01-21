@@ -53,8 +53,9 @@ def test_classification(openml_id, resampling_strategy, backend):
     estimator.search(
         dataset=datamanager,
         optimize_metric='accuracy',
-        total_walltime_limit=100,
-        func_eval_time_limit=30
+        total_walltime_limit=150,
+        func_eval_time_limit=30,
+        traditional_per_total_budget=0
     )
 
     # TODO: check for budget

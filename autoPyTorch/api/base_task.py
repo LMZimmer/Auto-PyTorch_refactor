@@ -602,7 +602,7 @@ class BaseTask:
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
-            traditional_per_total_budget: float = 0.3,
+            traditional_per_total_budget: float = 0.1,
             memory_limit: Optional[int] = 4096,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
@@ -733,7 +733,8 @@ class BaseTask:
         if time_for_traditional <= 0:
             if traditional_per_total_budget > 0:
                 raise ValueError("Not enough time allocated to run traditional algorithms")
-        self._do_traditional_prediction(time_for_traditional)
+        elif traditional_per_total_budget != 0:
+            self._do_traditional_prediction(time_for_traditional)
 
         # ============> Starting ensemble
         elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
