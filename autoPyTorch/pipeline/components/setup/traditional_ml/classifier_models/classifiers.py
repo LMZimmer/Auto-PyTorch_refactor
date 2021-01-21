@@ -6,11 +6,42 @@ from lightgbm import LGBMClassifier
 
 import numpy as np
 
+import pandas as pd
+
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import OrdinalEncoder
 from sklearn.svm import SVC
 
 from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models.base_classifier import BaseClassifier
+
+
+def encode_categoricals(X_train, X_val=None, encode_dicts=None):
+    if encode_dicts is None:
+        encode_dicts = []
+        got_encoded_dicts = False
+    else:
+        got_encoded_dicts = True
+
+    for ind in range(X_train.shape[1]):
+        if isinstance(X_train[0, ind], str):
+            uniques = np.unique(X_train[0, :])
+
+            if got_encoded_dicts:
+                cat_to_int_dict = encode_dicts[ind]
+            else:
+                cat_to_int_dict = {val: ind for ind, val in enumerate(uniques)}
+
+            converted_column_train = [cat_to_int_dict[v] for v in X_train[0, :]]
+            X_train[0, :] = converted_column_train
+
+            if X_val is not None:
+                converted_column_val = [cat_to_int_dict[v] for v in X_val[0, :]]
+                X_val[0, :] = converted_column_val
+
+            if not got_encoded_dicts:
+                encode_dicts.append(cat_to_int_dict)
+    return X_train, X_val, encode_dicts
 
 
 class LGBModel(BaseClassifier):
@@ -31,6 +62,13 @@ class LGBModel(BaseClassifier):
 
         early_stopping = 150 if X_train.shape[0] > 10000 else max(round(150 * 10000 / X_train.shape[0]), 10)
         self.config["early_stopping_rounds"] = early_stopping
+
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
 
         self.model = LGBMClassifier(**self.config)
         self.model.fit(X_train, y_train, eval_set=[(X_val, y_val)])
@@ -79,6 +117,13 @@ class CatboostModel(BaseClassifier):
 
         categoricals = [ind for ind in range(X_train.shape[1]) if isinstance(X_train[0, ind], str)]
 
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
+
         early_stopping = 150 if X_train.shape[0] > 10000 else max(round(150 * 10000 / X_train.shape[0]), 10)
 
         X_train_pooled = Pool(data=X_train, label=y_train, cat_features=categoricals)
@@ -126,6 +171,13 @@ class RFModel(BaseClassifier):
             y_val: np.ndarray) -> Dict[str, Any]:
 
         results = dict()
+
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
 
         self.config["warm_start"] = False
         self.num_classes = len(np.unique(y_train))
@@ -177,6 +229,13 @@ class ExtraTreesModel(BaseClassifier):
 
         results = dict()
 
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
+
         self.config["warm_start"] = False
         self.num_classes = len(np.unique(y_train))
         if self.num_classes > 2:
@@ -224,8 +283,14 @@ class KNNModel(BaseClassifier):
             y_train: np.ndarray,
             X_val: np.ndarray,
             y_val: np.ndarray) -> Dict[str, Any]:
-
         results = dict()
+
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
 
         self.categoricals = np.array([isinstance(X_train[0, ind], str) for ind in range(X_train.shape[1])])
         X_train = X_train[:, ~self.categoricals] if self.categoricals is not None else X_train
@@ -269,8 +334,14 @@ class SVMModel(BaseClassifier):
             y_train: np.ndarray,
             X_val: np.ndarray,
             y_val: np.ndarray) -> Dict[str, Any]:
-
         results = dict()
+
+        self.all_nan = np.all(pd.isnull(X_train), axis=0)
+        X_train = X_train[:, ~self.all_nan]
+        X_val = X_val[:, ~self.all_nan]
+
+        X_train = np.nan_to_num(X_train)
+        X_val = np.nan_to_num(X_val)
 
         self.model = SVC(**self.config, probability=True)
 

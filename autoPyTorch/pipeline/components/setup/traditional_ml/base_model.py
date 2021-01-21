@@ -37,18 +37,16 @@ class BaseModelComponent(autoPyTorchSetupComponent):
             self,
             random_state: Optional[np.random.RandomState] = None,
             model: Optional[BaseClassifier] = None,
-            preprocess_transforms: Optional[torchvision.transforms.Compose] = None,
             device: Optional[torch.device] = None
     ) -> None:
         super(BaseModelComponent, self).__init__()
         self.random_state = random_state
         self.fit_output: Dict[str, Any] = dict()
 
-        self.preprocess_transforms: Optional[torchvision.transforms.Compose] = preprocess_transforms
         self.model: Optional[BaseClassifier] = model
 
         self.add_fit_requirements([
-            FitRequirement('X_train', (np.ndarray, list,), user_defined=False, dataset_property=False),
+            FitRequirement('X_train', (np.ndarray, list, pd.DataFrame), user_defined=False, dataset_property=False),
             FitRequirement('y_train', (np.ndarray, list, pd.Series,), user_defined=False, dataset_property=False),
             FitRequirement('train_indices', (np.ndarray, list), user_defined=False, dataset_property=False),
             FitRequirement('val_indices', (np.ndarray, list), user_defined=False, dataset_property=False)])
@@ -68,6 +66,9 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         # information to fit this stage
         self.check_requirements(X, y)
 
+        if isinstance(X['X_train'], pd.DataFrame):
+            X['X_train'] = X['X_train'].to_numpy()
+
         if isinstance(X['y_train'], pd.core.series.Series):
             X['y_train'] = X['y_train'].to_numpy()
 
@@ -84,11 +85,11 @@ class BaseModelComponent(autoPyTorchSetupComponent):
                                          X['X_train'][X['val_indices']], X['y_train'][X['val_indices']])
         enablePrint()
 
-        self.preprocess_transforms = X['preprocess_transforms']  # storing for predicting on test set later
         # infer
         if 'X_test' in X.keys() and X['X_test'] is not None:
-            X_test = preprocess(X['X_test'], transforms=X['preprocess_transforms'])
-            test_preds = self.model.predict(X_test=X_test, predict_proba=True)
+            if isinstance(X['X_test'], pd.DataFrame):
+                X['X_test'] = X['X_test'].to_numpy()
+            test_preds = self.model.predict(X_test=X['X_test'], predict_proba=True)
             self.fit_output["test_preds"] = test_preds
         return self
 
@@ -101,16 +102,16 @@ class BaseModelComponent(autoPyTorchSetupComponent):
         """
         raise NotImplementedError()
 
-    def predict(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
+    def predict(self, X_test: Union[pd.DataFrame, np.ndarray]) -> Union[np.ndarray, List]:
         assert self.model is not None, "Cant predict without fitting first"
-        if self.preprocess_transforms is not None:
-            X_test = preprocess(X_test, transforms=self.preprocess_transforms)
+        if isinstance(X_test, pd.DataFrame):
+            X_test = X_test.to_numpy()
         return self.model.predict(X_test=X_test).reshape((-1, 1))
 
-    def predict_proba(self, X_test: np.ndarray) -> Union[np.ndarray, List]:
+    def predict_proba(self, X_test: Union[pd.DataFrame, np.ndarray]) -> Union[np.ndarray, List]:
         assert self.model is not None, "Cant predict without fitting first"
-        if self.preprocess_transforms is not None:
-            X_test = preprocess(X_test, transforms=self.preprocess_transforms)
+        if isinstance(X_test, pd.DataFrame):
+            X_test = X_test.to_numpy()
         return self.model.predict(X_test, predict_proba=True)
 
     def transform(self, X: Dict[str, Any]) -> Dict[str, Any]:

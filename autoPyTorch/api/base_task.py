@@ -587,25 +587,11 @@ class BaseTask:
                         "Additional output: %s.",
                         classifier, str(status), str(additional_info),
                     )
-                    # Fail if dummy prediction fails.
-                    raise ValueError(
-                        "Traditional prediction for %s failed with run state %s. "
-                        "The error suggests that the provided memory limits were too tight. Please "
-                        "increase the 'ml_memory_limit' and try again. If this does not solve your "
-                        "problem, please open an issue and paste the additional output. "
-                        "Additional output: %s." %
-                        (classifier, str(status), str(additional_info)),
-                    )
-
                 else:
+                    # TODO: add check for timeout, and provide feedback to user to consider increasing the time limit
                     self._logger.error(
                         "Traditional prediction for %s failed with run state %s and additional output: %s.",
                         classifier, str(status), str(additional_info),
-                    )
-                    # Fail if dummy prediction fails.
-                    raise ValueError(
-                        "Traditional prediction for %s failed with run state %s and additional output: %s."
-                        % (classifier, str(status), str(additional_info))
                     )
 
     def search(
@@ -616,7 +602,7 @@ class BaseTask:
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
-            traditional_per_total_budget: float = 0.1,
+            traditional_per_total_budget: float = 0.3,
             memory_limit: Optional[int] = 4096,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,

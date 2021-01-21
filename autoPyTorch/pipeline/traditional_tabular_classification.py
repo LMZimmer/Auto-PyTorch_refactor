@@ -222,11 +222,6 @@ class TraditionalTabularClassificationPipeline(ClassifierMixin, BasePipeline):
             default_dataset_properties.update(dataset_properties)
 
         steps.extend([
-            ("imputer", SimpleImputer()),
-            ("encoder", EncoderChoice(default_dataset_properties)),
-            ("scaler", ScalerChoice(default_dataset_properties)),
-            ("tabular_transformer", TabularColumnTransformer()),
-            ("preprocessing", EarlyPreprocessing()),
             ("model_trainer", ModelChoice(default_dataset_properties)),
         ])
         return steps
