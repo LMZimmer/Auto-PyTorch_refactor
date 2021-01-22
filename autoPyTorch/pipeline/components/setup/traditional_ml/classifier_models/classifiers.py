@@ -94,6 +94,8 @@ class LGBModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         if predict_proba:
             y_pred_proba = self.model.predict_proba(X_test)
             if self.num_classes == 2:
@@ -156,6 +158,8 @@ class CatboostModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -213,6 +217,8 @@ class RFModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -270,6 +276,8 @@ class ExtraTreesModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
@@ -320,6 +328,8 @@ class KNNModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         X_test = X_test[:, ~self.categoricals] if self.categoricals is not None else X_test
         if predict_proba:
             return self.model.predict_proba(X_test)
@@ -366,6 +376,8 @@ class SVMModel(BaseClassifier):
         return self.metric(y_test, y_pred)
 
     def predict(self, X_test: np.ndarray, predict_proba: bool = False) -> np.ndarray:
+        X_test = X_test[:, ~self.all_nan]
+        X_test = np.nan_to_num(X_test)
         if predict_proba:
             return self.model.predict_proba(X_test)
         y_pred = self.model.predict(X_test)
