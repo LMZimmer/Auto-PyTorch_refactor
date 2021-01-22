@@ -169,7 +169,6 @@ class BaseTask:
         self.trajectory: Optional[List] = None
         self.dataset_name: Optional[str] = None
         self.cv_models_: Dict = {}
-        self._num_run: Optional[int] = None
 
         # By default try to use the TCP logging port or get a new port
         self._logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
@@ -472,7 +471,7 @@ class BaseTask:
 
         return ensemble
 
-    def _do_dummy_prediction(self) -> None:
+    def _do_dummy_prediction(self, num_run: int) -> None:
 
         assert self._metric is not None
         assert self._logger is not None
@@ -496,14 +495,14 @@ class BaseTask:
             logger=self._logger,
             cost_for_crash=get_cost_of_crash(self._metric),
             abort_on_first_run_crash=False,
-            initial_num_run=self._num_run if self._num_run is not None else 1,
+            initial_num_run=num_run,
             stats=stats,
             memory_limit=memory_limit,
             disable_file_output=True if len(self._disable_file_output) > 0 else False,
             all_supported_metrics=self._all_supported_metrics
         )
 
-        status, cost, runtime, additional_info = ta.run(self._num_run, cutoff=self._time_for_task)
+        status, cost, runtime, additional_info = ta.run(num_run, cutoff=self._time_for_task)
         if status == StatusType.SUCCESS:
             self._logger.info("Finished creating dummy predictions.")
         else:
@@ -537,7 +536,7 @@ class BaseTask:
                     % (str(status), str(additional_info))
                 )
 
-    def _do_traditional_prediction(self, time_for_traditional: int) -> None:
+    def _do_traditional_prediction(self, num_run: int, time_for_traditional: int) -> int:
 
         assert self._metric is not None
         assert self._logger is not None
@@ -550,8 +549,7 @@ class BaseTask:
         available_classifiers = get_available_classifiers()
         dask_futures = list()
         time_for_traditional_classifier_sec = int(time_for_traditional / len(available_classifiers))
-        for num_run, classifier in enumerate(available_classifiers,
-                                             start=self._num_run + 1 if self._num_run is not None else 1):
+        for n_r, classifier in enumerate(available_classifiers, start=num_run):
             start_time = time.time()
             scenario_mock = unittest.mock.Mock()
             scenario_mock.wallclock_limit = time_for_traditional_classifier_sec
@@ -578,8 +576,7 @@ class BaseTask:
             # In the case of a serial execution, calling submit halts the run for a resource
             # dynamically adjust time in this case
             time_for_traditional_classifier_sec -= int(time.time() - start_time)
-
-        self._num_run = num_run
+            num_run = n_r
 
         for (classifier, future) in dask_futures:
             status, cost, runtime, additional_info = future.result()
@@ -601,6 +598,7 @@ class BaseTask:
                         "Traditional prediction for %s failed with run state %s and additional output: %s.",
                         classifier, str(status), str(additional_info),
                     )
+        return num_run
 
     def search(
             self,
@@ -728,10 +726,10 @@ class BaseTask:
         self._create_dask_client()
 
         # ============> Run dummy predictions
-        self._num_run = 1
+        num_run = 1
         dummy_task_name = 'runDummy'
         self._stopwatch.start_task(dummy_task_name)
-        self._do_dummy_prediction()
+        self._do_dummy_prediction(num_run)
         self._stopwatch.stop_task(dummy_task_name)
 
         # ============> Run traditional ml
@@ -742,7 +740,7 @@ class BaseTask:
             if traditional_per_total_budget > 0:
                 raise ValueError("Not enough time allocated to run traditional algorithms")
         elif traditional_per_total_budget != 0:
-            self._do_traditional_prediction(time_for_traditional)
+            num_run = self._do_traditional_prediction(num_run=num_run, time_for_traditional=time_for_traditional)
 
         # ============> Starting ensemble
         elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
@@ -815,7 +813,7 @@ class BaseTask:
                 pipeline_config={**self.pipeline_options, **budget_config},
                 ensemble_callback=proc_ensemble,
                 logger_port=self._logger_port,
-                start_num_run=self._num_run
+                start_num_run=num_run
             )
             try:
                 self.run_history, self.trajectory, budget_type = \

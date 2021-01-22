@@ -44,9 +44,7 @@ if __name__ == '__main__':
         X=X_train, Y=y_train,
         X_test=X_test, Y_test=y_test)
 
-    api = TabularClassificationTask(delete_tmp_folder_after_terminate=False,
-                                    temporary_directory='./tmp/example_tabular_classification_tmp',
-                                    output_directory='./tmp/example_tabular_classification_out')
+    api = TabularClassificationTask(delete_tmp_folder_after_terminate=False,)
     api.search(dataset=datamanager, optimize_metric='accuracy', total_walltime_limit=500, func_eval_time_limit=150)
     print(api.run_history, api.trajectory)
     y_pred = api.predict(X_test)

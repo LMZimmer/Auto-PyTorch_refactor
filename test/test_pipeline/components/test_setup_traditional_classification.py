@@ -117,12 +117,13 @@ class TestTraditionalClassifiers:
         # if the result is same as the one in results
         y_pred = classifier.predict(X, predict_proba=True)
         assert np.allclose(y_pred, results['val_preds'], atol=1e-04)
-
+        assert y_pred.shape[0] == y.shape[0]
         # Test if classifier can score and
         # the result is same as in results
         score = classifier.score(X, y)
         assert score == results['val_score']
-
+        # Test if score is greater than 0.8
+        assert score >= 0.8
         # delete folder created by catboost
         if isinstance(classifier, CatboostModel):
             shutil.rmtree('./catboost_info')
