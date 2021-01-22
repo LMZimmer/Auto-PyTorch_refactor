@@ -40,7 +40,8 @@ class TabularClassifier(BaseModelComponent):
                                         **kwargs: Any) -> ConfigurationSpace:
         cs = ConfigurationSpace()
         classifiers: Dict[str, Type[BaseClassifier]] = get_available_classifiers()
-        if len(dataset_properties['numerical_columns']) == 0:
+        # Remove knn classifier if data is all categorical
+        if dataset_properties is not None and len(dataset_properties['numerical_columns']) == 0:
             del classifiers['knn_classifier']
         classifier_hp = CategoricalHyperparameter("classifier", choices=classifiers.keys())
         cs.add_hyperparameters([classifier_hp])
