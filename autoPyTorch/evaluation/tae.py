@@ -239,12 +239,13 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         pynisher_arguments = dict(
             logger=get_named_client_logger(name="pynisher", port=self.logger_port),
-            wall_time_in_s=cutoff,
+            # Pynisher expects seconds as a time indicator
+            wall_time_in_s=int(cutoff) if cutoff is not None else None,
             mem_in_mb=self.memory_limit,
             capture_output=True,
         )
 
-        if isinstance(config, int):
+        if isinstance(config, (int, str)):
             num_run = self.initial_num_run
         else:
             num_run = config.config_id + self.initial_num_run
@@ -406,6 +407,8 @@ class ExecuteTaFuncWithQueue(AbstractTAFunc):
 
         if isinstance(config, int):
             origin = 'DUMMY'
+        elif isinstance(config, str):
+            origin = 'traditional'
         else:
             origin = getattr(config, 'origin', 'UNKNOWN')
         additional_run_info['configuration_origin'] = origin

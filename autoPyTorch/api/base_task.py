@@ -1,12 +1,14 @@
 import copy
 import json
 import logging.handlers
+import math
 import multiprocessing
 import os
 import sys
 import tempfile
 import time
 import typing
+import unittest.mock
 import warnings
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union, cast
@@ -22,6 +24,8 @@ import numpy as np
 import pandas as pd
 
 from smac.runhistory.runhistory import RunHistory
+from smac.stats.stats import Stats
+from smac.tae import StatusType
 
 from autoPyTorch.constants import (
     REGRESSION_TASKS,
@@ -34,8 +38,10 @@ from autoPyTorch.ensemble.ensemble_builder import EnsembleBuilderManager
 from autoPyTorch.ensemble.ensemble_selection import EnsembleSelection
 from autoPyTorch.ensemble.singlebest_ensemble import SingleBest
 from autoPyTorch.evaluation.abstract_evaluator import fit_and_suppress_warnings
+from autoPyTorch.evaluation.tae import ExecuteTaFuncWithQueue, get_cost_of_crash
 from autoPyTorch.optimizer.smbo import AutoMLSMBO
 from autoPyTorch.pipeline.base_pipeline import BasePipeline
+from autoPyTorch.pipeline.components.setup.traditional_ml.classifier_models import get_available_classifiers
 from autoPyTorch.pipeline.components.training.metrics.base import autoPyTorchMetric
 from autoPyTorch.pipeline.components.training.metrics.utils import calculate_score, get_metrics
 from autoPyTorch.utils.backend import Backend, create
@@ -465,6 +471,135 @@ class BaseTask:
 
         return ensemble
 
+    def _do_dummy_prediction(self, num_run: int) -> None:
+
+        assert self._metric is not None
+        assert self._logger is not None
+
+        self._logger.info("Starting to create dummy predictions.")
+
+        memory_limit = self._memory_limit
+        if memory_limit is not None:
+            memory_limit = int(math.ceil(memory_limit))
+
+        scenario_mock = unittest.mock.Mock()
+        scenario_mock.wallclock_limit = self._time_for_task
+        # This stats object is a hack - maybe the SMAC stats object should
+        # already be generated here!
+        stats = Stats(scenario_mock)
+        stats.start_timing()
+        ta = ExecuteTaFuncWithQueue(
+            backend=self._backend,
+            seed=self.seed,
+            metric=self._metric,
+            logger=self._logger,
+            cost_for_crash=get_cost_of_crash(self._metric),
+            abort_on_first_run_crash=False,
+            initial_num_run=num_run,
+            stats=stats,
+            memory_limit=memory_limit,
+            disable_file_output=True if len(self._disable_file_output) > 0 else False,
+            all_supported_metrics=self._all_supported_metrics
+        )
+
+        status, cost, runtime, additional_info = ta.run(num_run, cutoff=self._time_for_task)
+        if status == StatusType.SUCCESS:
+            self._logger.info("Finished creating dummy predictions.")
+        else:
+            if additional_info.get('exitcode') == -6:
+                self._logger.error(
+                    "Dummy prediction failed with run state %s. "
+                    "The error suggests that the provided memory limits were too tight. Please "
+                    "increase the 'ml_memory_limit' and try again. If this does not solve your "
+                    "problem, please open an issue and paste the additional output. "
+                    "Additional output: %s.",
+                    str(status), str(additional_info),
+                )
+                # Fail if dummy prediction fails.
+                raise ValueError(
+                    "Dummy prediction failed with run state %s. "
+                    "The error suggests that the provided memory limits were too tight. Please "
+                    "increase the 'ml_memory_limit' and try again. If this does not solve your "
+                    "problem, please open an issue and paste the additional output. "
+                    "Additional output: %s." %
+                    (str(status), str(additional_info)),
+                )
+
+            else:
+                self._logger.error(
+                    "Dummy prediction failed with run state %s and additional output: %s.",
+                    str(status), str(additional_info),
+                )
+                # Fail if dummy prediction fails.
+                raise ValueError(
+                    "Dummy prediction failed with run state %s and additional output: %s."
+                    % (str(status), str(additional_info))
+                )
+
+    def _do_traditional_prediction(self, num_run: int, time_for_traditional: int) -> int:
+
+        assert self._metric is not None
+        assert self._logger is not None
+
+        self._logger.info("Starting to create dummy predictions.")
+
+        memory_limit = self._memory_limit
+        if memory_limit is not None:
+            memory_limit = int(math.ceil(memory_limit))
+        available_classifiers = get_available_classifiers()
+        dask_futures = list()
+        time_for_traditional_classifier_sec = int(time_for_traditional / len(available_classifiers))
+        for n_r, classifier in enumerate(available_classifiers, start=num_run):
+            start_time = time.time()
+            scenario_mock = unittest.mock.Mock()
+            scenario_mock.wallclock_limit = time_for_traditional_classifier_sec
+            # This stats object is a hack - maybe the SMAC stats object should
+            # already be generated here!
+            stats = Stats(scenario_mock)
+            stats.start_timing()
+            ta = ExecuteTaFuncWithQueue(
+                backend=self._backend,
+                seed=self.seed,
+                metric=self._metric,
+                logger=self._logger,
+                cost_for_crash=get_cost_of_crash(self._metric),
+                abort_on_first_run_crash=False,
+                initial_num_run=num_run,
+                stats=stats,
+                memory_limit=memory_limit,
+                disable_file_output=True if len(self._disable_file_output) > 0 else False,
+                all_supported_metrics=self._all_supported_metrics
+            )
+            dask_futures.append((classifier, self._dask_client.submit(ta.run, config=classifier,
+                                                                      cutoff=time_for_traditional_classifier_sec)))
+
+            # In the case of a serial execution, calling submit halts the run for a resource
+            # dynamically adjust time in this case
+            time_for_traditional_classifier_sec -= int(time.time() - start_time)
+            num_run = n_r
+
+        for (classifier, future) in dask_futures:
+            status, cost, runtime, additional_info = future.result()
+            if status == StatusType.SUCCESS:
+                self._logger.info("Finished creating predictions for {}".format(classifier))
+            else:
+                if additional_info.get('exitcode') == -6:
+                    self._logger.error(
+                        "Traditional prediction for %s failed with run state %s. "
+                        "The error suggests that the provided memory limits were too tight. Please "
+                        "increase the 'ml_memory_limit' and try again. If this does not solve your "
+                        "problem, please open an issue and paste the additional output. "
+                        "Additional output: %s.",
+                        classifier, str(status), str(additional_info),
+                    )
+                else:
+                    # TODO: add check for timeout, and provide feedback to user to consider increasing the time limit
+                    self._logger.error(
+                        "Traditional prediction for %s failed with run state %s and additional output: %s.",
+                        classifier, str(status), str(additional_info),
+                    )
+        return num_run
+
     def search(
             self,
             dataset: BaseDataset,
@@ -473,6 +608,7 @@ class BaseTask:
             budget: Optional[float] = None,
             total_walltime_limit: int = 100,
             func_eval_time_limit: int = 60,
+            traditional_per_total_budget: float = 0.1,
             memory_limit: Optional[int] = 4096,
             smac_scenario_args: Optional[Dict[str, Any]] = None,
             get_smac_object_callback: Optional[Callable] = None,
@@ -512,6 +648,9 @@ class BaseTask:
                 this value high enough so that typical machine
                 learning algorithms can be fit on the training
                 data.
+            traditional_per_total_budget (float), (default=0.1):
+                Percent of total walltime to be allocated for
+                running traditional classifiers.
             memory_limit (Optional[int]), (default=4096): Memory
                 limit in MB for the machine learning algorithm. autopytorch
                 will stop fitting the machine learning algorithm if it tries
@@ -558,7 +697,10 @@ class BaseTask:
         self.dataset_name = dataset.dataset_name
         self.resampling_strategy = dataset.resampling_strategy
         self._logger = self._get_logger(self.dataset_name)
+        self._all_supported_metrics = all_supported_metrics
         self._disable_file_output = disable_file_output
+        self._memory_limit = memory_limit
+        self._time_for_task = total_walltime_limit
         # Save start time to backend
         self._backend.save_start_time(str(self.seed))
 
@@ -582,8 +724,39 @@ class BaseTask:
             raise ValueError("Cannot interpret task type from the dataset")
 
         self._create_dask_client()
+
+        # ============> Run dummy predictions
+        num_run = 1
+        dummy_task_name = 'runDummy'
+        self._stopwatch.start_task(dummy_task_name)
+        self._do_dummy_prediction(num_run)
+        self._stopwatch.stop_task(dummy_task_name)
+
+        # ============> Run traditional ml
+
+        traditional_task_name = 'runTraditional'
+        self._stopwatch.start_task(traditional_task_name)
+        elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
+        time_for_traditional = int(traditional_per_total_budget * max(0, (self._time_for_task - elapsed_time)))
+        if time_for_traditional <= 0:
+            if traditional_per_total_budget > 0:
+                raise ValueError("Not enough time allocated to run traditional algorithms")
+        elif traditional_per_total_budget != 0:
+            num_run = self._do_traditional_prediction(num_run=num_run + 1, time_for_traditional=time_for_traditional)
+        self._stopwatch.stop_task(traditional_task_name)
+
+        # ============> Starting ensemble
+        elapsed_time = self._stopwatch.wall_elapsed(self.dataset_name)
+        time_left_for_ensembles = max(0, total_walltime_limit - elapsed_time)
         proc_ensemble = None
-        if self.ensemble_size <= 0:
+        if time_left_for_ensembles <= 0:
+            # Fit only raises error when ensemble_size is not zero but
+            # time_left_for_ensembles is zero.
+            if self.ensemble_size > 0:
+                raise ValueError("Not starting ensemble builder because there "
+                                 "is no time left. Try increasing the value "
+                                 "of time_left_for_this_task.")
+        elif self.ensemble_size <= 0:
             self._logger.info("Not starting ensemble builder as ensemble size is 0")
         else:
             self._logger.info("Starting ensemble")
@@ -591,7 +764,7 @@ class BaseTask:
             self._stopwatch.start_task(ensemble_task_name)
             proc_ensemble = EnsembleBuilderManager(
                 start_time=time.time(),
-                time_left_for_ensembles=total_walltime_limit,
+                time_left_for_ensembles=time_left_for_ensembles,
                 backend=copy.deepcopy(self._backend),
                 dataset_name=dataset.dataset_name,
                 output_type=STRING_TO_OUTPUT_TYPES[dataset.output_type],
@@ -604,7 +777,7 @@ class BaseTask:
                 seed=self.seed,
                 max_iterations=None,
                 read_at_most=np.inf,
-                ensemble_memory_limit=memory_limit,
+                ensemble_memory_limit=self._memory_limit,
                 random_state=self.seed,
                 precision=precision,
                 logger_port=self._logger_port
@@ -629,20 +802,21 @@ class BaseTask:
                 total_walltime_limit=total_walltime_limit,
                 func_eval_time_limit=func_eval_time_limit,
                 dask_client=self._dask_client,
-                memory_limit=memory_limit,
+                memory_limit=self._memory_limit,
                 n_jobs=self.n_jobs,
                 watcher=self._stopwatch,
                 metric=self._metric,
                 seed=self.seed,
                 include=self.include_components,
                 exclude=self.exclude_components,
-                disable_file_output=disable_file_output,
-                all_supported_metrics=all_supported_metrics,
+                disable_file_output=self._disable_file_output,
+                all_supported_metrics=self._all_supported_metrics,
                 smac_scenario_args=smac_scenario_args,
                 get_smac_object_callback=get_smac_object_callback,
                 pipeline_config={**self.pipeline_options, **budget_config},
                 ensemble_callback=proc_ensemble,
-                logger_port=self._logger_port
+                logger_port=self._logger_port,
+                start_num_run=num_run
             )
             try:
                 self.run_history, self.trajectory, budget_type = \
@@ -915,7 +1089,7 @@ class BaseTask:
     def __getstate__(self) -> Dict[str, Any]:
         # Cannot serialize a client!
         self._dask_client = None
-        self.logging_server = None
+        self.logging_server = None  # type: ignore [assignment]
         self.stop_logging_server = None
         return self.__dict__
 

@@ -344,7 +344,7 @@ class EvaluationTest(unittest.TestCase):
         self.assertNotIn('exitcode', info[1].additional_info)
 
     def test_silent_exception_in_target_function(self):
-        config = unittest.mock.Mock()
+        config = unittest.mock.Mock(spec=int)
         config.config_id = 198
 
         ta = ExecuteTaFuncWithQueue(backend=BackendMock(), seed=1,

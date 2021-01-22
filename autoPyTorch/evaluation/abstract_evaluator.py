@@ -19,6 +19,7 @@ from smac.tae import StatusType
 import autoPyTorch.pipeline.image_classification
 import autoPyTorch.pipeline.tabular_classification
 import autoPyTorch.pipeline.tabular_regression
+import autoPyTorch.pipeline.traditional_tabular_classification
 from autoPyTorch.constants import (
     CLASSIFICATION_TASKS,
     IMAGE_TASKS,
@@ -48,6 +49,43 @@ __all__ = [
     'AbstractEvaluator',
     'fit_and_suppress_warnings'
 ]
+
+
+class MyTraditionalTabularClassificationPipeline(BaseEstimator):
+    def __init__(self, config: str,
+                 dataset_properties: Dict[str, Any],
+                 random_state: Optional[Union[int, np.random.RandomState]] = None,
+                 init_params: Optional[Dict] = None):
+        self.pipeline = autoPyTorch.pipeline.traditional_tabular_classification.\
+            TraditionalTabularClassificationPipeline(dataset_properties=dataset_properties)
+        configuration_space = self.pipeline.get_hyperparameter_search_space()
+        default_configuration = configuration_space.get_default_configuration().get_dictionary()
+        default_configuration['model_trainer:tabular_classifier:classifier'] = config
+        configuration = Configuration(configuration_space, default_configuration)
+        self.pipeline.set_hyperparameters(configuration)
+
+    def fit(self, X: Dict[str, Any], y: Any,
+            sample_weight: Optional[np.ndarray] = None) -> object:
+        return self.pipeline.fit(X, y)
+
+    def predict_proba(self, X: Union[np.ndarray, pd.DataFrame],
+                      batch_size: int = 1000) -> np.array:
+        return self.pipeline.predict_proba(X, batch_size=batch_size)
+
+    def predict(self, X: Union[np.ndarray, pd.DataFrame],
+                batch_size: int = 1000) -> np.array:
+        return self.pipeline.predict(X, batch_size=batch_size)
+
+    def estimator_supports_iterative_fit(self) -> bool:  # pylint: disable=R0201
+        return False
+
+    def get_additional_run_info(self) -> None:  # pylint: disable=R0201
+        return None
+
+    @staticmethod
+    def get_default_pipeline_options() -> Dict[str, Any]:
+        return autoPyTorch.pipeline.traditional_tabular_classification. \
+            TraditionalTabularClassificationPipeline.get_default_pipeline_options()
 
 
 class DummyClassificationPipeline(DummyClassifier):
@@ -212,18 +250,26 @@ class AbstractEvaluator(object):
                                 'output_type': self.datamanager.output_type,
                                 'issparse': self.issparse}
         if self.task_type in REGRESSION_TASKS:
-            if not isinstance(self.configuration, Configuration):
-                self.pipeline_class = DummyRegressionPipeline
+            if isinstance(self.configuration, int):
+                self.pipeline_class = DummyClassificationPipeline
+            elif isinstance(self.configuration, str):
+                raise ValueError("Only tabular classifications tasks "
+                                 "are currently supported with traditional methods")
+            elif isinstance(self.configuration, Configuration):
+                self.pipeline_class = autoPyTorch.pipeline.tabular_regression.TabularRegressionPipeline
             else:
-                if self.task_type in TABULAR_TASKS:
-                    self.pipeline_class = autoPyTorch.pipeline.tabular_regression.TabularRegressionPipeline
-                else:
-                    raise ValueError('task {} not available'.format(self.task_type))
+                raise ValueError('task {} not available'.format(self.task_type))
             self.predict_function = self._predict_regression
         else:
-            if not isinstance(self.configuration, Configuration):
+            if isinstance(self.configuration, int):
                 self.pipeline_class = DummyClassificationPipeline
-            else:
+            elif isinstance(self.configuration, str):
+                if self.task_type in TABULAR_TASKS:
+                    self.pipeline_class = MyTraditionalTabularClassificationPipeline
+                else:
+                    raise ValueError("Only tabular classifications tasks "
+                                     "are currently supported with traditional methods")
+            elif isinstance(self.configuration, Configuration):
                 if self.task_type in TABULAR_TASKS:
                     self.pipeline_class = autoPyTorch.pipeline.tabular_classification.TabularClassificationPipeline
                 elif self.task_type in IMAGE_TASKS:
@@ -252,7 +298,8 @@ class AbstractEvaluator(object):
             'backend': self.backend,
             'logger_port': logger_port,
         })
-        pipeline_config = pipeline_config if pipeline_config is not None\
+        assert self.pipeline_class is not None, "Could not infer pipeline class"
+        pipeline_config = pipeline_config if pipeline_config is not None \
             else self.pipeline_class.get_default_pipeline_options()
         self.budget_type = pipeline_config['budget_type'] if budget_type is None else budget_type
         self.budget = pipeline_config[self.budget_type] if budget == 0 else budget
@@ -265,7 +312,7 @@ class AbstractEvaluator(object):
         self.num_run = 0 if num_run is None else num_run
 
         logger_name = '%s(%d)' % (self.__class__.__name__.split('.')[-1],
-                                  self.seed)  # TODO: Add name to dataset class
+                                  self.seed)
         if logger_port is None:
             logger_port = logging.handlers.DEFAULT_TCP_LOGGING_PORT
         self.logger = get_named_client_logger(
@@ -280,17 +327,24 @@ class AbstractEvaluator(object):
 
     def _get_pipeline(self) -> BaseEstimator:
         assert self.pipeline_class is not None, "Can't return pipeline, pipeline_class not initialised"
-        if not isinstance(self.configuration, Configuration):
+        if isinstance(self.configuration, int):
             pipeline = self.pipeline_class(config=self.configuration,
                                            random_state=np.random.RandomState(self.seed),
                                            init_params=self.fit_dictionary)
-        else:
+        elif isinstance(self.configuration, Configuration):
             pipeline = self.pipeline_class(config=self.configuration,
                                            dataset_properties=self.dataset_properties,
                                            random_state=np.random.RandomState(self.seed),
                                            include=self.include,
                                            exclude=self.exclude,
                                            init_params=self._init_params)
+        elif isinstance(self.configuration, str):
+            pipeline = self.pipeline_class(config=self.configuration,
+                                           dataset_properties=self.dataset_properties,
+                                           random_state=np.random.RandomState(self.seed),
+                                           init_params=self.fit_dictionary)
+        else:
+            raise ValueError("Invalid configuration entered")
         return pipeline
 
     def _loss(self, y_true: np.ndarray, y_hat: np.ndarray) -> Dict[str, float]:
@@ -471,9 +525,9 @@ class AbstractEvaluator(object):
             pipeline = None
 
         self.backend.save_numrun_to_dir(
-            seed=self.seed,
-            idx=self.num_run,
-            budget=self.budget,
+            seed=int(self.seed),
+            idx=int(self.num_run),
+            budget=float(self.budget),
             model=pipeline,
             cv_model=pipelines,
             ensemble_predictions=(
