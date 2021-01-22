@@ -1,3 +1,4 @@
+import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 from catboost import CatBoostClassifier, Pool
@@ -110,6 +111,7 @@ class CatboostModel(BaseClassifier):
 
     def __init__(self) -> None:
         super(CatboostModel, self).__init__(name="catboost")
+        self.config["train_dir"] = tempfile.gettempdir()
 
     def fit(self, X_train: np.ndarray,
             y_train: np.ndarray,

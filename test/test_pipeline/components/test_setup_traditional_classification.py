@@ -1,6 +1,5 @@
 import copy
 import os
-import shutil
 import sys
 
 import numpy as np
@@ -124,6 +123,3 @@ class TestTraditionalClassifiers:
         assert score == results['val_score']
         # Test if score is greater than 0.8
         assert score >= 0.8
-        # delete folder created by catboost
-        if isinstance(classifier, CatboostModel):
-            shutil.rmtree('./catboost_info')
