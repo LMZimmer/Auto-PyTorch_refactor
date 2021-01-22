@@ -742,7 +742,7 @@ class BaseTask:
             if traditional_per_total_budget > 0:
                 raise ValueError("Not enough time allocated to run traditional algorithms")
         elif traditional_per_total_budget != 0:
-            num_run = self._do_traditional_prediction(num_run=num_run+1, time_for_traditional=time_for_traditional)
+            num_run = self._do_traditional_prediction(num_run=num_run + 1, time_for_traditional=time_for_traditional)
         self._stopwatch.stop_task(traditional_task_name)
 
         # ============> Starting ensemble
