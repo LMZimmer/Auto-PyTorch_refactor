@@ -12,13 +12,9 @@ import torch
 from torch import nn
 
 from autoPyTorch.pipeline.components.setup.network.backbone.base_backbone import BaseBackbone
-from autoPyTorch.pipeline.components.setup.network.utils import (
-    get_shaped_neuron_counts,
-    shake_drop,
-    shake_drop_get_bl,
-    shake_get_alpha_beta,
-    shake_shake
-)
+from autoPyTorch.pipeline.components.setup.network.utils.shape import get_shaped_neuron_counts
+from autoPyTorch.pipeline.components.setup.network.utils.shake_tabular import shake_drop, shake_drop_get_bl, \
+    shake_get_alpha_beta, shake_shake
 
 _activations = {
     "relu": nn.ReLU,
@@ -84,9 +80,7 @@ class MLPBackbone(BaseBackbone):
                                         max_mlp_layers: int = 15,
                                         dropout: bool = True,
                                         min_num_units: int = 10,
-                                        max_num_units: int = 1024,
-                                        ) -> ConfigurationSpace:
-
+                                        max_num_units: int = 1024) -> ConfigurationSpace:
         cs = ConfigurationSpace()
 
         # The number of hidden layers the network will have.
@@ -203,7 +197,9 @@ class ShapedMLPBackbone(BaseBackbone):
                                         max_num_groups: int = 15,
                                         min_num_units: int = 10,
                                         max_num_units: int = 1024,
-                                        ) -> ConfigurationSpace:
+                                        shapes: Tuple[str] = ('funnel', 'long_funnel', 'diamond',
+                                                              'hexagon', 'brick', 'triangle',
+                                                              'stairs')) -> ConfigurationSpace:
 
         cs = ConfigurationSpace()
 
@@ -213,9 +209,7 @@ class ShapedMLPBackbone(BaseBackbone):
         num_groups = UniformIntegerHyperparameter(
             "num_groups", lower=min_num_gropus, upper=max_num_groups, default_value=5)
 
-        mlp_shape = CategoricalHyperparameter('mlp_shape', choices=[
-            'funnel', 'long_funnel', 'diamond', 'hexagon', 'brick', 'triangle', 'stairs'
-        ])
+        mlp_shape = CategoricalHyperparameter('mlp_shape', choices=shapes)
 
         activation = CategoricalHyperparameter(
             "activation", choices=list(_activations.keys())
@@ -264,15 +258,15 @@ class ResNetBackbone(BaseBackbone):
         for i in range(1, self.config['num_groups'] + 1):
             layers.append(
                 self._add_group(
-                    in_features=self.config["num_units_%d" % (i - 1)],
-                    out_features=self.config["num_units_%d" % i],
-                    blocks_per_group=self.config["blocks_per_group_%d" % i],
-                    last_block_index=(i - 1) * self.config["blocks_per_group_%d" % i],
+                    in_features=self.config[f"num_units_{i - 1}"],
+                    out_features=self.config[f"num_units_{i}"],
+                    blocks_per_group=self.config[f"blocks_per_group_{i}"],
+                    last_block_index=(i - 1) * self.config[f"blocks_per_group_{i}"],
                     dropout=self.config['use_dropout']
                 )
             )
 
-        layers.append(nn.BatchNorm1d(self.config["num_units_%i" % self.config['num_groups']]))
+        layers.append(nn.BatchNorm1d(self.config[f"num_units_{self.config['num_groups']}"]))
         layers.append(_activations[self.config["activation"]]())
         backbone = nn.Sequential(*layers)
         self.backbone = backbone
@@ -296,7 +290,7 @@ class ResNetBackbone(BaseBackbone):
         blocks = list()
         for i in range(blocks_per_group):
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     config=self.config,
                     in_features=in_features,
                     out_features=out_features,
@@ -323,8 +317,7 @@ class ResNetBackbone(BaseBackbone):
                                         min_blocks_per_groups: int = 1,
                                         max_blocks_per_groups: int = 4,
                                         min_num_units: int = 10,
-                                        max_num_units: int = 1024,
-                                        ) -> ConfigurationSpace:
+                                        max_num_units: int = 1024) -> ConfigurationSpace:
         cs = ConfigurationSpace()
 
         # The number of groups that will compose the resnet. That is,
@@ -356,12 +349,12 @@ class ResNetBackbone(BaseBackbone):
         for i in range(0, max_num_groups + 1):
 
             n_units = UniformIntegerHyperparameter(
-                "num_units_%d" % i,
+                f"num_units_{i}",
                 lower=min_num_units,
                 upper=max_num_units,
             )
             blocks_per_group = UniformIntegerHyperparameter(
-                "blocks_per_group_%d" % i, lower=min_blocks_per_groups,
+                f"blocks_per_group_{i}", lower=min_blocks_per_groups,
                 upper=max_blocks_per_groups)
 
             cs.add_hyperparameters([n_units, blocks_per_group])
@@ -371,7 +364,7 @@ class ResNetBackbone(BaseBackbone):
                 cs.add_condition(CS.GreaterThanCondition(blocks_per_group, num_groups, i - 1))
 
             this_dropout = UniformFloatHyperparameter(
-                "dropout_%d" % i, lower=0.0, upper=1.0
+                f"dropout_{i}", lower=0.0, upper=1.0
             )
             cs.add_hyperparameters([this_dropout])
 
@@ -387,7 +380,7 @@ class ResNetBackbone(BaseBackbone):
         return cs
 
 
-class ResBlock(nn.Module):
+class _ResBlock(nn.Module):
     """
     __author__ = "Max Dippel, Michael Burkart and Matthias Urban"
     """
@@ -402,7 +395,7 @@ class ResBlock(nn.Module):
             dropout: bool,
             activation: nn.Module
     ):
-        super(ResBlock, self).__init__()
+        super(_ResBlock, self).__init__()
         self.config = config
         self.dropout = dropout
         self.activation = activation
@@ -424,7 +417,7 @@ class ResBlock(nn.Module):
         self.num_blocks = blocks_per_group * self.config["num_groups"]
         self.layers = self._build_block(in_features, out_features)
 
-        if config["use_shake_shake"]:
+        if self.config["use_shake_shake"]:
             self.shake_shake_layers = self._build_block(in_features, out_features)
 
     # each bloack consists of two linear layers with batch norm and activation
@@ -503,11 +496,11 @@ class ShapedResNetBackbone(ResNetBackbone):
                                                  self.config['max_units'],
                                                  self.config['num_groups'] + 2)[:-1]
         self.config.update(
-            {"num_units_%d" % (i): num for i, num in enumerate(neuron_counts)}
+            {f"num_units_{i}": num for i, num in enumerate(neuron_counts)}
         )
-        if self.config['use_dropout'] and self.config["max_dropout"] > 0.05:
+        if self.config["use_dropout"] and self.config["max_dropout"] > 0.05:
             dropout_shape = get_shaped_neuron_counts(
-                self.config['resnet_shape'], 0, 0, 1000, self.config['num_groups']
+                self.config["resnet_shape"], 0, 0, 1000, self.config["num_groups"]
             )
 
             dropout_shape = [
@@ -515,24 +508,24 @@ class ShapedResNetBackbone(ResNetBackbone):
             ]
 
             self.config.update(
-                {"dropout_%d" % (i + 1): dropout for i, dropout in enumerate(dropout_shape)}
+                {f"dropout_{i + 1}": dropout for i, dropout in enumerate(dropout_shape)}
             )
         layers.append(nn.Linear(in_features, self.config["num_units_0"]))
 
         # build num_groups-1 groups each consisting of blocks_per_group ResBlocks
         # the output features of each group is defined by num_units_i
-        for i in range(1, self.config['num_groups'] + 1):
+        for i in range(1, self.config["num_groups"] + 1):
             layers.append(
                 self._add_group(
-                    in_features=self.config["num_units_%d" % (i - 1)],
-                    out_features=self.config["num_units_%d" % i],
+                    in_features=self.config[f"num_units_{i - 1}"],
+                    out_features=self.config[f"num_units_{i}"],
                     blocks_per_group=self.config["blocks_per_group"],
                     last_block_index=(i - 1) * self.config["blocks_per_group"],
-                    dropout=self.config['use_dropout']
+                    dropout=self.config["use_dropout"]
                 )
             )
 
-        layers.append(nn.BatchNorm1d(self.config["num_units_%i" % self.config['num_groups']]))
+        layers.append(nn.BatchNorm1d(self.config[f"num_units_{self.config['num_groups']}"]))
         backbone = nn.Sequential(*layers)
         self.backbone = backbone
         return backbone
@@ -552,21 +545,15 @@ class ShapedResNetBackbone(ResNetBackbone):
                                         max_blocks_per_groups: int = 4,
                                         min_num_units: int = 10,
                                         max_num_units: int = 1024,
-                                        ) -> ConfigurationSpace:
+                                        shapes: Tuple[str] = ('funnel', 'long_funnel', 'diamond',
+                                                              'hexagon', 'brick', 'triangle',
+                                                              'stairs')) -> ConfigurationSpace:
         cs = ConfigurationSpace()
 
         # Support for different shapes
         resnet_shape = CategoricalHyperparameter(
             'resnet_shape',
-            choices=[
-                'funnel',
-                'long_funnel',
-                'diamond',
-                'hexagon',
-                'brick',
-                'triangle',
-                'stairs'
-            ]
+            choices=shapes
         )
         cs.add_hyperparameter(resnet_shape)
 
